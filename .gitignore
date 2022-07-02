@@ -1,0 +1,12 @@
+# Adds data dirs to gitignore so that samples wont be uploaded
+data/256x256/
+data/512x512/
+
+# Adds output dir to gitignore so that models wont be uploaded
+output/
+
+# Adds .ipynb_checkpoints dir to gitignore so that jupyter checkpoints wont be uploaded
+notebooks/.ipynb_checkpoints/
+
+# Adds pycache files to gitignore so that they arent uploaded as well
+*.pyc
