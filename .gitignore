@@ -8,5 +8,8 @@ output/
 # Adds .ipynb_checkpoints dir to gitignore so that jupyter checkpoints wont be uploaded
 notebooks/.ipynb_checkpoints/
 
+# Adds .ipynb_checkpoints dir to gitignore so that jupyter checkpoints wont be uploaded
+.vscode/
+
 # Adds pycache files to gitignore so that they arent uploaded as well
 *.pyc
