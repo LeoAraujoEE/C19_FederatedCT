@@ -1,6 +1,6 @@
 # Adds data dirs to gitignore so that samples wont be uploaded
-data/256x256/
-data/512x512/
+data/classification/256x256/
+data/classification/512x512/
 
 # Adds output dir to gitignore so that models wont be uploaded
 output/
