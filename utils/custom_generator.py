@@ -42,8 +42,11 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
             print( "\nOnly {} of {} classes are represented in this dataset...".format( getattr(dataset, "n_classes"), self.n_classes ) )
 
         # Defines other metadata based on the given parameters
+        inputH = hyperparameters["input_height"]
+        inputW = hyperparameters["input_width"]
+        inputC = hyperparameters["input_channels"]
         self.batch_size = hyperparameters["batchsize"]
-        self.input_size = hyperparameters["input_size"]
+        self.input_size = (inputH, inputW, inputC)
         self.shuffle = shuffle
 
         self.set_dataframes( df )
@@ -285,8 +288,11 @@ class CustomDataGen(tf.keras.utils.Sequence):
             print( "\nOnly {} of {} classes are represented in this dataset...".format( getattr(dataset, "n_classes"), self.n_classes ) )
 
         # Defines other metadata based on the given parameters
+        inputH = hyperparameters["input_height"]
+        inputW = hyperparameters["input_width"]
+        inputC = hyperparameters["input_channels"]
         self.batch_size = hyperparameters["batchsize"]
-        self.input_size = hyperparameters["input_size"]
+        self.input_size = (inputH, inputW, inputC)
         self.shuffle = shuffle
             
         # Saves the augmentation dict whithin the generator class
