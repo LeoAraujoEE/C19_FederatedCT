@@ -358,9 +358,6 @@ class ModelTrainer(ModelEntity):
         print("\nSaving training hyperparameters as JSON...")
         self.hyperparam_to_json(model_path, hyperparameters, data_aug_params)
 
-        # TODO: Retirar isso aqui
-        # self.verificar_acc( model_path, hyperparameters )
-
         return
 
     def get_dicts(self, args_dict):
@@ -754,74 +751,6 @@ class ModelTrainer(ModelEntity):
             return True
         # Otherwise returns false to execute the current step
         return False
-
-    def verificar_acc( self, model_path, hyperparameters ):
-        print("\nLoading model from '{}'...".format(model_path))
-
-        # Loads model
-        print("\nLoading model...")
-        self.load_model(model_path)
-        self.prepare_model( hyperparameters, mock_test = True )
-        print("\nModel loaded...")
-
-        # Pega infos do dataset
-        self.dataset.load_dataframes()
-        df = self.dataset.get_dataframe("val")
-        i_dir = self.dataset.get_relative_path()
-        i_col = self.dataset.input_col
-        o_col = self.dataset.output_col
-
-        nn_config = self.model.get_config()
-        _, h, w, c = nn_config["layers"][0]["config"]["batch_input_shape"]
-
-        # Identifies each individual class from given labels
-        unq_labels = np.unique( df[o_col].to_list() )
-        label2class_dict = { label: clss for clss, label in enumerate(unq_labels) }
-        class2label_dict = { clss: label for clss, label in enumerate(unq_labels) }
-
-        erros = 0
-        acertos = 0
-
-        # itera o dataframe pra pegar preds e labels
-        preds  = []
-        labels = []
-        scores = []
-        for idx, row in df.iterrows():
-
-            path  = row[i_col]
-            label = label2class_dict[ row[o_col] ]
-            preprocess_func = CustomDataGenerator.get_preprocessing_function(hyperparameters)
-
-            # Loads input images and sets them to inputs array
-            img = tf.keras.preprocessing.image.load_img( os.path.join( i_dir, path ), color_mode = "rgb", target_size = (h, w) )
-            img = tf.keras.preprocessing.image.img_to_array(img).reshape( (1, h, w, c) )
-            img = preprocess_func( img ).astype( np.float32 )
-
-            score = np.squeeze(self.model( img, training = False ))
-            pred  = np.argmax( score )
-                
-
-            preds.append( pred )
-            labels.append( label )
-            scores.append( score )
-
-            if pred == label:
-                acertos += 1
-            else:
-                erros += 1
-
-            mean_acc   = 100 * (acertos / (acertos + erros))
-            mean_f1    = f1_score( labels, preds, average = "macro" )
-            print("{}/{} rows - Pred {} - Label {} - Acc. {:.1f} - F1 {:.3f}".format( str(idx+1).zfill(5), len(df), 
-                                                                                      str(pred).zfill(2), str(label).zfill(2), 
-                                                                                      mean_acc, mean_f1 ), end = "\r")
-            
-        score_array = np.array( scores )
-        label_array = tf.keras.utils.to_categorical( np.array( labels ), num_classes = self.dataset.n_classes, dtype = "float32" )
-        mean_auroc = roc_auc_score( label_array, score_array, average = "macro", multi_class = "ovr" )
-        print("\n[Verif.] Accuracy: {:.2f} - F1-Score: {:.5f} - AUROC: {:.5f}".format( mean_acc, mean_f1, mean_auroc ))
-
-        return
     
     @staticmethod
     def plot_confusion_matrix( path, conf_matrix, dataset_name, partition, labels ):
@@ -921,115 +850,12 @@ class ModelTrainer(ModelEntity):
         plt.close( fig )
 
         return
-        
-    @staticmethod
-    def old_plot_roc_curve( path, cat_true_labels, cat_preds, dataset_name, partition, labels ):
-        # Defines the path to the plot file inside the model's directory
-        plot_dir  = os.path.join( os.path.dirname(path), "plots", "3.ROC Curves" )
-        roc_fname = "roc_{}_{}.png".format( dataset_name, partition )
-        roc_fpath = os.path.join( plot_dir, roc_fname )
-        
-        # Creates the plot directory if needed
-        if not os.path.exists(plot_dir):
-            os.makedirs(plot_dir)
-
-        n_samples, n_classes = cat_true_labels.shape
-
-        # -----------------------------------------------------------------------------------------
-        # -- Source: https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html --
-        # -----------------------------------------------------------------------------------------
-        from sklearn.metrics import roc_curve, auc
-
-        # Compute ROC curve and ROC area for each class
-        fpr, tpr, roc_auc = {}, {}, {}
-        for i in range(n_classes):
-            fpr[i], tpr[i], _ = roc_curve(cat_true_labels[:, i], cat_preds[:, i])
-            roc_auc[i] = auc(fpr[i], tpr[i])
-
-        # Compute micro-average ROC curve and ROC area
-        fpr["micro"], tpr["micro"], _ = roc_curve(cat_true_labels.ravel(), cat_preds.ravel())
-        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
-
-        # First aggregate all false positive rates
-        all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
-
-        # Then interpolate all ROC curves at this points
-        mean_tpr = np.zeros_like(all_fpr)
-        for i in range(n_classes):
-            mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
-
-        # Finally average it and compute AUC
-        mean_tpr /= n_classes
-
-        fpr["macro"] = all_fpr
-        tpr["macro"] = mean_tpr
-        roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
-
-        # -----------------------------------------------------------------------------------------
-        # -----------------------------------------------------------------------------------------
-        # -----------------------------------------------------------------------------------------
-
-        # Plots the confusion matrix as a heatmap
-        plt.ioff()
-        fig, axes = plt.subplots(1, 2, squeeze = False, figsize = (16, 12))
-        axes = axes.flat
-
-        # Color palette
-        colors = sns.color_palette(cc.glasbey, n_colors = n_classes)
-
-        # Plots ROC Curves for individual classes in the first plot
-        for c, label in enumerate(labels):
-            axes[0].plot( fpr[c], tpr[c], color = colors[c], lw=2, 
-                          label="{}: {} (AUROC = {:.4f})".format(c, label, roc_auc[c]))
-        
-        # Plots Micro Average ROC Curves for in the second plot
-        # axes[1].plot( fpr["micro"], tpr["micro"], color = "b", lw=2, 
-        #               label="Micro Average (AUROC = {:.4f})".format(roc_auc["micro"]))
-        
-        # Plots Macro Average ROC Curves for in the second plot
-        axes[1].plot( fpr["macro"], tpr["macro"], color = "r", lw=2, 
-                      label="Macro Average (AUROC = {:.4f})".format(roc_auc["macro"]))
-
-        # Draws a reference line for a useless classifier in each plot
-        axes[0].plot( [0, 1], [0, 1], "k--", lw = 2 )
-        axes[1].plot( [0, 1], [0, 1], "k--", lw = 2 )
-
-        for i in range(2):
-
-            # Sets the limits for each axis
-            axes[i].set_xlim([0.0, 1.0])
-            axes[i].set_ylim([0.0, 1.05])
-
-            # Names each axis
-            axes[i].set_ylabel("True Positive Rate")
-            axes[i].set_xlabel("False Positive Rate")
-            #axes[i].legend(loc = "lower right")
-
-            # Sets the plot title
-            base_title = "Class " if i == 0 else "Average "
-            if partition.lower() == "test":
-                axes[i].set_title(base_title + "ROC Curves: {}".format(dataset_name.title()))
-            else:
-                axes[i].set_title(base_title + "ROC Curves: {} Dataset ({})".format(dataset_name.title(), 
-                                                                                    partition.title()))
-
-        # Makes a single legend for both plots, the legend has a column for each 20 classes
-        n_legend_cols = 1 + (n_classes // 20)
-        lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
-        lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
-        axes[i].legend(lines, labels, ncol = n_legend_cols, bbox_to_anchor = (1., 1.))
-
-        # Saves & closes figure
-        fig.savefig( roc_fpath, dpi = 100, bbox_inches = "tight" )
-        plt.close( fig )
-
-        return
 
     @staticmethod
     def plot_train_results( model_path, history, dataset_name, fine_tune = False, figsize = (6, 9) ):
 
         # Defines the path to the plot directory inside the model's directory
-        plot_dir  = os.path.join( os.path.dirname(model_path), "plots", "1.Training Results" )
+        plot_dir = os.path.join( os.path.dirname(model_path), "plots", "1.Training Results" )
         
         # Creates the plot directory if needed
         if not os.path.exists(plot_dir):

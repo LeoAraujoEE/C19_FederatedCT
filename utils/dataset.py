@@ -133,11 +133,6 @@ class Dataset():
         weights = [ (np.max( counts ) / cts) if cts > 0 else 1 for cts in counts ]
 
         self.class_weights = { clss: weight for clss, weight in enumerate(weights) }
-        
-        # print( "\tComputed class_weights:" )
-        # for idx, v in enumerate(self.class_weights.values()):
-        #     print( "\t\t[{}] {}: {:.3f}".format(str(idx).zfill(2), class_list[idx], v) )
-        # print("\n")
 
         return
     
