@@ -15,4 +15,4 @@ notebooks/.ipynb_checkpoints/
 *.pyc
 
 # Ignores testing scripts
-testing_*.py
+testing_*

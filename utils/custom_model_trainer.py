@@ -680,12 +680,8 @@ class ModelTrainer(ModelEntity):
         combined_dict.update( hyperparameters )
         combined_dict.update( results )
 
-        # Function to convert tuples to strings
-        def tuple_as_str( tpl ):
-            return " x ".join( [str(e) for e in tpl] )
-
         # Wraps values from combined_dict as lists to convert to DataFrame, tuples are converted to string
-        wrapped_dict = { k: [v] if not isinstance(v, tuple) else [tuple_as_str(v)] for k,v in combined_dict.items() }
+        wrapped_dict = { k: [v] if not v is None else ["None"] for k,v in combined_dict.items() }
 
         # Converts that dictionary to a DataFrame
         model_df = pd.DataFrame.from_dict( wrapped_dict )

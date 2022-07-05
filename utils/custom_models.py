@@ -6,8 +6,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.utils.layer_utils import count_params
 
-from tensorflow.keras.applications import EfficientNetB0
-
 class ModelBuilder:
 
     def __init__( self, model_path ):
