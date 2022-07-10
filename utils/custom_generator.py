@@ -223,7 +223,6 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
             print("\nDatagen is set to Shuffle, filenames are probably inconsistent...")
         
         if self.undersample:
-            print("\nDatagen is set to Random Undersample, filenames are probably inconsistent...")
             fnames = [os.path.basename(p) for p in self.merge_dfs()[self.X_col].to_list()]
             return fnames
 

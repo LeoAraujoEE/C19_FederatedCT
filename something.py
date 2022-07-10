@@ -3,7 +3,6 @@ import os
 import glob
 import json
 import shutil
-import random
 import hashlib
 import itertools
 import subprocess
@@ -11,10 +10,12 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import colorcet as cc
-import tensorflow as tf
-import tensorflow_addons as tfa
 import matplotlib.pyplot as plt
 sns.set()
+
+import warnings
+warnings.filterwarnings("ignore")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
 
 # Metrics used in model evaluation
 from sklearn.metrics import f1_score
@@ -22,10 +23,16 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
 
+import tensorflow as tf
+import tensorflow_addons as tfa
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth = True
+tf.compat.v1.keras.backend.set_session(tf.compat.v1.Session(config=config))
+
 # Custom models and DataGenerator
-from utils.custom_plots import CustomPlots
-from utils.custom_models import ModelBuilder
-from utils.custom_generator import CustomDataGenerator
+from utils.model_training.aux.custom_plots import CustomPlotter
+from utils.model_training.aux.custom_models import ClassifModelBuilder
+from utils.model_training.aux.custom_generator import CustomClassifDataGen
 
 class ModelEntity():
     def __init__(self):
@@ -37,52 +44,73 @@ class ModelEntity():
         for key in dst_dict.keys():
             if key in available_keys:
                 dst_dict[key] = src_dict[key]
+            else:
+                print(f"Couldn't find key '{key}' in dict...")
         return dst_dict
     
     @staticmethod
     def get_default_hyperparams():
+
         # List of default values for each hyperparameter
-        hyperparams = { "num_epochs":                     1,  # Total N° of training epochs
-                        "batchsize":                      8,  # Minibatch size
-                        "early_stop":                    50,  # Early Stopping patience
-                        "input_height":                 256,  # Model's input height
-                        "input_width":                  256,  # Model's input width
-                        "input_channels":                 3,  # Model's input channels
-                        "apply_undersampling":        False,  # Wether to apply Random Undersampling
+        hyperparams = { "num_epochs":                    30,  # Total N° of training epochs
+                        "batchsize":                      4,  # Minibatch size
+                        "early_stop":                     7,  # Early Stopping patience
+                        "input_height":                 320,  # Model's input size
+                        "input_width":                  467,  # Model's input size
+                        "input_depth":                    3,  # Model's input size
                         "start_lr":                    1e-3,  # Starting learning rate
-                        "min_lr":                      1e-5,  # Smallest learning rate value allowed
-                        "lr_adjust_frac":              0.70,  # N° of epochs between lr adjusts
-                        "lr_patience":                    4,  # N° of epochs between lr adjusts
-                        "class_weights":              False,  # If class_weights should be used
-                        "preprocess_func":            False,  # If keras preprocess_functions should be used
-                        "monitor":                "val_acc",  # Monitored variable for callbacks
-                        "optimizer":                 "adam",  # Chosen optimizer
-                        "l1_reg":                       0.0,  # Amount of L1 regularization
-                        "l2_reg":                       0.0,  # Amount of L2 regularization
-                        "dropout":                      0.0,  # Dropout for layers in skip connections
-                        "augmentation":               False,  # If data augmentation should be used
+                        "min_lr":                      1e-6,  # Smallest learning rate value allowed
+                        "lr_adjust_frac":              0.10,  # LR adjust frac (new_lr = frac x old_lr)
+                        "lr_patience":                   10,  # N° of epochs between lr adjusts
+                        "monitor":                 "val_f1",  # Monitored variable for callbacks
+                        "optimizer":                 "adam",  # Chosen optimizer (adam or rmsprop)
+                        "l1_reg":                         0,  # Amount of L1 regularization
+                        "l2_reg":                         0,  # Amount of L2 regularization
+                        "top_dropout":                    0,  # Dropout for CNNs top layers (Dense)
+                        "base_dropout":                   0,  # Dropout for CNNs conv layers (Conv2D)
+                        "num_units":                     [],  # N° of dense units per dense layer in top
                         "pooling":                    "avg",  # Global Pooling used
                         "weights":                     None,  # Pretrained weights
+                        "preprocess_func":             True,  # If pretrained net's preprocessing should be used
+                        "cutout_freq":                15000,  # Max frequency on generated spectrograms
                         "architecture":   "efficientnet_b0",  # Chosen architecture
-                        "seed":                           1,  # Seed for pseudorandom generators
-                        } 
+                        "unfrozen_blocks":                0,  # N° of blocks unfrozen from the start
+                        "ft_block_depth":                 0,  # N° of blocks to fine tune, doesnt fine tune if < 1
+                        "ft_blocks_per_step":             1,  # N° of blocks to unfreeze per fine tune step
+                        "ft_epochs_per_step":             1,  # N° of train epochs per fine tune step
+                        "ft_lr_frac":                   1.0,  # LR adjust frac per fine tune step
+                        "seed":                          42,  # Seed for pseudorandom generators
+                      } 
+
         return hyperparams
     
     @staticmethod
     def get_default_augmentations():
         # List of default values for data augmentation
-        daug_params = { "zoom":                        0.00,  # Max zoom in/zoom out
-                        "shear":                       00.0,  # Max random shear
-                        "rotation":                    00.0,  # Max random rotation
-                        "vertical_translation":        0.00,  # Max vertical translation
-                        "horizontal_translation":      0.00,  # Max horizontal translation
-                        "vertical_flip":              False,  # Allow vertical flips  
-                        "horizontal_flip":            False,  # Allow horizontal flips    
-                        "brightness":                  0.00,  # Brightness adjustment range
-                        "channel_shift":               00.0,  # Random adjustment to random channel
-                        "constant_val":                00.0,  # Constant value used to fill image
-                        "fill_mode":              "constant"  # Mode used to fill image
+        daug_params = { # Image Augmentation -----------------------------------------------------
+                        "zoom":                    0.00,     # Max zoom in/zoom out
+                        "shear":                   00.0,     # Max random shear
+                        "rotation":                00.0,     # Max random rotation
+                        "vertical_translation":    0.00,     # Max vertical translation
+                        "horizontal_translation":  0.00,     # Max horizontal translation
+                        "vertical_flip":          False,     # Allow vertical flips  
+                        "horizontal_flip":        False,     # Allow horizontal flips    
+                        "brightness":              0.00,     # Brightness adjustment range
+                        "channel_shift":           00.0,     # Random adjustment to random channel
+                        "grayscale_prob":          0.00,     # Random adjustment to random channel
+                        # Audio Augmentation -----------------------------------------------------
+                        "polarity_inversion_prob": 0.00,
+                        "mask_xaxis_prob":         0.00,     # Prob. to mask img based on x axis (freq)
+                        "mask_yaxis_prob":         0.00,     # Prob. to mask img based on y axis (time)
+                        "mask_axis_max_len":       0.00,     # Max length to mask based on img size
+                        "time_shift_prob":         0.00,     # Probability to shift audio in time
+                        "time_stretch_prob":       0.00,     # Probability to adjust audio speed
+                        "time_stretch_factor":     0.00,     # Stretch factor f, random between [1-f, 1+f]
+                        "add_bg_noises_prob":      0.00,     # Probability to add background noise
+                        "bg_noises_min_snr":       00.0,     # min SNR relation between sample and noise
+                        "bg_noises_max_snr":       00.0,     # max SNR relation between sample and noise
                       }
+
         return daug_params
 
     @staticmethod
@@ -97,29 +125,34 @@ class ModelEntity():
     @staticmethod
     def get_flag_from_type(key, value):
         if type(value) is str:
-            return "-s"
+            return "--str"
         if type(value) is int:
-            return "-i"
+            return "--int"
         if type(value) is float:
-            return "-f"
+            return "--float"
         if type(value) is bool:
-            return "-b"
+            return "--bool"
+        if type(value) is list:
+            return "--list"
         if value is None:
-            return "-n"
-        raise ValueError(f"Unknown type for '{key}' == '{value}' argument of type '{type(value)}'...")
+            return "--none"
+        raise ValueError(f"Unknown type for '{key}' == '{value}' argument...")
 
     @staticmethod
     def decode_val_from_flag(key, value, flag):
-        assert flag in ["-s", "-i", "-f", "-b", "-n"], f"Invalid Flag '{flag}'..."
-        if flag == "-s":
+        allowed_flags = ["--str", "--int", "--float", "--bool", "--list", "--none"]
+        assert flag in allowed_flags, f"Invalid Flag '{flag}'..."
+        if flag == "--str":
             return value
-        if flag == "-i":
+        if flag == "--int":
             return int(value)
-        if flag == "-f":
+        if flag == "--float":
             return float(value)
-        if flag == "-b":
+        if flag == "--bool":
             return (value == "True")
-        if flag == "-n":
+        if flag == "--list":
+            return [int(v) for v in value.split(";") if v != '']
+        if flag == "--none":
             return None
         raise ValueError(f"Unknown type of flag '{flag}' for '{key}' == '{value}' argument...")
     
@@ -132,23 +165,35 @@ class ModelEntity():
             args_dict[key] = ModelEntity.decode_val_from_flag(key, value, flag)
         return args_dict
 
-class ModelManager(ModelEntity):
-    def __init__(self, dataset_dir, hyperparam_values = None, aug_params = None, keep_pneumonia = False):
+    @staticmethod
+    def format_value( val ):
+    # Function to format values inside a dictionary
+        if isinstance(val, tuple):
+            return " x ".join( [str(e) for e in val] )
+        if isinstance(val, list):
+            return ", ".join( [str(e) for e in val] )
+        if val is None:
+            return "None"
+        return val
+
+class ClassifModelManager(ModelEntity):
+    def __init__(self, path2train_script, dataset_dir, hyperparam_values = None, aug_params = None):
         
-        # Directory of the selected train dataset
+        assert os.path.exists(dataset_dir), f"Provided dataset dir '{dataset_dir}' does not exist..."
         self.dataset_dir = dataset_dir
+
+        assert os.path.exists(path2train_script), f"Provided path to train script '{dataset_dir}' does not exist..."
+        self.train_script = ".".join(path2train_script.split(os.sep)).replace(".py", "")
         
-        # Wether to keep pneumonia sample or remove them
-        self.keep_pneumonia = keep_pneumonia
-        
+
         self.hyperparam_values = hyperparam_values
-        if not (self.hyperparam_values is None):
+        if not (hyperparam_values is None):
             # Prints the possible values
             print("\nList of possible hyperparameter values:")
             self.print_dict(self.hyperparam_values)
-        
+
         self.aug_params = aug_params
-        if not (self.aug_params is None):
+        if not (aug_params is None):
             # Prints the given data augmentation parameters
             print("\nUsing the current parameters for Data Augmentation:")
             self.print_dict(self.aug_params)
@@ -157,7 +202,7 @@ class ModelManager(ModelEntity):
     
     def check_trainability(self):
         assert not (self.hyperparam_values is None), "\nHyperparameter values were not provided..."
-        assert not (self.aug_params is None), "\nData augmentation parameters were not provided..."
+        assert not (self.aug_params is None), "\nData augmentation values were not provided..."
         return True
 
     def doGridSearch( self, shuffle = False ):
@@ -183,7 +228,7 @@ class ModelManager(ModelEntity):
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{n_permutations} Iteration of GridSearch:")
             
             # Adds augmentation parameters to selected hyperparameters
-            args = { "ignore_check": False }
+            args = {"train_dataset": self.dataset_dir, "ignore_check": False}
             train_command = self.create_command(args, hyperparameters)
 
             # Trains and Tests the model
@@ -204,10 +249,10 @@ class ModelManager(ModelEntity):
             hyperparameters = self.gen_random_hyperparameters( hyperparam_ranges )
 
             # Announces the start of the training process
-            print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
+            print("\n\n#{}/{} Iteration of RandomSearch:".format( str(idx_h+1).zfill(3), str(n_models).zfill(3) ))
             
             # Adds augmentation parameters to selected hyperparameters
-            args = { "ignore_check": False }
+            args = {"train_dataset": self.dataset_dir, "ignore_check": False}
             train_command = self.create_command(args, hyperparameters)
 
             # Trains and Tests the model
@@ -219,6 +264,8 @@ class ModelManager(ModelEntity):
         return
 
     def doTrainFromJSON(self, json_path, copy_augmentation = True, seed = None):
+        assert os.path.exists(json_path), "\nProvided JSON couldn't be found..."
+
         # Reads JSON file to extract hyperparameters and augmentation parameters used
         hyperparameters, aug_params = self.json_to_hyperparam( json_path )
 
@@ -231,68 +278,24 @@ class ModelManager(ModelEntity):
             hyperparameters["seed"] = seed
             
         # Adds augmentation parameters to selected hyperparameters
-        args = { "ignore_check": True }
+        args = {"train_dataset": self.dataset_dir, "ignore_check": True}
         train_command = self.create_command(args, hyperparameters)
 
         # Trains and Tests the model
         subprocess.Popen.wait(subprocess.Popen( train_command ))
 
         return
-    
-    def doJsonSearch(self, reference_dataset, reference_metrics, seed = None):
-        """ Uses results from experiments in different datasets to search for optimal hyperparameters.
-        The results CSV from 'reference_dataset' is loaded and sorted by 'reference_metrics'. Then, their
-        hyperparameters are loaded from the respective JSON and used to train similar models on another dataset.
-            Can also be used to retrain models from the same dataset, but with a different seed.
-
-        Args:
-            reference_dataset (str): name of the dataset whose results will be used as base.
-            reference_metrics (str): name of the metrics used to sort the results.
-            seed (int): seed to be used during the training process
-        """
-
-        csv_path = os.path.join( "output", "models", reference_dataset, "training_results.csv" )
-
-        # Returns if CSV file doesn't exist
-        if not os.path.exists(csv_path):
-            print(f"\nCouldn't find a CSV file for '{reference_dataset}' at '{csv_path}'...")
-            return
-        
-        # Type of sorting used. Sorts in ascending order for loss and descending for others.
-        if isinstance(reference_metrics, list):
-            sorting  = ["loss" in metric.lower() for metric in reference_metrics]
-        else:
-            sorting  = ("loss" in reference_metrics.lower())
-        
-        # Loads the old file
-        df = pd.read_csv( csv_path, sep = ";" )
-        df.sort_values(by = reference_metrics, ascending = sorting, inplace = True)
-        
-        # Iterates through the models
-        for idx, path in enumerate(df["model_path"].to_list()):
-            
-            # Gets the path to the corresponding json file with hyperparameters
-            dirname, basename = os.path.split(path)
-            json_fname = f"params_{basename.replace('.h5', '.json')}"
-            json_path  = os.path.join(dirname, json_fname)
-
-            # Announces the start of the training process
-            print(f"\n\n#{str(idx+1).zfill(3)}/{str(len(df)).zfill(3)} Iteration of JSON Search:")
-            
-            # Trains model based on parameters from JSON
-            self.doTrainFromJSON( json_path, copy_augmentation = True, seed = seed )
-            
-        return
 
     def create_command(self, args, hyperparams):
-        args["train_dataset"] = self.dataset_dir
-        args["keep_pneumonia"] = self.keep_pneumonia
         for dictionary in [self.aug_params, hyperparams]:
             args.update(dictionary)
         
-        command = ["python", "-m", "train_model"]
+        command = ["python", "-m", self.train_script]
         for k, v in args.items():
-            command.extend([self.get_flag_from_type(k, v), str(k), str(v)])
+            f = self.get_flag_from_type(k, v)
+            if isinstance(v, list):
+                v = ";".join([str(e) for e in v])
+            command.extend([f, str(k), str(v)])
 
         return command
     
@@ -318,20 +321,21 @@ class ModelManager(ModelEntity):
                 hyperparams[key] = value[0][item_idx]
                 
             elif value[-1] == "int":
-                hyperparams[key] = int(np.random.randint( value[0], value[1]+1 ))
+                hyperparams[key] = np.random.randint( value[0], value[1]+1 )
 
             elif value[-1] == "log":
-                low  = np.log10( value[0] )
-                high = np.log10( value[1] )
-                hyperparams[key] = float(10 ** np.random.uniform( low = low, high = high ))
+                low  = np.log10( value[0] + 1e-6 )
+                high = np.log10( value[1] + 1e-6 )
+                hyperparams[key] = 10 ** np.random.uniform( low = low, high = high ) - 1e-6
 
             else:
-                hyperparams[key] = float(np.random.uniform( low = value[0], high = value[1] ))
+                hyperparams[key] = np.random.uniform( low = value[0], high = value[1] )
 
         return hyperparams
     
     @staticmethod
     def json_to_hyperparam( json_path ):
+
         assert os.path.exists( json_path ), "Error! Couldn't find JSON file, check 'json_path'..."
 
         # Opening JSON file
@@ -339,128 +343,41 @@ class ModelManager(ModelEntity):
             data = json.load(json_file)
 
         # Recovers model hyperparameters from JSON file
-        hyperparameters = data["hyperparameters"]
+        hyperparameters     = data["hyperparameters"]
         augmentation_params = data["augmentation_params"]
 
         return hyperparameters, augmentation_params
 
-class ModelTrainer(ModelEntity):
-    def __init__(self, dataset, dataset_list = None):
+class ClassifModelTrainer(ModelEntity):
+    def __init__(self, dataset, dataset_list = None, bg_noise_dir = None):
 
         # Sets the dataset used for training
         self.dataset = dataset
-        print(f"\nTraining models using '{self.dataset.name}' dataset...")
+        print(f"\nTraining models based on '{self.dataset.name}' dataset...")
 
         # Sets the datasets used for cross-validation if available
         self.dataset_list = dataset_list
         if not self.dataset_list is None:
+
             # Prints the names of the datasets in dataset_list
             print("\nUsing the following datasets for cross-validation:")
             for idx, cval_dataset in enumerate(self.dataset_list):
-                print( "\t", str(idx+1).zfill(2), cval_dataset.name )
+                print( "\t", str(idx+1).zfill(2), getattr( cval_dataset, "name") )
         
         else:
-            print("\nNo dataset found for cross-validation:")
+            print("\nNo dataset used for cross-validation:")
+
+        # Sets the datasets used for cross-validation if available
+        self.bg_noise_dir = bg_noise_dir
+        if not self.bg_noise_dir is None:
+            print( "\tLoading Background Noises from '{}'...".format(self.bg_noise_dir) )
 
         # Relative path to where the models will be stored
-        self.model_dir = os.path.join( ".", "output", "models", self.dataset.name )
-        print("\nSaving model to '{}'...".format( self.model_dir ))
-        
-        # Creates model_dir if needed
-        if not os.path.exists(self.model_dir):
-            os.makedirs(self.model_dir)
+        self.model_dir = os.path.join( "utils", "model_training", "output", "models", self.dataset.name )
+        print("\nSaving models to '{}'...".format( self.model_dir ))
 
         # Reset Keras state to free GPU memmory
         self.reset_keras()
-
-        return
-        
-    def train_test_iteration(self, args_dict):
-        # Extracts hyperparameters and parameters for data augmentation from args_dict
-        hyperparameters, data_aug_params = self.get_dicts(args_dict)
-
-        # Sets the seed for Numpy and Tensorflow
-        random.seed( hyperparameters["seed"] )
-        np.random.seed( hyperparameters["seed"] )
-        tf.random.set_seed( hyperparameters["seed"] )
-        
-        if (self.check_step(hyperparameters, data_aug_params)) and (not args_dict["ignore_check"]):
-            print("\tStep already executed: Skipping...")
-            return
-
-        # Removes models whose training process did not finish properly
-        self.remove_unfinished()
-        
-        # Generates model path and the model id
-        model_path, model_id = self.gen_model_name( hyperparameters, data_aug_params )
-
-        # Object responsible for plotting
-        self.plotter = CustomPlots(model_path)
-
-        # Prints current hyperparameters and starts training
-        self.print_dict( hyperparameters, round = True )
-        history_dict = self.train_model( hyperparameters, data_aug_params, model_path )
-                
-        # Gets the names of the datasets used in training/testing the models
-        dataset_name = self.dataset.name
-        cval_dataset_names = [ dset.name for dset in self.dataset_list ]
-
-        # Announces the end of the training process
-        print("\nTrained model '{}'. Plotting results...".format( os.path.basename(model_path) ))
-        self.plotter.plot_train_results( history_dict, dataset_name )
-
-        # Announces the start of the testing process
-        print("\nTesting model '{}'...".format( os.path.basename(model_path) ))
-        results_dict = self.test_model( model_path, hyperparameters )
-
-        print("\nPlotting test results...")
-        self.plotter.plot_test_results( results_dict, dataset_name, cval_dataset_names )
-
-        # Prints the results
-        print("\nTest Results:")
-        self.print_dict( results_dict, round = True )
-
-        # Saves the results to a CSV file
-        print("\nSaving model hyperparameters and results as CSV...")
-        self.append_to_csv( model_path, model_id, hyperparameters, data_aug_params, results_dict )
-
-        #
-        print("\nSaving training hyperparameters as JSON...")
-        self.hyperparam_to_json(model_path, hyperparameters, data_aug_params)
-
-        return
-
-    def get_dicts(self, args_dict):
-        # Generates hyperparameters through the default values,
-        # them updates the values with the ones available in args_dict
-        hyperparameters = self.get_default_hyperparams()
-        hyperparameters = self.update_dict_values(args_dict, hyperparameters)
-        
-        # Generates data_aug_params through the default values,
-        # them updates the values with the ones available in args_dict
-        data_aug_params = self.get_default_augmentations()
-        data_aug_params = self.update_dict_values(args_dict, data_aug_params)
-        
-        # Returns both dicts
-        return hyperparameters, data_aug_params
-
-    def remove_unfinished(self):
-
-        # Lists all model subdirs in self.model_dir
-        all_subdirs = glob.glob(os.path.join(self.model_dir, "*"))
-        all_subdirs = sorted([p for p in all_subdirs if os.path.isdir(p)])
-
-        # Iterates through those files to check for params.json
-        # This file's presence indicates that train/test process finished correctly
-        for path2subdir in all_subdirs:
-            model_basename = os.path.split(path2subdir)[-1]
-            path_to_params = os.path.join(path2subdir, f"params_{model_basename}.json")
-
-            if os.path.exists(path_to_params):
-                continue
-
-            print(f"Deleting '{model_basename}' subdir as its training did not finish properly...")
-            shutil.rmtree(path2subdir, ignore_errors=False)
 
         return
 
@@ -493,7 +410,8 @@ class ModelTrainer(ModelEntity):
         
         # Hashes the produced dict to produce an unique string for
         # this current training step
-        model_id = self.dict_hash( all_param_dict ) 
+        formatted_dict = { k: ModelEntity.format_value(v) for k,v in all_param_dict.items() }
+        model_id = self.dict_hash( formatted_dict ) 
 
         # Combines model_id with the architecture name to create the model filename
         model_fname = "{}_{}".format( hyperparameters["architecture"], model_id )
@@ -510,29 +428,22 @@ class ModelTrainer(ModelEntity):
 
         return model_path, model_id
 
-    def load_model( self, model_path ):
-        config_path = model_path.replace(".h5", ".json")
-        # Opening JSON file
-        with open( config_path ) as json_file:
-            json_config = json.load(json_file)
+    def prepare_model( self, hyperparameters, mock_test = False, fine_tune_step = 0 ):
 
-        # Loads model from JSON configs and H5 or Tf weights
-        self.model = tf.keras.models.model_from_json(json_config)
-        self.model.load_weights( model_path )
-        return
-
-    def prepare_model( self, hyperparameters, mock_test = False ):
-
-        # Compiles the model
-        f1_metric = tfa.metrics.F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
+        training_lr = hyperparameters["start_lr"]
+        finetune_lr = hyperparameters["min_lr"] * (hyperparameters["ft_lr_frac"] ** fine_tune_step)
+        learning_rate = training_lr if fine_tune_step == 0 else finetune_lr
+    
+        # Compiles the modelo
+        macro_f1   = tfa.metrics.F1Score( num_classes = getattr( self.dataset, "n_classes"), average = "macro", name = "f1" )
         if hyperparameters["optimizer"].lower() == "adam":
             print("\n\tCompiling model with 'Adam' optimizer...")
-            self.model.compile(optimizer = tf.keras.optimizers.Adam(lr = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
+            self.model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), 
+                               loss = "categorical_crossentropy", metrics = ["acc", macro_f1])
         else:
             print("\n\tCompiling model with 'RMSprop' optimizer...")
-            self.model.compile(optimizer = tf.keras.optimizers.RMSprop(lr = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
+            self.model.compile(optimizer = tf.keras.optimizers.RMSprop(lr = learning_rate), 
+                               loss = "categorical_crossentropy", metrics = ["acc", macro_f1])
         
         if mock_test:
             # Extracts the expected input shape from the model's configs
@@ -547,17 +458,19 @@ class ModelTrainer(ModelEntity):
 
         return
 
-    def train_model( self, hyperparameters, aug_params, model_path, reset = True ):
-        
-        # Announces the dataset used for training
-        print("\nTraining model '{}' on '{}' dataset...".format( os.path.basename( model_path ), self.dataset.name ))
+    def train_model( self, hyperparameters, aug_params, model_path, fine_tune_step = 0, reset = True ):
 
-        # Creates and compiles the Model
-        print("\tCreating model...")
-        model_builder = ModelBuilder( model_path = model_path )
-        self.model = model_builder( hyperparameters, seed = hyperparameters["seed"] )
-        self.prepare_model( hyperparameters )
-        print("\tModel created...")
+        # If the model isn't being fine tuned
+        if fine_tune_step == 0:
+            # Announces the dataset used for training
+            print("\nTraining model '{}' on '{}' dataset...".format( os.path.basename( model_path ), getattr( self.dataset, "name") ))
+
+            # Creates and compiles the Model
+            print("\tCreating model...")
+            model_builder = ClassifModelBuilder( model_path = model_path, gen_fig = True )
+            self.model = model_builder( hyperparameters, n_classes = getattr( self.dataset, "n_classes"), seed = hyperparameters["seed"] )
+            self.prepare_model( hyperparameters, fine_tune_step = fine_tune_step )
+            print("\tModel created...")
 
         # Loads datasets - Reloads training dataset to keep the same order of examples in each train
         print("\tLoading Datasets...")
@@ -591,26 +504,26 @@ class ModelTrainer(ModelEntity):
                                                                      mode = callback_mode, verbose = 1 )
 
         # List of used callbacks
-        callback_list = [ model_checkpoint, early_stopping ] 
-        if hyperparameters["optimizer"].lower() != "rmsprop":
+        callback_list = [ model_checkpoint, early_stopping ]
+        if (fine_tune_step == 0) and (hyperparameters["optimizer"].lower() != "rmsprop"):
             callback_list.append( reduce_lr_on_plateau )
         # Callbacks --------------------------------------------------------------------------------------------------
 
         # Creates train data generator
-        train_datagen = CustomDataGenerator( self.dataset, "train", hyperparameters, aug_dict = aug_params, shuffle = True, 
-                                             undersample = hyperparameters["apply_undersampling"], seed = hyperparameters["seed"] )
+        train_datagen = CustomClassifDataGen( self.dataset, "train", hyperparameters, shuffle = True, aug_dict = aug_params, 
+                                              bg_noises_dir = self.bg_noise_dir, seed = hyperparameters["seed"] )
 
         # Creates validation data generator
-        val_datagen   = CustomDataGenerator( self.dataset, "val", hyperparameters, undersample = False, shuffle = False )
+        val_datagen   = CustomClassifDataGen( self.dataset, "val", hyperparameters, shuffle = False )
 
         # Gets the number of samples and the number of batches using the current batchsize
         val_steps   = self.dataset.get_num_steps("val", hyperparameters["batchsize"])
         train_steps = self.dataset.get_num_steps("train", hyperparameters["batchsize"])
 
         # Gets class_weights from training dataset
-        class_weights = self.dataset.class_weights if hyperparameters["class_weights"] else None
+        class_weights = self.dataset.class_weights
 
-        num_epochs = hyperparameters["num_epochs"]
+        num_epochs = hyperparameters["num_epochs"] if not fine_tune_step > 0 else hyperparameters["ft_epochs_per_step"]
 
         # Fits the model
         history = self.model.fit( x = train_datagen, steps_per_epoch = train_steps, epochs = num_epochs, 
@@ -627,6 +540,78 @@ class ModelTrainer(ModelEntity):
             self.reset_keras()
 
         return history_dict
+
+    def load_model( self, model_path ):
+        config_path = model_path.replace(".h5", ".json")
+        # Opening JSON file
+        with open( config_path ) as json_file:
+            json_config = json.load(json_file)
+
+        # Loads model from JSON configs and H5 or Tf weights
+        self.model = tf.keras.models.model_from_json(json_config)
+        self.model.load_weights( model_path )
+        return
+
+    def fine_tune_model( self, model_path, hyperparameters, aug_params, history ):
+
+        # Announces the dataset used for training
+        print("\nFine Tuning model '{}' on '{}' dataset...".format( os.path.basename( model_path ), getattr( self.dataset, "name") ))
+
+        # Extracts the current best value from the history dict
+        key = hyperparameters["monitor"].lower()
+        values = history[hyperparameters["monitor"]]
+        best_value = np.min(values) if "loss" in key else np.max(values)
+        print("\tCurrent best value for '{}' is {:.3f}".format(key, best_value))
+
+        # Loads and compiles the Model
+        print("\tLoading model...\r")
+        model_builder = ClassifModelBuilder( model_path = model_path )
+        self.load_model( model_path )
+        print("\tModel loaded...")
+
+        # Gets the parameters used for fine tuning the model
+        # Adjusts 'block_depth' if the given number is larger than the total of blocks in the model
+        total_blocks = model_builder.get_max_block( self.model )
+        block_depth  = np.min( [hyperparameters["ft_block_depth"], total_blocks] )
+        step_length  = hyperparameters["ft_blocks_per_step"]
+        n_steps = np.ceil( block_depth / step_length ).astype(int)
+
+        # Creates the output dict
+        ft_dict = { k: [] for k in history.keys() }
+        for i in range(n_steps):
+            print("\nFine Tuning - Step {}/{}".format(i+1, n_steps))
+            # Adjusts 'n_unfrozen_blocks' to avoid unfreezing more than 'block_depth' blocks
+            n_unfrozen_blocks = np.min( [(i+1) * step_length, block_depth] ).astype(int)
+            self.model = model_builder.unfreeze_blocks( self.model, n_unfrozen_blocks )
+            self.prepare_model( hyperparameters, mock_test = False, fine_tune_step = (i+1) )
+
+            # Creates a new model to save the fine-tuning results
+            new_model_path = os.path.join( os.path.dirname(model_path), "ft_"+os.path.basename(model_path) )
+
+            # Fine tunes the model
+            rst_flag = ((i+1) == n_steps)
+            tmp_dict = self.train_model( hyperparameters, aug_params, new_model_path, 
+                                         fine_tune_step = (i+1), reset = rst_flag )
+
+            # Appends the values from the current step to the final fine tuning history dict
+            for key in tmp_dict.keys():
+                ft_dict[key] = ft_dict[key] + tmp_dict[key]
+            
+            # Checks if the fine-tuned model is better than the original one
+            new_values = ft_dict[hyperparameters["monitor"]]
+            new_best_value = np.min(new_values) if "loss" in key else np.max(new_values)
+            selected_value = np.min([new_best_value, best_value]) if "loss" in key else np.max([new_best_value, best_value])
+
+            # If it is, deletes the old model and renames the new one to the old model's name
+            if selected_value == new_best_value:
+                os.remove( model_path )
+                os.rename( new_model_path, model_path )
+        
+        # In the end, also deletes the final fine-tuned model to keep only a single model
+        if os.path.exists( new_model_path ):
+            os.remove( new_model_path )
+
+        return ft_dict
 
     def get_base_results_dict( self ):
         
@@ -648,11 +633,11 @@ class ModelTrainer(ModelEntity):
 
                 # Also generates 1 entry for each metric for each dataset
                 for dset in self.dataset_list:
-                    key = "{}_{}".format(dset.name.lower().replace(" ", ""), metric)
+                    key = "{}_{}".format(getattr( dset, "name").lower().replace(" ", ""), metric)
                     results[key] = None
 
         return results
-
+    
     def evaluate_model( self, dataset, hyperparameters, partition ):
 
         # Gets the number of samples and the number of batches using the current batchsize
@@ -660,39 +645,39 @@ class ModelTrainer(ModelEntity):
         num_steps = dataset.get_num_steps(partition, hyperparameters["batchsize"])
 
         # Creates data generator and gets all the labels as an array
-        datagen = CustomDataGenerator( dataset, partition, hyperparameters, shuffle = False, undersample = False )
+        datagen = CustomClassifDataGen( dataset, partition, hyperparameters, shuffle = False )
 
         # Gets all labels in the dataframe as their corresponding class numbers to compute accuracy and f1-score
         y_true = datagen.get_labels()[:num_samples]
-        fnames = datagen.get_fnames()[:num_samples]
+
+        # Converts labels to categorical values to compute AUROC
+        cat_y_true = tf.keras.utils.to_categorical( y_true, num_classes = getattr( self.dataset, "n_classes"), dtype = "float32" )
 
         # Computes the average loss for the current partition
-        scores = self.model.predict( datagen, batch_size = hyperparameters["batchsize"], 
-                                     steps = num_steps, workers = 4, verbose = 1 )
-        y_pred  = (scores > 0.5).astype(np.float32)
+        scores = self.model.predict( datagen, steps = num_steps, workers = 4, verbose = 1)
+        y_pred  = np.argmax( scores, axis = -1 )
 
         # Computes all metrics using scikit-learn
         mean_acc   = accuracy_score( y_true, y_pred )
-        mean_f1    = f1_score( y_true, y_pred )
-        mean_auroc = roc_auc_score( y_true, scores )
+        mean_f1    = f1_score( y_true, y_pred, average = "macro" )
+        mean_auroc = roc_auc_score( cat_y_true, scores, average = "macro", multi_class = "ovr" )
 
         # Computes confusion matrix using scikit-learn
         conf_matrix  = confusion_matrix( y_true, y_pred )
 
-        return mean_acc, mean_f1, mean_auroc, conf_matrix, y_true, scores
+        return mean_acc, mean_f1, mean_auroc, conf_matrix, cat_y_true, scores
 
     def test_model( self, model_path, hyperparameters ):
         print("\nLoading model from '{}'...".format(model_path))
 
-        ###
+        # Loads and compiles the Model
         print("\nLoading model...")
         self.load_model( model_path )
         self.prepare_model( hyperparameters, mock_test = True )
         print("\n\tModel loaded...")
-        ###
         
         # Announces the dataset used for training
-        dataset_name = self.dataset.name
+        dataset_name = getattr( self.dataset, "name")
         print("\nValidating model '{}' on '{}' dataset...".format( os.path.basename(model_path), 
                                                                    dataset_name ))
 
@@ -704,7 +689,6 @@ class ModelTrainer(ModelEntity):
 
         # Evaluates each partition to fill results dict
         for partition in ["train", "val", "test"]:
-            print("\n\n{}:".format(partition.title()))
             acc, f1_score, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( self.dataset, hyperparameters, partition )
 
             for metric, value in zip( ["acc", "f1", "auc"], [acc, f1_score, auroc] ):
@@ -713,18 +697,18 @@ class ModelTrainer(ModelEntity):
                 results[key] = "{:.4f}".format( value )
 
             # Plots confusion matrix
-            class_labels = self.dataset.classes
-            self.plotter.plot_confusion_matrix( conf_matrix, dataset_name, partition, class_labels )
+            class_labels = getattr( self.dataset, "classes")
+            self.plotterObj.plot_confusion_matrix( conf_matrix, dataset_name, partition, class_labels )
 
-            # Plots ROC curves TODO: fix this
-            self.plotter.plot_roc_curve( y_true, y_preds, dataset_name, partition, class_labels )
+            # Plots ROC curves
+            self.plotterObj.plot_roc_curve( y_true, y_preds, dataset_name, partition, class_labels )
 
         # If there are datasets for cross-validation
         if not self.dataset_list is None:
             cval_acc_list, cval_f1_list, cval_auroc_list = [], [], []
 
             for dset in self.dataset_list:
-                dset_name = dset.name
+                dset_name = getattr( dset, "name")
                 # Announces the dataset used for testing
                 print("\nCross-Validating model '{}' on '{}' dataset...".format( os.path.basename(model_path),
                                                                                  dset_name ))
@@ -746,11 +730,11 @@ class ModelTrainer(ModelEntity):
                     results[key] = "{:.4f}".format( value )
 
                 # Plots confusion matrix
-                class_labels = dset.classes
-                self.plotter.plot_confusion_matrix( conf_matrix, dset_name, "test", class_labels )
+                class_labels = getattr( dset, "classes")
+                self.plotterObj.plot_confusion_matrix( conf_matrix, dset_name, "test", class_labels )
 
-                # Plots ROC curves TODO: fix this
-                self.plotter.plot_roc_curve( y_true, y_preds, dset_name, "test", class_labels )
+                # Plots ROC curves
+                self.plotterObj.plot_roc_curve( y_true, y_preds, dset_name, "test", class_labels )
                 
             results["crossval_acc"] = "{:.4f}".format( np.mean(cval_acc_list) )
             results["crossval_f1"] = "{:.4f}".format( np.mean(cval_f1_list) )
@@ -770,7 +754,7 @@ class ModelTrainer(ModelEntity):
         combined_dict.update( results )
 
         # Wraps values from combined_dict as lists to convert to DataFrame, tuples are converted to string
-        wrapped_dict = { k: [v] if not v is None else ["None"] for k,v in combined_dict.items() }
+        wrapped_dict = { k: [self.format_value(v)] for k,v in combined_dict.items() }
 
         # Converts that dictionary to a DataFrame
         model_df = pd.DataFrame.from_dict( wrapped_dict )
@@ -799,7 +783,8 @@ class ModelTrainer(ModelEntity):
 
         # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
         dict_of_dicts = { "hyperparameters": hyperparameters, 
-                          "augmentation_params": aug_params }
+                         "augmentation_params": aug_params 
+                        }
         
         model_dir   = os.path.dirname( model_path )
         model_fname = os.path.basename( model_path ).split(".")[0]
@@ -812,6 +797,120 @@ class ModelTrainer(ModelEntity):
         # Saves the JSON file
         with open(json_path, "w") as json_file:
             json.dump( dict_of_dicts, json_file, indent=4 )
+
+        return
+    
+    def json_to_hyperparam( self, json_path ):
+
+        assert os.path.exists( json_path ), "Error! Couldn't find JSON file, check 'json_path'..."
+
+        # Opening JSON file
+        with open( json_path ) as json_file:
+            data = json.load(json_file)
+
+        # Recovers model hyperparameters from JSON file
+        hyperparameters     = data["hyperparameters"]
+        augmentation_params = data["augmentation_params"]
+
+        return hyperparameters, augmentation_params
+
+    def clear_unfinished_models(self):
+
+        # Lists all model subdirs in self.model_dir
+        all_subdirs = glob.glob(os.path.join(self.model_dir, "*"))
+        all_subdirs = sorted([p for p in all_subdirs if os.path.isdir(p)])
+
+        # Iterates through those files to check for params.json
+        # This file's presence indicates that train/test process finished correctly
+        for path2subdir in all_subdirs:
+            model_basename = os.path.split(path2subdir)[-1]
+            path_to_params = os.path.join(path2subdir, f"params_{model_basename}.json")
+
+            if os.path.exists(path_to_params):
+                continue
+
+            print(f"Deleting '{model_basename}' subdir as its training did not finish properly...")
+            shutil.rmtree(path2subdir, ignore_errors=False)
+
+        return
+
+    def get_dicts(self, args_dict):
+        # Generates hyperparameters through the default values,
+        # them updates the values with the ones available in args_dict
+        hyperparameters = self.get_default_hyperparams()
+        hyperparameters = self.update_dict_values(args_dict, hyperparameters)
+        
+        # Generates data_aug_params through the default values,
+        # them updates the values with the ones available in args_dict
+        data_aug_params = self.get_default_augmentations()
+        data_aug_params = self.update_dict_values(args_dict, data_aug_params)
+        
+        # Returns both dicts
+        return hyperparameters, data_aug_params
+
+    def train_test_iteration( self, args_dict ):
+
+        # Extracts hyperparameters and parameters for data augmentation from args_dict
+        hyperparameters, data_aug_params = self.get_dicts(args_dict)
+
+        # Sets the seed for Numpy and Tensorflow
+        np.random.seed( hyperparameters["seed"] )
+        tf.random.set_seed( hyperparameters["seed"] )
+
+        # Verifies if this step was already computed
+        print(f"Check_Step: {self.check_step(hyperparameters, data_aug_params)}, Ignore_Check: {args_dict['ignore_check']}")
+        if (self.check_step(hyperparameters, data_aug_params)) and (not args_dict["ignore_check"]):
+            print("\nThis combination was already trained...")
+            return
+
+        # Removes all files in self.model_dir related to models 
+        # whose training process did not finish
+        self.clear_unfinished_models()
+
+        # Generates model path and the model id
+        model_path, model_id = self.gen_model_name( hyperparameters, data_aug_params )
+
+        # Object responsible for plotting
+        self.plotterObj = CustomPlotter(model_path)
+
+        # Prints current hyperparameters and starts training
+        self.print_dict( hyperparameters, round = True )
+        history_dict = self.train_model( hyperparameters, data_aug_params, model_path )
+
+        # Gets the names of the datasets used in training/testing the models
+        dataset_name = self.dataset.name
+        if not self.dataset_list is None:
+            cval_dataset_names = [dset.name for dset in self.dataset_list]
+        else:
+            cval_dataset_names = None
+
+        # Announces the end of the training process
+        print(f"\nTrained model '{os.path.basename(model_path)}'. Plotting results...")
+        self.plotterObj.plot_train_results( history_dict, dataset_name )
+
+        # Fine tunes the produced model
+        if hyperparameters["ft_block_depth"] > 0:
+            ft_history_dict = self.fine_tune_model( model_path, hyperparameters, data_aug_params, history_dict )
+            self.plotterObj.plot_train_results( ft_history_dict, dataset_name, fine_tune = True )
+
+        # Announces the start of the testing process
+        print("\nTesting model '{}'...".format( os.path.basename(model_path) ))
+        results_dict = self.test_model(model_path, hyperparameters)
+
+        print("\nPlotting test results...")
+        self.plotterObj.plot_test_results(results_dict, dataset_name, cval_dataset_names)
+
+        # Prints the results
+        print("\nTest Results:")
+        self.print_dict(results_dict, round = True)
+
+        # Saves the results to a CSV file
+        print("\nSaving model hyperparameters and results as CSV...")
+        self.append_to_csv( model_path, model_id, hyperparameters, data_aug_params, results_dict )
+
+        #
+        print("\nSaving training hyperparameters as JSON...")
+        self.hyperparam_to_json(model_path, hyperparameters, data_aug_params)
 
         return
     

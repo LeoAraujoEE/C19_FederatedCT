@@ -13,6 +13,3 @@ notebooks/.ipynb_checkpoints/
 
 # Adds pycache files to gitignore so that they arent uploaded as well
 *.pyc
-
-# Ignores testing scripts
-testing_*

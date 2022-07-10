@@ -20,7 +20,8 @@ arg_dict = ModelTrainer.decode_args(sys.argv)
 
 # Builds object to handle datasets for training and for external validation
 dataTrain, dataVal_list = load_datasets( import_dir = path2datasets, train_dataset = arg_dict["train_dataset"], 
-                                         input_col = "path_256", output_col = "class", keep_pneumonia = True )
+                                         input_col = "path_256", output_col = "class", 
+                                         keep_pneumonia = arg_dict["keep_pneumonia"] )
 
 trainer = ModelTrainer( dataTrain, dataVal_list )
 trainer.train_test_iteration( arg_dict )
