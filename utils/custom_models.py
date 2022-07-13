@@ -4,23 +4,36 @@ import random
 import tempfile
 import numpy as np
 import tensorflow as tf
+
+from utils.architectures.resnet import ResNet
 from tensorflow.python.keras.utils.layer_utils import count_params
+
+from tensorflow.keras.applications import ResNet50V2, ResNet101V2, ResNet152V2
+from tensorflow.keras.applications import DenseNet121, DenseNet169, DenseNet201
+from tensorflow.keras.applications import Xception, VGG16, VGG19, EfficientNetB0
+from tensorflow.keras.applications import InceptionResNetV2, InceptionV3, MobileNetV2
 
 class ModelBuilder:
 
-    def __init__( self, model_path ):
+    def __init__( self, model_path, gen_fig = False ):
         # Specifies the relative path to the model's directory
         self.model_path = model_path
         self.model_dir  = os.path.dirname(model_path)
 
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
+        
+        # Indicates whether to save a figure of the model or not
+        self.gen_fig = gen_fig
 
         return
 
     def __call__(self, hyperparameters, seed):
         """ 
         Supported architectures: 
+            resnet
+        
+        Old Supported:
             vgg_16, vgg_19, resnet_50v2, resnet_101v2, resnet_152v2, 
             mobilenet_v2, xception, densenet_121, densenet_169, densenet_201, 
             efficientnet_b0, efficientnet_b1, efficientnet_b2, efficientnet_b3, 
@@ -31,17 +44,21 @@ class ModelBuilder:
         tf.random.set_seed(seed)
         
         # Creates a model with all layers up to the end of the convolutional base
-        model = self.get_architecture( hyperparameters )
+        if "custom" in hyperparameters["architecture"].lower():
+            model  = self.create_model(hyperparameters)
+            
+        else:
+            model = self.get_architecture( hyperparameters )
 
-        # Adds L1 regularization if needed
-        if hyperparameters["l1_reg"] > 0:
-            regularizer = tf.keras.regularizers.l1( hyperparameters["l1_reg"] )
-            model = self.add_regularization( model, regularizer = regularizer )
+            # Adds L1 regularization if needed
+            if hyperparameters["l1_reg"] > 0:
+                regularizer = tf.keras.regularizers.l1( hyperparameters["l1_reg"] )
+                model = self.add_regularization( model, regularizer = regularizer )
 
-        # Adds L2 regularization if needed
-        if hyperparameters["l2_reg"] > 0:
-            regularizer = tf.keras.regularizers.l2( hyperparameters["l2_reg"] )
-            model = self.add_regularization( model, regularizer = regularizer )
+            # Adds L2 regularization if needed
+            if hyperparameters["l2_reg"] > 0:
+                regularizer = tf.keras.regularizers.l2( hyperparameters["l2_reg"] )
+                model = self.add_regularization( model, regularizer = regularizer )
         
         # Counts the model's parameters
         trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in model.layers ]))
@@ -55,7 +72,91 @@ class ModelBuilder:
         with open(config_path, "w") as json_file:
             json.dump( json_config, json_file, indent=4 )
 
+        # Generates the model plot if specified
+        if self.gen_fig:        
+            self.gen_model_as_figure(model)
+
         return model
+
+    def gen_model_as_figure(self, model):
+        path = os.path.join( self.model_dir, "model_fig.png" )
+
+        print(f"Saving fig to '{path}'...")
+        tf.keras.utils.plot_model( model, to_file = path, show_shapes = True, show_layer_names = True, 
+                                   rankdir = "TB", expand_nested = False, dpi = 96 )
+        
+        return
+
+    
+    def create_model(self, hyperparameters):
+        inputH = hyperparameters["input_height"]
+        inputW = hyperparameters["input_width"]
+        inputC = hyperparameters["input_channels"]
+        input_size = (inputH, inputW, inputC)
+        
+        resnet = ResNet()
+        if hyperparameters["architecture"].lower() == "custom_resnet18":
+            model  = resnet.get_ResNet18( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+        elif hyperparameters["architecture"].lower() == "custom_resnet34":
+            model  = resnet.get_ResNet34( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+        elif hyperparameters["architecture"].lower() == "custom_resnet50":
+            model  = resnet.get_ResNet50( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+        elif hyperparameters["architecture"].lower() == "custom_resnet101":
+            model  = resnet.get_ResNet101( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+        elif hyperparameters["architecture"].lower() == "custom_resnet152":
+            model  = resnet.get_ResNet152( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        
+        return model
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------- VGG Related Functions ------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------- ResNet Related Functions -----------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------- DenseNet Related Functions ----------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------- InceptionResNet Related Functions ------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------- DenseNet Related Functions ----------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------- Xception Related Functions ----------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------- MobileNet Related Functions ---------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------- EfficientNet Related Functions --------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------- DAQUI PRA BAIXO SÃO CÓDIGOS NÃO UTILIZADOS --------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
 
     def get_architecture(self, hyperparameters):
         inputH = hyperparameters["input_height"]
@@ -186,7 +287,7 @@ class ModelBuilder:
         else:
             raise ValueError("\nUnknown architecture...")
 
-        x = tf.keras.layers.Dropout( hyperparameters["dropout"], name = "topDropout_1" )(base_model.layers[-1].output)
+        x = tf.keras.layers.Dropout( hyperparameters["top_dropout"], name = "topDropout_1" )(base_model.layers[-1].output)
 
         # Adds output layer
         output_layer = tf.keras.layers.Dense( 1, activation = "sigmoid", name = "Classification_Layer" )(x)

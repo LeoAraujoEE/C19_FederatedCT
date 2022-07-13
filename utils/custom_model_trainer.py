@@ -45,21 +45,22 @@ class ModelEntity():
         hyperparams = { "num_epochs":                     1,  # Total N° of training epochs
                         "batchsize":                      8,  # Minibatch size
                         "early_stop":                    50,  # Early Stopping patience
-                        "input_height":                 256,  # Model's input height
-                        "input_width":                  256,  # Model's input width
+                        "input_height":                 512,  # Model's input height
+                        "input_width":                  512,  # Model's input width
                         "input_channels":                 3,  # Model's input channels
                         "apply_undersampling":        False,  # Wether to apply Random Undersampling
                         "start_lr":                    1e-3,  # Starting learning rate
                         "min_lr":                      1e-5,  # Smallest learning rate value allowed
                         "lr_adjust_frac":              0.70,  # N° of epochs between lr adjusts
-                        "lr_patience":                    4,  # N° of epochs between lr adjusts
+                        "lr_patience":                   50,  # N° of epochs between lr adjusts
                         "class_weights":              False,  # If class_weights should be used
                         "preprocess_func":            False,  # If keras preprocess_functions should be used
                         "monitor":                "val_acc",  # Monitored variable for callbacks
                         "optimizer":                 "adam",  # Chosen optimizer
-                        "l1_reg":                       0.0,  # Amount of L1 regularization
-                        "l2_reg":                       0.0,  # Amount of L2 regularization
-                        "dropout":                      0.0,  # Dropout for layers in skip connections
+                        "l1_reg":                      0.00,  # Amount of L1 regularization
+                        "l2_reg":                      0.00,  # Amount of L2 regularization
+                        "base_dropout":                0.00,  # SpatialDropout2d between blocks in convolutional base
+                        "top_dropout":                 0.00,  # Dropout between dense layers in model top
                         "augmentation":               False,  # If data augmentation should be used
                         "pooling":                    "avg",  # Global Pooling used
                         "weights":                     None,  # Pretrained weights

@@ -26,7 +26,8 @@ hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of t
                         "optimizer":                 ["adam"],  # Chosen optimizer
                         "l1_reg":             [0, 1e-3, 1e-2],  # Amount of L1 regularization
                         "l2_reg":             [0, 1e-3, 1e-2],  # Amount of L2 regularization
-                        "dropout":            [0.5, 0.3, 0.0],  # Dropout for layers in skip connections
+                        "base_dropout":       [0.5, 0.3, 0.0],  # SpatialDropout2d between blocks in convolutional base
+                        "top_dropout":        [0.5, 0.3, 0.0],  # Dropout between dense layers in model top
                         "augmentation":         [True, False],  # If data augmentation should be used
                         "pooling":             ["avg", "max"],  # Global Pooling used
                         "weights":                     [None],  # Pretrained weights
