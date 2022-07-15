@@ -6,9 +6,9 @@ import numpy as np
 import tensorflow as tf
 
 from utils.architectures.resnet import ResNet
+from utils.architectures.densenet import DenseNet
 from tensorflow.python.keras.utils.layer_utils import count_params
 
-from tensorflow.keras.applications import ResNet50V2, ResNet101V2, ResNet152V2
 from tensorflow.keras.applications import DenseNet121, DenseNet169, DenseNet201
 from tensorflow.keras.applications import Xception, VGG16, VGG19, EfficientNetB0
 from tensorflow.keras.applications import InceptionResNetV2, InceptionV3, MobileNetV2
@@ -94,69 +94,58 @@ class ModelBuilder:
         inputC = hyperparameters["input_channels"]
         input_size = (inputH, inputW, inputC)
         
-        resnet = ResNet()
-        if hyperparameters["architecture"].lower() == "custom_resnet18":
-            model  = resnet.get_ResNet18( input_size, 1, "sigmoid", hyperparameters["pooling"], 
-                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
-                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        if "resnet" in hyperparameters["architecture"].lower():
+            resnet = ResNet()
             
-        elif hyperparameters["architecture"].lower() == "custom_resnet34":
-            model  = resnet.get_ResNet34( input_size, 1, "sigmoid", hyperparameters["pooling"], 
-                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
-                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            if hyperparameters["architecture"].lower() == "custom_resnet18":
+                model  = resnet.get_ResNet18( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+                
+            elif hyperparameters["architecture"].lower() == "custom_resnet34":
+                model  = resnet.get_ResNet34( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+                
+            elif hyperparameters["architecture"].lower() == "custom_resnet50":
+                model  = resnet.get_ResNet50( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+                
+            elif hyperparameters["architecture"].lower() == "custom_resnet101":
+                model  = resnet.get_ResNet101( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+                
+            elif hyperparameters["architecture"].lower() == "custom_resnet152":
+                model  = resnet.get_ResNet152( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        
+        elif "densenet" in hyperparameters["architecture"].lower():
+            densenet = DenseNet()
             
-        elif hyperparameters["architecture"].lower() == "custom_resnet50":
-            model  = resnet.get_ResNet50( input_size, 1, "sigmoid", hyperparameters["pooling"], 
-                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
-                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            if hyperparameters["architecture"].lower() == "custom_densenet121":
+                model  = densenet.get_DenseNet121( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                        hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                        hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-        elif hyperparameters["architecture"].lower() == "custom_resnet101":
-            model  = resnet.get_ResNet101( input_size, 1, "sigmoid", hyperparameters["pooling"], 
-                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
-                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            elif hyperparameters["architecture"].lower() == "custom_densenet169":
+                model  = densenet.get_DenseNet169( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                        hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                        hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-        elif hyperparameters["architecture"].lower() == "custom_resnet152":
-            model  = resnet.get_ResNet152( input_size, 1, "sigmoid", hyperparameters["pooling"], 
-                               hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
-                               hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            elif hyperparameters["architecture"].lower() == "custom_densenet201":
+                model  = densenet.get_DenseNet201( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                        hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                        hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            elif hyperparameters["architecture"].lower() == "custom_densenet264":
+                model  = densenet.get_DenseNet264( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                                        hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                        hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
         
         return model
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ------------------------------------------------------------- VGG Related Functions ------------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ----------------------------------------------------------- ResNet Related Functions -----------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ---------------------------------------------------------- DenseNet Related Functions ----------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ------------------------------------------------------- InceptionResNet Related Functions ------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ---------------------------------------------------------- DenseNet Related Functions ----------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ---------------------------------------------------------- Xception Related Functions ----------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # ---------------------------------------------------------- MobileNet Related Functions ---------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # -------------------------------------------------------- EfficientNet Related Functions --------------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
-    # -------------------------------------------------- DAQUI PRA BAIXO SÃO CÓDIGOS NÃO UTILIZADOS --------------------------------------------------
-    # ------------------------------------------------------------------------------------------------------------------------------------------------
 
     def get_architecture(self, hyperparameters):
         inputH = hyperparameters["input_height"]
