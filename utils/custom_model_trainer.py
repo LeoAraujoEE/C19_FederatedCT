@@ -54,7 +54,6 @@ class ModelEntity():
                         "lr_adjust_frac":              0.70,  # N° of epochs between lr adjusts
                         "lr_patience":                   50,  # N° of epochs between lr adjusts
                         "class_weights":              False,  # If class_weights should be used
-                        "preprocess_func":            False,  # If keras preprocess_functions should be used
                         "monitor":                "val_acc",  # Monitored variable for callbacks
                         "optimizer":                 "adam",  # Chosen optimizer
                         "l1_reg":                      0.00,  # Amount of L1 regularization
@@ -62,8 +61,6 @@ class ModelEntity():
                         "base_dropout":                0.00,  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                 0.00,  # Dropout between dense layers in model top
                         "augmentation":               False,  # If data augmentation should be used
-                        "pooling":                    "avg",  # Global Pooling used
-                        "weights":                     None,  # Pretrained weights
                         "architecture":   "efficientnet_b0",  # Chosen architecture
                         "seed":                           1,  # Seed for pseudorandom generators
                         } 

@@ -21,15 +21,12 @@ hyperparameter_ranges = { "num_epochs":                             (3,),  # Tot
                           "lr_adjust_frac":                      (0.70,),  # N° of epochs between lr adjusts
                           "lr_patience":                            (4,),  # N° of epochs between lr adjusts
                           "class_weights":                      (False,),  # If class_weights should be used
-                          "preprocess_func":                     (True,),  # If keras preprocess_functions should be used
                           "monitor":                         ("val_f1",),  # Monitored variable for callbacks
                           "optimizer":                         ("adam",),  # Chosen optimizer
                           "l1_reg":                  (1e-4, 1e-2, "log"),  # Amount of L1 regularization
                           "l2_reg":                  (1e-4, 1e-2, "log"),  # Amount of L2 regularization
                           "dropout":                   (0.0, 0.5, "lin"),  # Dropout for layers in skip connections
                           "augmentation":                        (True,),  # If data augmentation should be used
-                          "pooling":                            ("avg",),  # Global Pooling used
-                          "weights":                             (None,),  # Pretrained weights
                           "architecture":         (model_list, "sample"),  # Chosen architecture
                           "seed":                                  (69,),  # Seed for pseudorandom generators
                         } 
@@ -48,4 +45,4 @@ augmentation_dict = { "zoom":                    0.10,          # Max zoom in/zo
                       }
 
 trainManager = ModelManager( "radiopaedia.org", hyperparameter_ranges, augmentation_dict, keep_pneumonia = True )
-trainManager.doRandomSearch( hyperparameter_ranges, n_models = 1 )
+trainManager.doRandomSearch( hyperparameter_ranges, n_models = 3 )

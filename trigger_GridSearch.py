@@ -6,32 +6,30 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from utils.custom_model_trainer import ModelManager
 
 # List of used models
-model_list = [ "resnet_50v2", "densenet_121", "xception", "mobilenet_v2", "efficientnet_b0" ]
+#model_list = [ "resnet_50v2", "densenet_121", "xception", "mobilenet_v2", "efficientnet_b0" ]
+model_list = [ "custom_resnet50", "custom_densenet121" ]
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [5],  # Total N° of training epochs
                         "batchsize":                     [16],  # Minibatch size
                         "early_stop":                    [13],  # Early Stopping patience
                         "input_height":                 [256],  # Model's input size
                         "input_width":                  [256],  # Model's input size
                         "input_channels":                 [3],  # Model's input size
                         "apply_undersampling":         [True],  # Wether to apply Random Undersampling
-                        "start_lr":              [1e-3, 1e-4],  # Starting learning rate
+                        "start_lr":                    [1e-3],  # Starting learning rate
                         "min_lr":                      [1e-5],  # Smallest learning rate value allowed
                         "lr_adjust_frac":              [0.70],  # N° of epochs between lr adjusts
                         "lr_patience":                    [4],  # N° of epochs between lr adjusts
                         "class_weights":              [False],  # If class_weights should be used
-                        "preprocess_func":             [True],  # If keras preprocess_functions should be used
                         "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                         "optimizer":                 ["adam"],  # Chosen optimizer
-                        "l1_reg":             [0, 1e-3, 1e-2],  # Amount of L1 regularization
-                        "l2_reg":             [0, 1e-3, 1e-2],  # Amount of L2 regularization
-                        "base_dropout":       [0.5, 0.3, 0.0],  # SpatialDropout2d between blocks in convolutional base
-                        "top_dropout":        [0.5, 0.3, 0.0],  # Dropout between dense layers in model top
+                        "l1_reg":                         [0],  # Amount of L1 regularization
+                        "l2_reg":                         [0],  # Amount of L2 regularization
+                        "base_dropout":[.0, .15, .3, .45, .6],  # SpatialDropout2d between blocks in convolutional base
+                        "top_dropout":                  [0.0],  # Dropout between dense layers in model top
                         "augmentation":         [True, False],  # If data augmentation should be used
-                        "pooling":             ["avg", "max"],  # Global Pooling used
-                        "weights":                     [None],  # Pretrained weights
-                        "architecture":      ["mobilenet_v2"],  # Chosen architecture
+                        "architecture":            model_list,  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
                       } 
 
@@ -48,5 +46,6 @@ augmentation_dict = { "zoom":                    0.10,          # Max zoom in/zo
                       "fill_mode":          "constant"
                       }
 
-trainManager = ModelManager( "radiopaedia.org", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = True )
+# Datasets: "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB"
+trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
+trainManager.doGridSearch( shuffle = False )

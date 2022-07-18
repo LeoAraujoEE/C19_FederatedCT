@@ -31,7 +31,8 @@ class ModelBuilder:
     def __call__(self, hyperparameters, seed):
         """ 
         Supported architectures: 
-            resnet
+            resnets  :  18,  34,  50, 101, 152
+            densenets: 121, 169, 201, 264
         
         Old Supported:
             vgg_16, vgg_19, resnet_50v2, resnet_101v2, resnet_152v2, 
@@ -42,6 +43,8 @@ class ModelBuilder:
         random.seed(seed)
         np.random.seed(seed)
         tf.random.set_seed(seed)
+        
+        print(f"\n\n{'custom' in hyperparameters['architecture'].lower()} Architecture '{hyperparameters['architecture']}'...\n\n")
         
         # Creates a model with all layers up to the end of the convolutional base
         if "custom" in hyperparameters["architecture"].lower():
@@ -98,27 +101,27 @@ class ModelBuilder:
             resnet = ResNet()
             
             if hyperparameters["architecture"].lower() == "custom_resnet18":
-                model  = resnet.get_ResNet18( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = resnet.get_ResNet18( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
             elif hyperparameters["architecture"].lower() == "custom_resnet34":
-                model  = resnet.get_ResNet34( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = resnet.get_ResNet34( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
             elif hyperparameters["architecture"].lower() == "custom_resnet50":
-                model  = resnet.get_ResNet50( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = resnet.get_ResNet50( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
             elif hyperparameters["architecture"].lower() == "custom_resnet101":
-                model  = resnet.get_ResNet101( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = resnet.get_ResNet101( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
             elif hyperparameters["architecture"].lower() == "custom_resnet152":
-                model  = resnet.get_ResNet152( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = resnet.get_ResNet152( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
         
@@ -126,22 +129,22 @@ class ModelBuilder:
             densenet = DenseNet()
             
             if hyperparameters["architecture"].lower() == "custom_densenet121":
-                model  = densenet.get_DenseNet121( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = densenet.get_DenseNet121( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
             elif hyperparameters["architecture"].lower() == "custom_densenet169":
-                model  = densenet.get_DenseNet169( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = densenet.get_DenseNet169( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
             elif hyperparameters["architecture"].lower() == "custom_densenet201":
-                model  = densenet.get_DenseNet201( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = densenet.get_DenseNet201( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
             elif hyperparameters["architecture"].lower() == "custom_densenet264":
-                model  = densenet.get_DenseNet264( input_size, 1, "sigmoid", hyperparameters["pooling"], 
+                model  = densenet.get_DenseNet264( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
         
@@ -157,121 +160,103 @@ class ModelBuilder:
             # Blocks 1 to 14
             # Recommended size -> 299 x 299
             base_model = tf.keras.applications.xception.Xception( input_shape = input_size, include_top = False, 
-                                                                  weights = hyperparameters["weights"], 
-                                                                  pooling = hyperparameters["pooling"] )
+                                                            weights = None, pooling = "avg" )
 
         elif hyperparameters["architecture"].lower() in ["resnet_50v2", "resnet50v2"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.ResNet50V2( input_shape = input_size, include_top = False, 
-                                                           weights = hyperparameters["weights"], 
-                                                           pooling = hyperparameters["pooling"] )
+                                                     weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "resnet" )
 
         elif hyperparameters["architecture"].lower() in ["resnet_101v2", "resnet101v2"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.ResNet101V2( input_shape = input_size, include_top = False, 
-                                                            weights = hyperparameters["weights"], 
-                                                            pooling = hyperparameters["pooling"] )
+                                                      weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "resnet" )
 
         elif hyperparameters["architecture"].lower() in ["resnet_152v2", "resnet152v2"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.ResNet152V2( input_shape = input_size, include_top = False, 
-                                                            weights = hyperparameters["weights"], 
-                                                            pooling = hyperparameters["pooling"] )
+                                                      weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "resnet" )
 
         elif hyperparameters["architecture"].lower() in ["mobilenet_v2", "mobilenetv2"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.MobileNetV2( input_shape = input_size, include_top = False, 
-                                                            weights = hyperparameters["weights"], 
-                                                            pooling = hyperparameters["pooling"] )
+                                                      weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "mobilenet" )
 
         elif hyperparameters["architecture"].lower() in ["densenet_121", "densenet121"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.DenseNet121( input_shape = input_size, include_top = False, 
-                                                            weights = hyperparameters["weights"], 
-                                                            pooling = hyperparameters["pooling"] )
+                                                      weights = None, pooling = "avg" )
 
         elif hyperparameters["architecture"].lower() in ["densenet_169", "densenet169"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.DenseNet169( input_shape = input_size, include_top = False, 
-                                                            weights = hyperparameters["weights"], 
-                                                            pooling = hyperparameters["pooling"] )
+                                                      weights = None, pooling = "avg" )
 
         elif hyperparameters["architecture"].lower() in ["densenet_201", "densenet201"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.DenseNet201( input_shape = input_size, include_top = False, 
-                                                            weights = hyperparameters["weights"], 
-                                                            pooling = hyperparameters["pooling"])
+                                                      weights = None, pooling = "avg")
 
         elif hyperparameters["architecture"].lower() in ["vgg_16", "vgg16"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.VGG16( input_shape = input_size, include_top = False, 
-                                                      weights = hyperparameters["weights"], 
-                                                      pooling = hyperparameters["pooling"] )
+                                                weights = None, pooling = "avg" )
 
         elif hyperparameters["architecture"].lower() in ["vgg_19", "vgg19"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.VGG19( input_shape = input_size, include_top = False, 
-                                                      weights = hyperparameters["weights"], 
-                                                      pooling = hyperparameters["pooling"] )
+                                                weights = None, pooling = "avg" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b0", "efficientnetb0"]:
             # Recommended size -> 224 x 224
             base_model = tf.keras.applications.EfficientNetB0( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b1", "efficientnetb1"]:
             # Recommended size -> 240 x 240
             base_model = tf.keras.applications.EfficientNetB1( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b2", "efficientnetb2"]:
             # Recommended size -> 260 x 260
             base_model = tf.keras.applications.EfficientNetB2( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b3", "efficientnetb3"]:
             # Recommended size -> 300 x 300
             base_model = tf.keras.applications.EfficientNetB3( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b4", "efficientnetsb4"]:
             # Recommended size -> 380 x 380
             base_model = tf.keras.applications.EfficientNetB4( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b5", "efficientnetsb5"]:
             # Recommended size -> 456 x 456
             base_model = tf.keras.applications.EfficientNetB5( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b6", "efficientnetsb6"]:
             # Recommended size -> 528 x 528
             base_model = tf.keras.applications.EfficientNetB6( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
 
         elif hyperparameters["architecture"].lower() in ["efficientnet_b7", "efficientnetsb7"]:
             # Recommended size -> 600 x 600
             base_model = tf.keras.applications.EfficientNetB7( input_shape = input_size, include_top = False, 
-                                                               weights = hyperparameters["weights"], 
-                                                               pooling = hyperparameters["pooling"] )
+                                                         weights = None, pooling = "avg" )
             base_model = self.edit_layer_names( base_model, model_type = "efficientnet" )
         else:
             raise ValueError("\nUnknown architecture...")

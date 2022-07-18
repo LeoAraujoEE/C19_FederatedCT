@@ -167,7 +167,7 @@ class DenseNet:
         
         y = DenseNet.bn_relu(y, block = block, num = 2)
         if dropchance > 0:
-            y = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num1")(y)
+            y = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num2")(y)
         y = Conv2D( filters = n_new_filters, kernel_size = kernel_size, strides = 1, padding = "same", 
                     kernel_regularizer = tf.keras.regularizers.L1L2(l1 = l1_val, l2 = l2_val), use_bias = False,
                     kernel_initializer = "he_uniform", name = f"block{block}_Conv2D_num2" )(y)

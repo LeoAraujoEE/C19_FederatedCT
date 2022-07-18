@@ -81,14 +81,20 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
                 augmentation_dict[k] = v
 
         return augmentation_dict
+    
+    @staticmethod
+    def custom_preprocess_input(model_input):
+        model_input = model_input.astype(np.float32)
+        model_input /= 127.5
+        model_input -= 1
+        return model_input
 
     @staticmethod
     def get_preprocessing_function(hyperparameters):
-        # If a preprocess_func isnt being used, no function is returned
-        if (not hyperparameters["preprocess_func"]):
-            return None
-
         architecture_name = hyperparameters["architecture"].lower()
+        
+        if "custom" in architecture_name:
+            return CustomDataGenerator.custom_preprocess_input
 
         if "xception" in architecture_name:
             return tf.keras.applications.xception.preprocess_input
@@ -138,11 +144,7 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
 
         augmentation_dict = self.fill_aug_dict(hyperparameters, augmentation_dict)
 
-        # Datagen
-        # Factor to normalize inputs, is set to 1. if a keras.applications preprocess_func is used
-        rescale_factor  = 1. if hyperparameters["preprocess_func"] else 1./255.
-
-        # The keras.applications preprocess_func used, defaults to None if no function is selected
+        # The keras.applications preprocess_func used
         preprocess_func = self.get_preprocessing_function(hyperparameters)
 
         # Zoom range for data augmentation
@@ -152,17 +154,17 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         brightness_range = ( 1. - augmentation_dict["brightness"], 1. + augmentation_dict["brightness"])
 
         # Transformations for ImageDataGenerator
-        datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale                =    rescale_factor,
-                                                                  rotation_range         =    augmentation_dict["rotation"],
-                                                                  shear_range            =    augmentation_dict["shear_range"],
-                                                                  brightness_range       =    brightness_range,
-                                                                  width_shift_range      =    augmentation_dict["horizontal_translation"],
-                                                                  height_shift_range     =    augmentation_dict["vertical_translation"],
-                                                                  zoom_range             =    zoom_range,
-                                                                  horizontal_flip        =    augmentation_dict["horizontal_flip"],
-                                                                  vertical_flip          =    augmentation_dict["vertical_flip"],
-                                                                  fill_mode              =    augmentation_dict["fill_mode"],
-                                                                  cval                   =    augmentation_dict["constant_val"], 
+        datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale                = 1.,
+                                                                  rotation_range         = augmentation_dict["rotation"],
+                                                                  shear_range            = augmentation_dict["shear_range"],
+                                                                  brightness_range       = brightness_range,
+                                                                  width_shift_range      = augmentation_dict["horizontal_translation"],
+                                                                  height_shift_range     = augmentation_dict["vertical_translation"],
+                                                                  zoom_range             = zoom_range,
+                                                                  horizontal_flip        = augmentation_dict["horizontal_flip"],
+                                                                  vertical_flip          = augmentation_dict["vertical_flip"],
+                                                                  fill_mode              = augmentation_dict["fill_mode"],
+                                                                  cval                   = augmentation_dict["constant_val"], 
                                                                   preprocessing_function = preprocess_func
                                                                  )
 
