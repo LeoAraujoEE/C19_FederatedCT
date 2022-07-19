@@ -33,7 +33,7 @@ hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of t
 augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
                       "zoom_out":                0.10,          # Max zoom out
                       "shear":                   00.0,          # Max random shear
-                      "rotation":                05.0,          # Max random rotation
+                      "rotation":                 5.0,          # Max random rotation
                       "vertical_translation":    0.05,          # Max vertical translation
                       "horizontal_translation":  0.05,          # Max horizontal translation
                       "vertical_flip":          False,          # Allow vertical flips  
@@ -45,6 +45,6 @@ augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
                       }
 
 # Datasets: "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB"
-trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = False )
+trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
 #trainManager = ModelManager( "radiopaedia.org", hyperparameter_dict, augmentation_dict, keep_pneumonia = False )
 trainManager.doGridSearch( shuffle = False )

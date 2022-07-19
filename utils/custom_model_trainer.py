@@ -138,10 +138,13 @@ class ModelEntity():
         return time_str
 
 class ModelManager(ModelEntity):
-    def __init__(self, dataset_dir, hyperparam_values = None, aug_params = None, keep_pneumonia = False):
+    def __init__(self, dataset_dir, hyperparam_values = None, aug_params = None, dst_dir = ".", keep_pneumonia = False):
         
         # Directory of the selected train dataset
         self.dataset_dir = dataset_dir
+        
+        # Directory for the output trained models
+        self.dst_dir = dst_dir
         
         # Wether to keep pneumonia sample or remove them
         self.keep_pneumonia = keep_pneumonia
@@ -188,7 +191,7 @@ class ModelManager(ModelEntity):
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{n_permutations} Iteration of GridSearch:")
             
             # Adds augmentation parameters to selected hyperparameters
-            args = { "ignore_check": False }
+            args = { "output_dir": self.dst_dir, "ignore_check": False }
             train_command = self.create_command(args, hyperparameters)
 
             # Trains and Tests the model
@@ -212,7 +215,7 @@ class ModelManager(ModelEntity):
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
             
             # Adds augmentation parameters to selected hyperparameters
-            args = { "ignore_check": False }
+            args = { "output_dir": self.dst_dir, "ignore_check": False }
             train_command = self.create_command(args, hyperparameters)
 
             # Trains and Tests the model
@@ -236,7 +239,7 @@ class ModelManager(ModelEntity):
             hyperparameters["seed"] = seed
             
         # Adds augmentation parameters to selected hyperparameters
-        args = { "ignore_check": True }
+        args = { "output_dir": self.dst_dir, "ignore_check": True }
         train_command = self.create_command(args, hyperparameters)
 
         # Trains and Tests the model
@@ -350,7 +353,7 @@ class ModelManager(ModelEntity):
         return hyperparameters, augmentation_params
 
 class ModelTrainer(ModelEntity):
-    def __init__(self, dataset, dataset_list = None):
+    def __init__(self, dataset, dataset_list = None, dst_dir = "."):
 
         # Sets the dataset used for training
         self.dataset = dataset
@@ -368,7 +371,7 @@ class ModelTrainer(ModelEntity):
             print("\nNo dataset found for cross-validation:")
 
         # Relative path to where the models will be stored
-        self.model_dir = os.path.join( ".", "output", "models", self.dataset.name )
+        self.model_dir = os.path.join( dst_dir, "output", "models", self.dataset.name )
         print("\nSaving model to '{}'...".format( self.model_dir ))
         
         # Creates model_dir if needed

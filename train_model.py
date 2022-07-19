@@ -13,7 +13,7 @@ from utils.dataset import load_datasets
 from utils.custom_model_trainer import ModelTrainer
 
 # Path to resized datasets in COVIDx CT-3A
-path2datasets = os.path.join( ".", "data", "classification" )
+path2datasets = os.path.join( "data", "classification" )
 
 # Decodes all the input args and creates a dict
 arg_dict = ModelTrainer.decode_args(sys.argv)
@@ -23,5 +23,5 @@ dataTrain, dataVal_list = load_datasets( import_dir = path2datasets, train_datas
                                          input_col = "path_256", output_col = "class", 
                                          keep_pneumonia = arg_dict["keep_pneumonia"] )
 
-trainer = ModelTrainer( dataTrain, dataVal_list )
+trainer = ModelTrainer( dataTrain, dataVal_list, dst_dir = arg_dict["output_dir"] )
 trainer.train_test_iteration( arg_dict )
