@@ -44,8 +44,6 @@ class ModelBuilder:
         np.random.seed(seed)
         tf.random.set_seed(seed)
         
-        print(f"\n\n{'custom' in hyperparameters['architecture'].lower()} Architecture '{hyperparameters['architecture']}'...\n\n")
-        
         # Creates a model with all layers up to the end of the convolutional base
         if "custom" in hyperparameters["architecture"].lower():
             model  = self.create_model(hyperparameters)

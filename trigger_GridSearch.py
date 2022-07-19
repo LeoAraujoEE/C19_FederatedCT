@@ -10,34 +10,32 @@ from utils.custom_model_trainer import ModelManager
 model_list = [ "custom_resnet50", "custom_densenet121" ]
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                     [5],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of training epochs
                         "batchsize":                     [16],  # Minibatch size
                         "early_stop":                    [13],  # Early Stopping patience
                         "input_height":                 [256],  # Model's input size
                         "input_width":                  [256],  # Model's input size
-                        "input_channels":                 [3],  # Model's input size
+                        "input_channels":                 [1],  # Model's input size
                         "apply_undersampling":         [True],  # Wether to apply Random Undersampling
-                        "start_lr":                    [1e-3],  # Starting learning rate
-                        "min_lr":                      [1e-5],  # Smallest learning rate value allowed
-                        "lr_adjust_frac":              [0.70],  # N° of epochs between lr adjusts
-                        "lr_patience":                    [4],  # N° of epochs between lr adjusts
+                        "start_lr":              [1e-1, 1e-2],  # Starting learning rate
                         "class_weights":              [False],  # If class_weights should be used
                         "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                         "optimizer":                 ["adam"],  # Chosen optimizer
                         "l1_reg":                         [0],  # Amount of L1 regularization
                         "l2_reg":                         [0],  # Amount of L2 regularization
-                        "base_dropout":[.0, .15, .3, .45, .6],  # SpatialDropout2d between blocks in convolutional base
-                        "top_dropout":                  [0.0],  # Dropout between dense layers in model top
-                        "augmentation":         [True, False],  # If data augmentation should be used
+                        "base_dropout":                 [0.1],  # SpatialDropout2d between blocks in convolutional base
+                        "top_dropout":                  [0.3],  # Dropout between dense layers in model top
+                        "augmentation":                [True],  # If data augmentation should be used
                         "architecture":            model_list,  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
                       } 
 
-augmentation_dict = { "zoom":                    0.10,          # Max zoom in/zoom out
+augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
+                      "zoom_out":                0.10,          # Max zoom out
                       "shear":                   00.0,          # Max random shear
-                      "rotation":                15.0,          # Max random rotation
-                      "vertical_translation":    0.10,          # Max vertical translation
-                      "horizontal_translation":  0.10,          # Max horizontal translation
+                      "rotation":                05.0,          # Max random rotation
+                      "vertical_translation":    0.05,          # Max vertical translation
+                      "horizontal_translation":  0.05,          # Max horizontal translation
                       "vertical_flip":          False,          # Allow vertical flips  
                       "horizontal_flip":        False,          # Allow horizontal flips    
                       "brightness":              0.00,          # Brightness adjustment range
@@ -47,5 +45,6 @@ augmentation_dict = { "zoom":                    0.10,          # Max zoom in/zo
                       }
 
 # Datasets: "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB"
-trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
+trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = False )
+#trainManager = ModelManager( "radiopaedia.org", hyperparameter_dict, augmentation_dict, keep_pneumonia = False )
 trainManager.doGridSearch( shuffle = False )

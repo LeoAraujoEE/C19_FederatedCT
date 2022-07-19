@@ -11,7 +11,7 @@ from utils.custom_generator import CustomDataGenerator
 path2datasets = os.path.join( ".", "data", "classification" )
 
 # Builds object to handle radiopaedia dataset 
-dataset = Dataset( import_dir = path2datasets, folder = "radiopaedia.org", 
+dataset = Dataset( import_dir = path2datasets, folder = "COVID-CT-MD", 
                            input_col = "path_512", output_col = "class",  
                            keep_pneumonia = True, trainable = True )
 dataset.load_dataframes()
@@ -19,22 +19,24 @@ dataset.load_dataframes()
 hyperparameters = { "batchsize"          :                16, 
                     "input_height"       :               512, 
                     "input_width"        :               512, 
-                    "input_channels"     :                 3, 
+                    "input_channels"     :                 1, 
                     "architecture"       :    "mobilenet_v2", 
                     "augmentation"       :             False, 
                     "preprocess_func"    :              True,
                   }
 
 # List of data augmentation parameters
-augmentation_dict = { "zoom":                    0.10,          # Max zoom in/zoom out
+augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
+                      "zoom_out":                0.10,          # Max zoom out
                       "shear":                   00.0,          # Max random shear
-                      "rotation":                15.0,          # Max random rotation
-                      "vertical_translation":    0.10,          # Max vertical translation
-                      "horizontal_translation":  0.10,          # Max horizontal translation
+                      "rotation":                05.0,          # Max random rotation
+                      "vertical_translation":    0.05,          # Max vertical translation
+                      "horizontal_translation":  0.05,          # Max horizontal translation
                       "vertical_flip":          False,          # Allow vertical flips  
                       "horizontal_flip":        False,          # Allow horizontal flips    
                       "brightness":              0.00,          # Brightness adjustment range
                       "channel_shift":           00.0,          # Random adjustment to random channel
+                      "constant_val":            00.0,          # Random adjustment to random channel
                       "fill_mode":          "constant"
                       }
 

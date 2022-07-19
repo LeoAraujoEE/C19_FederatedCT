@@ -41,7 +41,7 @@ class DenseNet:
             if (idx + 1) < len(num_block_list):
                 num_filters = int(num_filters * reduction_factor)
                 x = DenseNet.transition_block( x = x, num_filters = num_filters, block = current_block, 
-                                               dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val)
+                                               l1_val = l1_val, l2_val = l2_val)
                 current_block += 1
             
         # BN + ReLU for the final block
@@ -177,13 +177,10 @@ class DenseNet:
     
     @staticmethod
     def transition_block( x: tf.Tensor, num_filters: int, block: int, 
-                          dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
+                          l1_val: float, l2_val: float ) -> tf.Tensor:
         
         # Trasition blocks to downsample data between Dense Stacks
         y = DenseNet.bn_relu(x, block = block, num = 1)
-        
-        if dropchance > 0:
-            y = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num1")(y)
             
         y = Conv2D( filters = num_filters, kernel_size = 1, strides = 1, padding = "same",
                     kernel_regularizer = tf.keras.regularizers.L1L2(l1 = l1_val, l2 = l2_val), use_bias = False,

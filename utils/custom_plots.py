@@ -69,7 +69,7 @@ class CustomPlots:
 
         return
 
-    def plot_test_results( self, results, dataset_name, cval_dataset_names = None, figsize = (16, 12) ):
+    def plot_test_results( self, results, dataset_name, cval_dataset_names = None, figsize = (16, 16) ):
 
         # Defines the path to the plot directory inside the model's directory
         dst_dir = os.path.join( self.plot_dir, "2.Test Results" )
@@ -77,6 +77,8 @@ class CustomPlots:
         # Creates the plot directory if needed
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
+        
+        min_value = np.inf
 
         for metric in [ "acc", "f1", "auc" ]:
 
@@ -84,7 +86,8 @@ class CustomPlots:
             plot_name = "{}_{}.png".format( metric, dataset_name )
             plot_path = os.path.join( dst_dir, plot_name )
 
-            fig, axes = plt.subplots(1, 2, squeeze=False, figsize=figsize)
+            #fig, axes = plt.subplots(1, 2, squeeze=False, figsize=figsize)
+            fig, axes = plt.subplots(2, 1, squeeze=False, figsize=figsize)
 
             # Plot 1 - Final values for Train, Validation and Test
             labels = [] # Labels for the x-axis in the bar plot
@@ -101,13 +104,13 @@ class CustomPlots:
             colors = list(sns.color_palette(cc.glasbey, n_colors = len(labels)))
 
             plt.sca(axes.flat[0])
-            bars = plt.bar( labels, values, color = colors, width = 0.4 )
+            bars = plt.barh( labels, values, color = colors, height = 0.2 )
             plt.bar_label(bars)
             plt.title("{} per Partition".format(metric.title()), fontsize = 24)
-            plt.xlabel("Partition", fontsize = 20)
-            plt.xticks(fontsize = 16, rotation = 45)
-            plt.ylabel(metric.title(), fontsize = 20)
-            plt.ylim( (np.min( [0.7, .95*np.min( values )] ), 1.0) )
+            plt.yticks(fontsize = 16, rotation = 0)
+            axes.flat[0].invert_yaxis()
+            plt.xlabel(metric.title(), fontsize = 20)
+            min_value = np.min( [min_value, 0.7, .95*np.min( values )] )
 
             # Plot 2 - Final values for Test & Cross-Val Datasets
             labels = [] # Labels for the x-axis in the bar plot
@@ -126,13 +129,16 @@ class CustomPlots:
             colors = list(sns.color_palette(cc.glasbey, n_colors = len(labels)))
 
             plt.sca(axes.flat[1])
-            bars = plt.bar( labels, values, color = colors, width = 0.4 )
+            bars = plt.barh( labels, values, color = colors, height = 0.4 )
             plt.bar_label(bars)
             plt.title("{} per Dataset".format(metric.title()), fontsize = 24)
-            plt.xlabel("Dataset", fontsize = 20)
-            plt.xticks(fontsize = 16, rotation = 45)
-            plt.ylabel(metric.title(), fontsize = 20)
-            plt.ylim( (np.min( [0.7, .95*np.min( values )] ), 1.0) )
+            plt.yticks(fontsize = 16, rotation = 0)
+            axes.flat[1].invert_yaxis()
+            plt.xlabel(metric.title(), fontsize = 20)
+            min_value = np.min( [min_value, 0.7, .95*np.min( values )] )
+            axes.flat[0].set_xlim( (min_value, 1.0) )
+            axes.flat[1].set_xlim( (min_value, 1.0) )
+            
             fig.savefig( plot_path, bbox_inches = "tight" )
             plt.close(fig)
 
@@ -259,7 +265,7 @@ class CustomPlots:
 
             print(f"\tFile: '{filename}', Shape: {spec_arr.shape}, min: {np.min(spec_arr):.4f}, avg: {np.mean(spec_arr):.4f}, max: {np.max(spec_arr):.4f}")
 
-            axs.flat[i].imshow(spec_arr, cmap = "magma", vmin=0, vmax=1)
+            axs.flat[i].imshow(spec_arr, cmap = "gray", vmin=0, vmax=1)
             axs.flat[i].set_title(f"Label: {datagen_label} - Class: {datagen_class}/{csv_class}", size=11 )
             axs.flat[i].set_xlabel(f"File: '{filename}'\nShape: {spec_arr.shape}", size=11 )
             axs.flat[i].set_xticks([])

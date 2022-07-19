@@ -2,6 +2,7 @@ import gc
 import os
 import glob
 import json
+import time
 import shutil
 import random
 import hashlib
@@ -9,12 +10,8 @@ import itertools
 import subprocess
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import colorcet as cc
 import tensorflow as tf
 import tensorflow_addons as tfa
-import matplotlib.pyplot as plt
-sns.set()
 
 # Metrics used in model evaluation
 from sklearn.metrics import f1_score
@@ -69,7 +66,8 @@ class ModelEntity():
     @staticmethod
     def get_default_augmentations():
         # List of default values for data augmentation
-        daug_params = { "zoom":                        0.00,  # Max zoom in/zoom out
+        daug_params = { "zoom_in":                     0.00,  # Max zoom in
+                        "zoom_out":                    0.00,  # Max zoom out
                         "shear":                       00.0,  # Max random shear
                         "rotation":                    00.0,  # Max random rotation
                         "vertical_translation":        0.00,  # Max vertical translation
@@ -129,6 +127,15 @@ class ModelEntity():
             flag, key, value = args[i], args[i+1], args[i+2]
             args_dict[key] = ModelEntity.decode_val_from_flag(key, value, flag)
         return args_dict
+    
+    @staticmethod
+    def ellapsed_time_as_str( seconds ):
+        int_secs  = int(seconds)
+        str_hours = str(int_secs // 3600).zfill(2)
+        str_mins  = str((int_secs % 3600) // 60).zfill(2)
+        str_secs  = str(int_secs % 60).zfill(2)
+        time_str  = f"{str_hours}:{str_mins}:{str_secs}"
+        return time_str
 
 class ModelManager(ModelEntity):
     def __init__(self, dataset_dir, hyperparam_values = None, aug_params = None, keep_pneumonia = False):
@@ -397,19 +404,25 @@ class ModelTrainer(ModelEntity):
 
         # Prints current hyperparameters and starts training
         self.print_dict( hyperparameters, round = True )
-        history_dict = self.train_model( hyperparameters, data_aug_params, model_path )
+        train_start_t = time.time()
+        history_dict  = self.train_model( hyperparameters, data_aug_params, model_path )
+        
+        # Records the total training time
+        ellapsed_time = (time.time() - train_start_t)
+        train_time = self.ellapsed_time_as_str(ellapsed_time)
                 
         # Gets the names of the datasets used in training/testing the models
         dataset_name = self.dataset.name
         cval_dataset_names = [ dset.name for dset in self.dataset_list ]
 
         # Announces the end of the training process
-        print("\nTrained model '{}'. Plotting results...".format( os.path.basename(model_path) ))
+        print(f"\nTrained model '{os.path.basename(model_path)}' in {train_time}. Plotting results...")
         self.plotter.plot_train_results( history_dict, dataset_name )
 
         # Announces the start of the testing process
         print("\nTesting model '{}'...".format( os.path.basename(model_path) ))
         results_dict = self.test_model( model_path, hyperparameters )
+        results_dict["train_time"] = train_time
 
         print("\nPlotting test results...")
         self.plotter.plot_test_results( results_dict, dataset_name, cval_dataset_names )
@@ -572,26 +585,27 @@ class ModelTrainer(ModelEntity):
         print("\n\tMonitoring '{}' with '{}' mode...\n".format(hyperparameters["monitor"], callback_mode))
 
         # Model Checkpoint
-        model_checkpoint  = tf.keras.callbacks.ModelCheckpoint( model_path, monitor = hyperparameters["monitor"],
-                                                                mode = callback_mode, save_best_only = True,
-                                                                save_weights_only = True, include_optimizer=False, 
-                                                                verbose = 1 )
+        model_checkpoint = tf.keras.callbacks.ModelCheckpoint( model_path, monitor = hyperparameters["monitor"],
+                                                              mode = callback_mode, save_best_only = True,
+                                                              save_weights_only = True, include_optimizer=False, 
+                                                              verbose = 1 )
 
         # Early Stopping
-        early_stopping    = tf.keras.callbacks.EarlyStopping( monitor = hyperparameters["monitor"], 
-                                                              patience = hyperparameters["early_stop"], 
-                                                              mode = callback_mode, verbose = 1 )
+        early_stopping = tf.keras.callbacks.EarlyStopping( monitor = hyperparameters["monitor"], 
+                                                           patience = hyperparameters["early_stop"], 
+                                                           mode = callback_mode, verbose = 1 )
+        
         # Learning Rate Scheduler
-        reduce_lr_on_plateau = tf.keras.callbacks.ReduceLROnPlateau( monitor = hyperparameters["monitor"], 
-                                                                     factor = hyperparameters["lr_adjust_frac"],
-                                                                     patience = hyperparameters["lr_patience"],
-                                                                     min_lr = hyperparameters["min_lr"],
-                                                                     mode = callback_mode, verbose = 1 )
+        def scheduler(epoch, lr):
+            if (epoch + 1) % 10 == 0:
+                print(f"[LR Scheduler] Updating LearningRate from '{lr:.3E}' to '{lr/10:.3E}'...")
+                return lr / 10
+            return lr
+        
+        lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose = 0)
 
         # List of used callbacks
-        callback_list = [ model_checkpoint, early_stopping ] 
-        if hyperparameters["optimizer"].lower() != "rmsprop":
-            callback_list.append( reduce_lr_on_plateau )
+        callback_list = [ model_checkpoint, early_stopping, lr_scheduler ] 
         # Callbacks --------------------------------------------------------------------------------------------------
 
         # Creates train data generator
@@ -630,7 +644,7 @@ class ModelTrainer(ModelEntity):
         
         # Generates all keys and instantiates their value as None in the result dict
         # The main goal of this part is to establish the order of the keys in results
-        results = {}
+        results = { "train_time": None }
         for metric in ["acc", "f1", "auc"]:
             # Generates 1 entry for each metric for each partition
             for partition in ["train", "val", "test"]:
@@ -763,9 +777,9 @@ class ModelTrainer(ModelEntity):
 
         # Combines all available information about the model in a single dictionary
         combined_dict = { "model_path": model_path, "model_hash": model_id }
-        combined_dict.update( aug_params )
-        combined_dict.update( hyperparameters )
         combined_dict.update( results )
+        combined_dict.update( hyperparameters )
+        combined_dict.update( aug_params )
 
         # Wraps values from combined_dict as lists to convert to DataFrame, tuples are converted to string
         wrapped_dict = { k: [v] if not v is None else ["None"] for k,v in combined_dict.items() }

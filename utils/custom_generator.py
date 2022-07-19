@@ -5,7 +5,7 @@ import tensorflow as tf
 
 class CustomDataGenerator(tf.keras.utils.Sequence):
     
-    def __init__(self, dataset, partition, hyperparameters, aug_dict = {}, undersample = False, shuffle = True, seed = None):
+    def __init__(self, dataset, partition, hyperparameters, aug_dict = None, undersample = False, shuffle = True, seed = None):
 
         # Generates random seed if not provided
         if seed is None:
@@ -56,74 +56,12 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
 
         return
     
-    def fill_aug_dict(self, hyperparameters, augmentation_dict):
-
-        # List of data augmentation parameters
-        base_aug_dict = { "zoom":                    0.00,     # Max zoom in/zoom out
-                          "shear":                   00.0,     # Max random shear
-                          "rotation":                00.0,     # Max random rotation
-                          "shear_range":             00.0,
-                          "vertical_translation":    0.00,     # Max vertical translation
-                          "horizontal_translation":  0.00,     # Max horizontal translation
-                          "vertical_flip":          False,     # Allow vertical flips  
-                          "horizontal_flip":        False,     # Allow horizontal flips    
-                          "brightness":              0.00,     # Brightness adjustment range
-                          "channel_shift":           00.0,     # Random adjustment to random channel
-                          "constant_val":            00.0,
-                          "fill_mode":          "constant"
-                      }
-
-        if not hyperparameters["augmentation"]:
-            return base_aug_dict
-
-        for k, v in base_aug_dict.items():
-            if not k in augmentation_dict.keys():
-                augmentation_dict[k] = v
-
-        return augmentation_dict
-    
     @staticmethod
     def custom_preprocess_input(model_input):
         model_input = model_input.astype(np.float32)
         model_input /= 127.5
         model_input -= 1
         return model_input
-
-    @staticmethod
-    def get_preprocessing_function(hyperparameters):
-        architecture_name = hyperparameters["architecture"].lower()
-        
-        if "custom" in architecture_name:
-            return CustomDataGenerator.custom_preprocess_input
-
-        if "xception" in architecture_name:
-            return tf.keras.applications.xception.preprocess_input
-
-        if ("resnet" in architecture_name) and ("v2" in architecture_name):
-            return tf.keras.applications.resnet_v2.preprocess_input
-
-        if ("mobilenet" in architecture_name) and ("v2" in architecture_name):
-            return tf.keras.applications.mobilenet_v2.preprocess_input
-
-        if "densenet" in architecture_name:
-            return tf.keras.applications.densenet.preprocess_input
-
-        if architecture_name in ["inception_v3", "inceptionv3"]:
-            return tf.keras.applications.inception_v3.preprocess_input
-
-        if architecture_name in ["inception_resnet_v2", "inception_resnetv2", "inceptionresnet_v2", "inceptionresnetv2"]:
-            return tf.keras.applications.inception_resnet_v2.preprocess_input
-
-        if architecture_name in ["vgg_16", "vgg16"]:
-            return tf.keras.applications.vgg16.preprocess_input
-
-        if architecture_name in ["vgg_19", "vgg19"]:
-            return tf.keras.applications.vgg19.preprocess_input
-
-        if "efficientnet" in architecture_name:
-            return tf.keras.applications.efficientnet.preprocess_input
-
-        raise ValueError("\nUnknown architecture...")
 
     def set_dataframes( self, df ):
         self.dfs = []
@@ -141,32 +79,34 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         return
 
     def set_datagen(self, hyperparameters, augmentation_dict):
+        
+        if (augmentation_dict is None) or (not hyperparameters["augmentation"]):
+            # Transformations for ImageDataGenerator
+            datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale                = 1.,
+                                                                      preprocessing_function = CustomDataGenerator.custom_preprocess_input
+                                                                     )
+        
+        else:
+            # Zoom range for data augmentation
+            zoom_range = (1. - augmentation_dict["zoom_in"], 1. + augmentation_dict["zoom_out"])
 
-        augmentation_dict = self.fill_aug_dict(hyperparameters, augmentation_dict)
+            # brightness range for data augmentation
+            brightness_range = (1. - augmentation_dict["brightness"], 1. + augmentation_dict["brightness"])
 
-        # The keras.applications preprocess_func used
-        preprocess_func = self.get_preprocessing_function(hyperparameters)
-
-        # Zoom range for data augmentation
-        zoom_range = ( 1. - augmentation_dict["zoom"], 1. + augmentation_dict["zoom"])
-
-        # brightness range for data augmentation
-        brightness_range = ( 1. - augmentation_dict["brightness"], 1. + augmentation_dict["brightness"])
-
-        # Transformations for ImageDataGenerator
-        datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale                = 1.,
-                                                                  rotation_range         = augmentation_dict["rotation"],
-                                                                  shear_range            = augmentation_dict["shear_range"],
-                                                                  brightness_range       = brightness_range,
-                                                                  width_shift_range      = augmentation_dict["horizontal_translation"],
-                                                                  height_shift_range     = augmentation_dict["vertical_translation"],
-                                                                  zoom_range             = zoom_range,
-                                                                  horizontal_flip        = augmentation_dict["horizontal_flip"],
-                                                                  vertical_flip          = augmentation_dict["vertical_flip"],
-                                                                  fill_mode              = augmentation_dict["fill_mode"],
-                                                                  cval                   = augmentation_dict["constant_val"], 
-                                                                  preprocessing_function = preprocess_func
-                                                                 )
+            # Transformations for ImageDataGenerator
+            datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale                = 1.,
+                                                                      rotation_range         = augmentation_dict["rotation"],
+                                                                      shear_range            = augmentation_dict["shear"],
+                                                                      brightness_range       = brightness_range,
+                                                                      width_shift_range      = augmentation_dict["horizontal_translation"],
+                                                                      height_shift_range     = augmentation_dict["vertical_translation"],
+                                                                      zoom_range             = zoom_range,
+                                                                      horizontal_flip        = augmentation_dict["horizontal_flip"],
+                                                                      vertical_flip          = augmentation_dict["vertical_flip"],
+                                                                      fill_mode              = augmentation_dict["fill_mode"],
+                                                                      cval                   = augmentation_dict["constant_val"], 
+                                                                      preprocessing_function = CustomDataGenerator.custom_preprocess_input
+                                                                     )
 
         input_H, input_W, input_C = self.input_size
         color_mode = "grayscale" if input_C == 1 else "rgb"
@@ -188,7 +128,7 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         return 
     
     def merge_dfs(self):
-        n_samples_from_df = len(self) * self.batch_size
+        n_samples_from_df = np.min([len(df) for df in self.dfs])
 
         base_idxs = [i for i in range(n_samples_from_df)]
         neg_idxs = [ int(self.batch_size * np.floor(i / self.batch_size) + i) for i in base_idxs]
