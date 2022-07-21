@@ -16,16 +16,16 @@ hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of t
                         "input_height":                 [256],  # Model's input size
                         "input_width":                  [256],  # Model's input size
                         "input_channels":                 [1],  # Model's input size
-                        "apply_undersampling":         [True],  # Wether to apply Random Undersampling
-                        "start_lr":              [1e-1, 1e-2],  # Starting learning rate
-                        "class_weights":              [False],  # If class_weights should be used
-                        "monitor":                 ["val_f1"],  # Monitored variable for callbacks
+                        "start_lr":                    [1e-2],  # Starting learning rate
                         "optimizer":                 ["adam"],  # Chosen optimizer
+                        "monitor":                 ["val_f1"],  # Monitored variable for callbacks
+                        "augmentation":                [True],  # If data augmentation should be used
+                        "class_weights":              [False],  # If class_weights should be used
+                        "apply_undersampling":         [True],  # Wether to apply Random Undersampling
                         "l1_reg":                         [0],  # Amount of L1 regularization
                         "l2_reg":                         [0],  # Amount of L2 regularization
-                        "base_dropout":                 [0.1],  # SpatialDropout2d between blocks in convolutional base
+                        "base_dropout":                 [.15],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                  [0.3],  # Dropout between dense layers in model top
-                        "augmentation":                [True],  # If data augmentation should be used
                         "architecture":            model_list,  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
                       } 
@@ -45,6 +45,20 @@ augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
                       }
 
 # Datasets: "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB"
+trainManager = ModelManager( "radiopaedia.org", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
+trainManager.doGridSearch( shuffle = False )
+
+trainManager = ModelManager( "Comp_LIDC-SB", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
+trainManager.doGridSearch( shuffle = False )
+
 trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-#trainManager = ModelManager( "radiopaedia.org", hyperparameter_dict, augmentation_dict, keep_pneumonia = False )
+trainManager.doGridSearch( shuffle = False )
+
+trainManager = ModelManager( "COVID-CTSet", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
+trainManager.doGridSearch( shuffle = False )
+
+trainManager = ModelManager( "Comp_CNCB_iCTCF_b", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
+trainManager.doGridSearch( shuffle = False )
+
+trainManager = ModelManager( "Comp_CNCB_iCTCF_a", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
 trainManager.doGridSearch( shuffle = False )

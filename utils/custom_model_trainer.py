@@ -41,23 +41,20 @@ class ModelEntity():
         # List of default values for each hyperparameter
         hyperparams = { "num_epochs":                     1,  # Total N° of training epochs
                         "batchsize":                      8,  # Minibatch size
-                        "early_stop":                    50,  # Early Stopping patience
+                        "early_stop":                    30,  # Early Stopping patience
                         "input_height":                 512,  # Model's input height
                         "input_width":                  512,  # Model's input width
-                        "input_channels":                 3,  # Model's input channels
-                        "apply_undersampling":        False,  # Wether to apply Random Undersampling
-                        "start_lr":                    1e-3,  # Starting learning rate
-                        "min_lr":                      1e-5,  # Smallest learning rate value allowed
-                        "lr_adjust_frac":              0.70,  # N° of epochs between lr adjusts
-                        "lr_patience":                   50,  # N° of epochs between lr adjusts
-                        "class_weights":              False,  # If class_weights should be used
-                        "monitor":                "val_acc",  # Monitored variable for callbacks
+                        "input_channels":                 1,  # Model's input channels
+                        "start_lr":                    1e-1,  # Starting learning rate
                         "optimizer":                 "adam",  # Chosen optimizer
+                        "monitor":                "val_acc",  # Monitored variable for callbacks
+                        "augmentation":               False,  # If data augmentation should be used
+                        "class_weights":              False,  # If class_weights should be used
+                        "apply_undersampling":        False,  # Wether to apply Random Undersampling
                         "l1_reg":                      0.00,  # Amount of L1 regularization
                         "l2_reg":                      0.00,  # Amount of L2 regularization
                         "base_dropout":                0.00,  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                 0.00,  # Dropout between dense layers in model top
-                        "augmentation":               False,  # If data augmentation should be used
                         "architecture":   "efficientnet_b0",  # Chosen architecture
                         "seed":                           1,  # Seed for pseudorandom generators
                         } 

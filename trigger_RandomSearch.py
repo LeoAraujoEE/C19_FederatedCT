@@ -14,17 +14,17 @@ hyperparameter_ranges = { "num_epochs":                            (30,),  # Tot
                           "early_stop":                            (13,),  # Early Stopping patience
                           "input_height":                         (256,),  # Model's input size
                           "input_width":                          (256,),  # Model's input size
-                          "input_channels":                         (3,),  # Model's input size
-                          "apply_undersampling":                 (True,),  # Wether to apply Random Undersampling
+                          "input_channels":                         (1,),  # Model's input size
                           "start_lr":           ([1e-3, 1e-4], "sample"),  # Starting learning rate
-                          "class_weights":                      (False,),  # If class_weights should be used
-                          "monitor":                         ("val_f1",),  # Monitored variable for callbacks
                           "optimizer":                         ("adam",),  # Chosen optimizer
+                          "monitor":                         ("val_f1",),  # Monitored variable for callbacks
+                          "augmentation":                        (True,),  # If data augmentation should be used
+                          "class_weights":                      (False,),  # If class_weights should be used
+                          "apply_undersampling":                 (True,),  # Wether to apply Random Undersampling
                           "l1_reg":                  (1e-4, 1e-2, "log"),  # Amount of L1 regularization
                           "l2_reg":                  (1e-4, 1e-2, "log"),  # Amount of L2 regularization
                           "base_dropout":            (0.05, 0.25, "lin"),  # Dropout for layers in skip connections
                           "top_dropout":             (0.25, 0.50, "lin"),  # Dropout for layers in skip connections
-                          "augmentation":                        (True,),  # If data augmentation should be used
                           "architecture":         (model_list, "sample"),  # Chosen architecture
                           "seed":                                  (69,),  # Seed for pseudorandom generators
                         } 
