@@ -171,7 +171,7 @@ class ResNet:
         return model
     
     @staticmethod
-    def bn_relu( input: tf.Tensor, block: int, num: int, bn_first: bool = True ) -> tf.Tensor:
+    def bn_relu( input: tf.Tensor, block: int, num: int ) -> tf.Tensor:
         x = BatchNormalization(name = f"block{block}_BN_num{num}")(input)
         x = ReLU(name = f"block{block}_ReLU_num{num}")(x)
         return x

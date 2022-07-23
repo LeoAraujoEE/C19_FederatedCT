@@ -7,11 +7,12 @@ import tensorflow as tf
 
 from utils.architectures.resnet import ResNet
 from utils.architectures.densenet import DenseNet
+from utils.architectures.inception import Inception
 from tensorflow.python.keras.utils.layer_utils import count_params
 
-from tensorflow.keras.applications import DenseNet121, DenseNet169, DenseNet201
-from tensorflow.keras.applications import Xception, VGG16, VGG19, EfficientNetB0
-from tensorflow.keras.applications import InceptionResNetV2, InceptionV3, MobileNetV2
+from tensorflow.keras.applications import Xception, MobileNetV2
+from tensorflow.keras.applications import InceptionResNetV2
+from tensorflow.keras.applications import EfficientNetB0
 
 class ModelBuilder:
 
@@ -145,6 +146,19 @@ class ModelBuilder:
                 model  = densenet.get_DenseNet264( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        
+        elif "inception" in hyperparameters["architecture"].lower():
+            inception = Inception()
+            
+            if hyperparameters["architecture"].lower() == "custom_inceptionv3":
+                model = inception.get_InceptionV3( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            elif hyperparameters["architecture"].lower() == "custom_inceptionv4":
+                model = inception.get_InceptionV4( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
         
         return model
 
