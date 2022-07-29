@@ -25,11 +25,11 @@ class Inception:
         
         # Block 1
         if v3:
-            x = Inception.inception_v3_start( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
-                                              l1_val = l1_val, l2_val = l2_val )
+            x = Inception.inception_v3_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
+                                             l1_val = l1_val, l2_val = l2_val )
         else:
-            x = Inception.inception_v4_start( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
-                                              l1_val = l1_val, l2_val = l2_val )
+            x = Inception.inception_v4_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
+                                             l1_val = l1_val, l2_val = l2_val )
             
         
         # Stage indicates what kind of inception block is used
@@ -69,13 +69,13 @@ class Inception:
             if stage == 0:
                 # Uses type a blocks for the first stage
                 x = Inception.inception_reduction_block_a(x, bn_scaling = bn_scaling, v3 = v3, block = final_block, 
-                                                          dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val)
+                                                          l1_val = l1_val, l2_val = l2_val)
                 continue
             
             if stage == 1:
                 # Uses type b blocks for the second stage
                 x = Inception.inception_reduction_block_b(x, bn_scaling = bn_scaling, v3 = v3, block = final_block, 
-                                                          dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val)
+                                                          l1_val = l1_val, l2_val = l2_val)
                 continue
         
         # Global pooling used
@@ -147,7 +147,7 @@ class Inception:
         return x
     
     @staticmethod
-    def inception_v3_start( x: tf.Tensor, bn_scaling: bool, dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
+    def inception_v3_stem( x: tf.Tensor, bn_scaling: bool, dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
         
         # Block 1
         x = Inception.conv_bn_relu( x, num_filters = 32, kernel_size = (3,3), strides = 2, padding = "valid", 
@@ -173,7 +173,7 @@ class Inception:
         return out
     
     @staticmethod
-    def inception_v4_start( x: tf.Tensor, bn_scaling: bool, dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
+    def inception_v4_stem( x: tf.Tensor, bn_scaling: bool, dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
         
         # Block 1
         x = Inception.conv_bn_relu( x, num_filters = 32, kernel_size = (3,3), strides = 2, padding = "valid", 
@@ -424,7 +424,7 @@ class Inception:
     
     @staticmethod
     def inception_reduction_block_a( x: tf.Tensor, bn_scaling: bool, v3: bool, block: int, 
-                                      dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
+                                     l1_val: float, l2_val: float ) -> tf.Tensor:
         
         if v3:
             # Values for InceptionV3
@@ -433,26 +433,23 @@ class Inception:
         else:
             # Values for InceptionV4
             k, l, m, n = 192, 224, 256, 384
-            
-        # # Values for InceptionResnetV2
-        # k, l, m, n = 256, 256, 384, 384
         
         # 3x3 Conv2D Branch
         branch_3x3 = Inception.conv_bn_relu( x, num_filters = n, kernel_size = (3,3), strides = 2, padding = "valid", 
-                                            bn_scaling = bn_scaling, block = block, num = 1, dropchance = dropchance, 
+                                            bn_scaling = bn_scaling, block = block, num = 1, dropchance = 0, 
                                             l1_val = l1_val, l2_val = l2_val)
         
         # Double 3x3 Branch
         branch_3x3_dbl = Inception.conv_bn_relu( x, num_filters = k, kernel_size = (1,1), strides = 1, padding = "same", 
-                                                 bn_scaling = bn_scaling, block = block, num = 2, dropchance = dropchance, 
+                                                 bn_scaling = bn_scaling, block = block, num = 2, dropchance = 0, 
                                                  l1_val = l1_val, l2_val = l2_val)
         
         branch_3x3_dbl = Inception.conv_bn_relu( branch_3x3_dbl, num_filters = l, kernel_size = (3,3), strides = 1, padding = "same", 
-                                                 bn_scaling = bn_scaling, block = block, num = 3, dropchance = dropchance, 
+                                                 bn_scaling = bn_scaling, block = block, num = 3, dropchance = 0, 
                                                  l1_val = l1_val, l2_val = l2_val)
         
         branch_3x3_dbl = Inception.conv_bn_relu( branch_3x3_dbl, num_filters = m, kernel_size = (3,3), strides = 2, padding = "valid", 
-                                                 bn_scaling = bn_scaling, block = block, num = 4, dropchance = dropchance, 
+                                                 bn_scaling = bn_scaling, block = block, num = 4, dropchance = 0, 
                                                  l1_val = l1_val, l2_val = l2_val)
         
         # Max Pooling Branch
@@ -465,35 +462,35 @@ class Inception:
         
     @staticmethod
     def inception_reduction_block_b( x: tf.Tensor, bn_scaling: bool, v3: bool, block: int, 
-                                      dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
+                                     l1_val: float, l2_val: float ) -> tf.Tensor:
         
         # 3x3 Conv2D Branch
         branch_3x3 = Inception.conv_bn_relu( x, num_filters = 192, kernel_size = (1,1), strides = 1, padding = "same", 
-                                            bn_scaling = bn_scaling, block = block, num = 1, dropchance = dropchance,
+                                            bn_scaling = bn_scaling, block = block, num = 1, dropchance = 0,
                                             l1_val = l1_val, l2_val = l2_val)
         
         f3x3 = 320 if v3 else 192
         branch_3x3 = Inception.conv_bn_relu( branch_3x3, num_filters = f3x3, kernel_size = (3,3), strides = 2, padding = "valid", 
-                                             bn_scaling = bn_scaling, block = block, num = 2, dropchance = dropchance, 
+                                             bn_scaling = bn_scaling, block = block, num = 2, dropchance = 0, 
                                              l1_val = l1_val, l2_val = l2_val)
         
         # 7x7x3 Branch
         f7x7x3 = 192 if v3 else 256
         branch_7x7x3 = Inception.conv_bn_relu( x, num_filters = f7x7x3, kernel_size = (1,1), strides = 1, padding = "same", 
-                                               bn_scaling = bn_scaling, block = block, num = 3, dropchance = dropchance, 
+                                               bn_scaling = bn_scaling, block = block, num = 3, dropchance = 0, 
                                                l1_val = l1_val, l2_val = l2_val)
         
         branch_7x7x3 = Inception.conv_bn_relu( branch_7x7x3, num_filters = f7x7x3, kernel_size = (1,7), strides = 1, padding = "same", 
-                                               bn_scaling = bn_scaling, block = block, num = 4, dropchance = dropchance, 
+                                               bn_scaling = bn_scaling, block = block, num = 4, dropchance = 0, 
                                                l1_val = l1_val, l2_val = l2_val)
         
         f7x7x3 = 192 if v3 else 320
         branch_7x7x3 = Inception.conv_bn_relu( branch_7x7x3, num_filters = f7x7x3, kernel_size = (7,1), strides = 1, padding = "same", 
-                                               bn_scaling = bn_scaling, block = block, num = 5, dropchance = dropchance, 
+                                               bn_scaling = bn_scaling, block = block, num = 5, dropchance = 0, 
                                                l1_val = l1_val, l2_val = l2_val)
         
         branch_7x7x3 = Inception.conv_bn_relu( branch_7x7x3, num_filters = f7x7x3, kernel_size = (3,3), strides = 2, padding = "valid", 
-                                               bn_scaling = bn_scaling, block = block, num = 6, dropchance = dropchance, 
+                                               bn_scaling = bn_scaling, block = block, num = 6, dropchance = 0, 
                                                l1_val = l1_val, l2_val = l2_val)
         
         # Max Pooling Branch

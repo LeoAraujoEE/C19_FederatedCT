@@ -74,7 +74,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture":  "custom_inceptionv4",  # Chosen architecture
+                        "architecture":    "custom_inception_resnet",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -87,8 +87,8 @@ model_mine = model_builder( hyperparameter_dict, seed = 69 )
 # model_keras = model_builder( hyperparameter_dict, seed = 69 )
 
 input_size = (hyperparameter_dict["input_height"], hyperparameter_dict["input_width"], hyperparameter_dict["input_channels"])
-model_keras = tf.keras.applications.InceptionV3( input_shape = input_size, include_top = True, classes = 1, weights = None )
-path = os.path.join (".", "output", "models", "joao_123", "inceptionv3_keras.png" )
+model_keras = tf.keras.applications.InceptionResNetV2( input_shape = input_size, include_top = True, classes = 1, weights = None )
+path = os.path.join (".", "output", "models", "joao_123", "InceptionResNetV2_keras.png" )
 tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show_layer_names = True, 
                             rankdir = "TB", expand_nested = False, dpi = 96 )
         
@@ -101,19 +101,19 @@ k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(l
 m_layer_idxs = [ i for i, layer in enumerate(model_mine.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or isinstance(layer, tf.keras.layers.Conv2D) or isinstance(layer, tf.keras.layers.Dense) ]
 assert len(k_layer_idxs) == len(m_layer_idxs)
 
-n_layers = 0
-for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
-  layer_m = model_mine.layers[idx_m]
-  layer_k = model_keras.layers[idx_k]
+# n_layers = 0
+# for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
+#   layer_m = model_mine.layers[idx_m]
+#   layer_k = model_keras.layers[idx_k]
   
-  n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
+#   n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
 
-k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if not i in k_layer_idxs ]
-trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in k_other_layers ]))
-non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in k_other_layers ]))
-print("\nKeras Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
+# k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if not i in k_layer_idxs ]
+# trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in k_other_layers ]))
+# non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in k_other_layers ]))
+# print("\nKeras Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
-m_other_layers = [ layer for i, layer in enumerate(model_mine.layers) if not i in m_layer_idxs ]
-trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in m_other_layers ]))
-non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in m_other_layers ]))
-print("\nMine Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
+# m_other_layers = [ layer for i, layer in enumerate(model_mine.layers) if not i in m_layer_idxs ]
+# trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in m_other_layers ]))
+# non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in m_other_layers ]))
+# print("\nMine Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))

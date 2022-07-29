@@ -8,10 +8,10 @@ import tensorflow as tf
 from utils.architectures.resnet import ResNet
 from utils.architectures.densenet import DenseNet
 from utils.architectures.inception import Inception
+from utils.architectures.inception_resnet import InceptionResNet
 from tensorflow.python.keras.utils.layer_utils import count_params
 
 from tensorflow.keras.applications import Xception, MobileNetV2
-from tensorflow.keras.applications import InceptionResNetV2
 from tensorflow.keras.applications import EfficientNetB0
 
 class ModelBuilder:
@@ -32,8 +32,10 @@ class ModelBuilder:
     def __call__(self, hyperparameters, seed):
         """ 
         Supported architectures: 
-            resnets  :  18,  34,  50, 101, 152
-            densenets: 121, 169, 201, 264
+            Resnets        :  18,  34,  50, 101, 152
+            Densenets      : 121, 169, 201, 264
+            Inception      :  V3,  V4
+            InceptionResNet:  V2
         
         Old Supported:
             vgg_16, vgg_19, resnet_50v2, resnet_101v2, resnet_152v2, 
@@ -89,14 +91,19 @@ class ModelBuilder:
         
         return
 
-    
     def create_model(self, hyperparameters):
         inputH = hyperparameters["input_height"]
         inputW = hyperparameters["input_width"]
         inputC = hyperparameters["input_channels"]
         input_size = (inputH, inputW, inputC)
         
-        if "resnet" in hyperparameters["architecture"].lower():
+        if "inception_resnet" in hyperparameters["architecture"].lower():
+            builder = InceptionResNet()
+            model  = builder.get_InceptionResNetV2( input_size, 1, "sigmoid", "avg", 
+                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        
+        elif "resnet" in hyperparameters["architecture"].lower():
             resnet = ResNet()
             
             if hyperparameters["architecture"].lower() == "custom_resnet18":
