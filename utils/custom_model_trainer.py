@@ -135,13 +135,16 @@ class ModelEntity():
         return time_str
 
 class ModelManager(ModelEntity):
-    def __init__(self, dataset_dir, hyperparam_values = None, aug_params = None, dst_dir = ".", keep_pneumonia = False):
+    def __init__(self, path_dict, dataset_name, hyperparam_values = None, aug_params = None, keep_pneumonia = False):
         
-        # Directory of the selected train dataset
-        self.dataset_dir = dataset_dir
+        # Name of the selected train dataset
+        self.dataset_name = dataset_name
+        
+        # Directory for all available datasets
+        self.data_path = path_dict["datasets"]
         
         # Directory for the output trained models
-        self.dst_dir = dst_dir
+        self.dst_dir = path_dict["outputs"]
         
         # Wether to keep pneumonia sample or remove them
         self.keep_pneumonia = keep_pneumonia
@@ -185,11 +188,10 @@ class ModelManager(ModelEntity):
         for idx_h, hyperparameters in enumerate(hyperparam_permutations):
 
             # Announces the start of the training process
-            print(f"\n\n#{str(idx_h+1).zfill(3)}/{n_permutations} Iteration of GridSearch:")
+            print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_permutations).zfill(3)} Iteration of GridSearch:")
             
             # Adds augmentation parameters to selected hyperparameters
-            args = { "output_dir": self.dst_dir, "ignore_check": False }
-            train_command = self.create_command(args, hyperparameters)
+            train_command = self.create_command(hyperparameters, ignore_check = False)
 
             # Trains and Tests the model
             subprocess.Popen.wait(subprocess.Popen( train_command ))
@@ -212,8 +214,7 @@ class ModelManager(ModelEntity):
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
             
             # Adds augmentation parameters to selected hyperparameters
-            args = { "output_dir": self.dst_dir, "ignore_check": False }
-            train_command = self.create_command(args, hyperparameters)
+            train_command = self.create_command(hyperparameters, ignore_check = False)
 
             # Trains and Tests the model
             subprocess.Popen.wait(subprocess.Popen( train_command ))
@@ -236,8 +237,7 @@ class ModelManager(ModelEntity):
             hyperparameters["seed"] = seed
             
         # Adds augmentation parameters to selected hyperparameters
-        args = { "output_dir": self.dst_dir, "ignore_check": True }
-        train_command = self.create_command(args, hyperparameters)
+        train_command = self.create_command(hyperparameters, ignore_check = True)
 
         # Trains and Tests the model
         subprocess.Popen.wait(subprocess.Popen( train_command ))
@@ -289,9 +289,14 @@ class ModelManager(ModelEntity):
             
         return
 
-    def create_command(self, args, hyperparams):
-        args["train_dataset"] = self.dataset_dir
-        args["keep_pneumonia"] = self.keep_pneumonia
+    def create_command(self, hyperparams, ignore_check):
+        
+        args = { "output_dir"    :        self.dst_dir, 
+                 "data_path"     :      self.data_path,
+                 "train_dataset" :   self.dataset_name,
+                 "keep_pneumonia": self.keep_pneumonia,
+                 "ignore_check"  :        ignore_check }
+        
         for dictionary in [self.aug_params, hyperparams]:
             args.update(dictionary)
         
@@ -537,11 +542,11 @@ class ModelTrainer(ModelEntity):
         # Compiles the model
         f1_metric = tfa.metrics.F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
         if hyperparameters["optimizer"].lower() == "adam":
-            print("\n\tCompiling model with 'Adam' optimizer...")
+            print("\nCompiling model with 'Adam' optimizer...")
             self.model.compile(optimizer = tf.keras.optimizers.Adam(lr = hyperparameters["start_lr"]), 
                                loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
         else:
-            print("\n\tCompiling model with 'RMSprop' optimizer...")
+            print("\nCompiling model with 'RMSprop' optimizer...")
             self.model.compile(optimizer = tf.keras.optimizers.RMSprop(lr = hyperparameters["start_lr"]), 
                                loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
         
@@ -550,11 +555,9 @@ class ModelTrainer(ModelEntity):
             nn_config = self.model.get_config()
             _, h, w, c = nn_config["layers"][0]["config"]["batch_input_shape"]
 
-            print("\tMocking test...\n")
             # Creates a random input to mock an inference
             mock_data = np.array( np.random.random_sample( (hyperparameters["batchsize"], h, w, c) ), dtype = np.float32 )
             _ = self.model.predict( (mock_data / np.max(mock_data)).astype(np.float32) )
-            print("\tModel ready...\n")
 
         return
 
@@ -564,19 +567,16 @@ class ModelTrainer(ModelEntity):
         print("\nTraining model '{}' on '{}' dataset...".format( os.path.basename( model_path ), self.dataset.name ))
 
         # Creates and compiles the Model
-        print("\tCreating model...")
         model_builder = ModelBuilder( model_path = model_path )
         self.model = model_builder( hyperparameters, seed = hyperparameters["seed"] )
         self.prepare_model( hyperparameters )
-        print("\tModel created...")
 
         # Loads datasets - Reloads training dataset to keep the same order of examples in each train
-        print("\tLoading Datasets...")
+        print("\nLoading Datasets...")
         self.dataset.load_dataframes( reload = True )
         if not self.dataset_list is None:
             for dset in self.dataset_list:
                 dset.load_dataframes( reload = False )
-        print("\tLoaded Datasets...")
 
 
         # Callbacks --------------------------------------------------------------------------------------------------

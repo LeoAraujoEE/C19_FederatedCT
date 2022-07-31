@@ -40,8 +40,11 @@ class Dataset():
             # also drops the ".org" for Radiopaedia's dataset name
             name = "{}_dropped".format(folder.split(".")[0])
         
+        # Keeps the original name in either case if the dataset doesnt have pneumonia samples
+        no_pneumonia =  ["COVID-CTSet", "Comp_LIDC-SB"]
+        self.name = folder if (folder in no_pneumonia) else name
+        
         # Register the dataset information to class variables
-        self.name = name                   # Dataset's name
         self.classes = classes             # Dict of class names and labels
         self.n_classes = len(classes)      # Total number of classes
         self.trainable = trainable         # If train/val data will be used
@@ -61,21 +64,15 @@ class Dataset():
         The path to the files are stored inside self.csv_dict, which stores the CSV files' attributes for each partition.
         """
         
-        print("Looking for '{}' dataset's CSV file...".format(self.name), end="\r")
         assert os.path.exists(self.metadata_path), "\nCouldn't find '{}' file...".format(self.metadata_path)
-        print( "Found '{}' dataset's CSV file at '{}' path...".format(self.name, self.metadata_path) )
-
         return
     
     def multiclass2binary( self, df ):
 
         if self.label_remap is None:
-            print("\nDropping all samples from class 'Pneumonia'...")
             df = df[ df[self.output_col] != "Pneumonia"].reset_index(drop = True)
             return df
         
-        print("\nRenaming 'COVID-19' labels to 'pos_COVID-19' for positive samples...")
-        print("Remapping 'Normal' and 'Pneumonia' to 'neg_COVID-19' for negative samples...")
         df[self.output_col] = df.apply( lambda row: self.label_remap[row[self.output_col]], axis = 1)
         
         return df
@@ -86,10 +83,9 @@ class Dataset():
             print("\nCSV file is already loaded as pd.Dataframe...")
             return
         
-        print("\nLoading CSV file for '{}' as pd.DataFrame:".format(self.name), end="\r")
         metadata_df = pd.read_csv( self.metadata_path, sep = ";" )
         metadata_df = self.multiclass2binary(metadata_df)
-        print("Loaded CSV file as pd.DataFrame...")
+        print(f"\tLoaded CSV file for '{self.name}'as pd.DataFrame...")
 
         # Dictionary to store objects related to each partition
         self.csv_dict  = {}
@@ -98,19 +94,16 @@ class Dataset():
         partition_list = ["train", "val", "test"] if self.trainable else ["test"]
 
         # For each considered partition
-        print("\nExtracting data for each partition...")
         for partition in partition_list:
             # Creates a dictionary for its CSV files attributes
             partition_dict = { "df": None, "n_samples": None }
 
-            print("\tExtracting '{}' partition's metadata...".format(partition), end="\r")
             partition_df = metadata_df[ metadata_df["partition"] == partition ].copy(deep = True)
             partition_df.reset_index(drop = True, inplace = True)
 
             # Loads the CSV and computes the number of samples
             partition_dict["df"] = partition_df
             partition_dict["n_samples"] = len(partition_dict["df"])
-            print("\tExtracted '{}' partition's metadata, {} samples found...".format(partition, partition_dict["n_samples"]))
 
             # Adds partition dict to csv_dict
             self.csv_dict[partition] = partition_dict
@@ -155,6 +148,14 @@ def load_datasets( import_dir, train_dataset, input_col, output_col, keep_pneumo
     # List of all available datasets
     available_datasets = [ "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org",
                            "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB" ]
+
+    print("Checking datasets:")
+    if keep_pneumonia:
+        print("\tRenaming 'COVID-19' labels to 'pos_COVID-19' for positive samples...")
+        print("\tRemapping 'Normal' and 'Pneumonia' to 'neg_COVID-19' for negative samples...")
+        
+    else:
+        print("\tDropping all samples from class 'Pneumonia'...")
     
     val_dataset_list = []
     for dataset_name in available_datasets:

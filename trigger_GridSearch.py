@@ -5,12 +5,17 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 from utils.custom_model_trainer import ModelManager
 
+# 
+PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
+              "outputs" : os.path.join( "." ) }
+
 # List of used models
 #model_list = [ "resnet_50v2", "densenet_121", "xception", "mobilenet_v2", "efficientnet_b0" ]
 model_list = [ "custom_resnet50", "custom_densenet121" ]
+model_list = [ "custom_resnet50" ]
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [1],  # Total N° of training epochs
                         "batchsize":                     [16],  # Minibatch size
                         "early_stop":                    [13],  # Early Stopping patience
                         "input_height":                 [256],  # Model's input size
@@ -44,21 +49,9 @@ augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
                       "fill_mode":          "constant"
                       }
 
-# Datasets: "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB"
-trainManager = ModelManager( "radiopaedia.org", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = False )
+keep_pneumonia = True
+dataset_list = [ "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB" ]
 
-trainManager = ModelManager( "Comp_LIDC-SB", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = False )
-
-trainManager = ModelManager( "COVID-CT-MD", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = False )
-
-trainManager = ModelManager( "COVID-CTSet", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = False )
-
-trainManager = ModelManager( "Comp_CNCB_iCTCF_b", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = False )
-
-trainManager = ModelManager( "Comp_CNCB_iCTCF_a", hyperparameter_dict, augmentation_dict, keep_pneumonia = True )
-trainManager.doGridSearch( shuffle = False )
+for dataset in dataset_list[:]:
+  trainManager = ModelManager( PATH_DICT, dataset, hyperparameter_dict, augmentation_dict, keep_pneumonia = keep_pneumonia )
+  trainManager.doGridSearch( shuffle = False )

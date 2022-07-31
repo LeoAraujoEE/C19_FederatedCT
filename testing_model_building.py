@@ -20,7 +20,7 @@ def show_attr( obj1, obj2, n_layer, show = "all" ):
     has_activation = False
     attr_list = ["pool_size", "strides", "padding"]
     
-  elif all([isinstance(obj, tf.keras.layers.Conv2D) for obj in objs]):
+  elif all([isinstance(obj, tf.keras.layers.Conv2D) or isinstance(obj, tf.keras.layers.SeparableConv2D) for obj in objs]):
     if not all([("_0_conv" in obj.name.lower()) or ("_num0" in obj.name.lower()) for obj in objs]):
       n_layer += 1
       prefix = f"{str(n_layer).zfill(3)} "
@@ -49,7 +49,7 @@ def show_attr( obj1, obj2, n_layer, show = "all" ):
   for attrib in attr_list:
     is_equal = getattr(obj1, attrib) == getattr(obj2, attrib)
     if (show == "all") or (show == "equal" and is_equal) or (show == "diff" and not is_equal):
-      print(f"\t\t{attrib.title()}: {is_equal} - {getattr(layer_k, attrib)} x {getattr(layer_m, attrib)}")
+      print(f"\t\t{attrib.title()}: {is_equal} - {getattr(obj1, attrib)} x {getattr(obj2, attrib)}")
     
   return n_layer
 
@@ -74,7 +74,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture":    "custom_inception_resnet",  # Chosen architecture
+                        "architecture":     "custom_xception",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -87,8 +87,8 @@ model_mine = model_builder( hyperparameter_dict, seed = 69 )
 # model_keras = model_builder( hyperparameter_dict, seed = 69 )
 
 input_size = (hyperparameter_dict["input_height"], hyperparameter_dict["input_width"], hyperparameter_dict["input_channels"])
-model_keras = tf.keras.applications.InceptionResNetV2( input_shape = input_size, include_top = True, classes = 1, weights = None )
-path = os.path.join (".", "output", "models", "joao_123", "InceptionResNetV2_keras.png" )
+model_keras = tf.keras.applications.Xception( input_shape = input_size, include_top = True, classes = 1, weights = None )
+path = os.path.join (".", "output", "models", "joao_123", "Xception_keras.png" )
 tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show_layer_names = True, 
                             rankdir = "TB", expand_nested = False, dpi = 96 )
         
@@ -101,12 +101,12 @@ k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(l
 m_layer_idxs = [ i for i, layer in enumerate(model_mine.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or isinstance(layer, tf.keras.layers.Conv2D) or isinstance(layer, tf.keras.layers.Dense) ]
 assert len(k_layer_idxs) == len(m_layer_idxs)
 
-# n_layers = 0
-# for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
-#   layer_m = model_mine.layers[idx_m]
-#   layer_k = model_keras.layers[idx_k]
+n_layers = 0
+for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
+  layer_m = model_mine.layers[idx_m]
+  layer_k = model_keras.layers[idx_k]
   
-#   n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
+  n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
 
 # k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if not i in k_layer_idxs ]
 # trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in k_other_layers ]))
