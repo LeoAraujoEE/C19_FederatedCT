@@ -8,11 +8,12 @@ import tensorflow as tf
 from utils.architectures.resnet import ResNet
 from utils.architectures.densenet import DenseNet
 from utils.architectures.xception import Xception
+from utils.architectures.mobilenet import MobileNet
 from utils.architectures.inception import Inception
 from utils.architectures.inception_resnet import InceptionResNet
 from tensorflow.python.keras.utils.layer_utils import count_params
 
-from tensorflow.keras.applications import MobileNetV2, EfficientNetB0
+from keras.applications import MobileNetV2, EfficientNetB0
 
 class ModelBuilder:
 
@@ -36,6 +37,7 @@ class ModelBuilder:
             Densenets      : 121, 169, 201, 264
             Inception      :  V3,  V4
             InceptionResNet:  V2
+            MobileNet      :  V2
         
         Old Supported:
             vgg_16, vgg_19, resnet_50v2, resnet_101v2, resnet_152v2, 
@@ -173,6 +175,13 @@ class ModelBuilder:
             model = builder.get_Xception( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        
+        elif "mobilenet" in hyperparameters["architecture"].lower():
+            builder = MobileNet()
+            
+            model = builder.get_MobileNetV2( input_size, 1., 6., 1, "sigmoid", "avg", 
+                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
         
         return model

@@ -84,8 +84,10 @@ class Xception:
             x = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num{num}")(x)
         
         x = SeparableConv2D( filters = num_filters, kernel_size = kernel_size, strides = 1, padding = "same",
-                    kernel_regularizer = tf.keras.regularizers.L1L2(l1 = l1_val, l2 = l2_val), use_bias = False,
-                    kernel_initializer = "he_uniform", name = f"block{block}_Conv2D_num{num}" )(x)
+                    depthwise_regularizer = tf.keras.regularizers.L1L2(l1 = l1_val, l2 = l2_val), 
+                    pointwise_regularizer = tf.keras.regularizers.L1L2(l1 = l1_val, l2 = l2_val), 
+                    depthwise_initializer = "he_uniform", pointwise_initializer = "he_uniform", 
+                    use_bias = False, name = f"block{block}_Conv2D_num{num}" )(x)
         
         x = BatchNormalization(name = f"block{block}_BN_num{num}")(x)
         

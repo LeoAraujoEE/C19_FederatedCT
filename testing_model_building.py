@@ -9,6 +9,12 @@ from tensorflow.python.keras.utils.layer_utils import count_params
 
 from utils.custom_models import ModelBuilder
 
+def is_conv(obj):
+  return any([ isinstance(obj, tf.keras.layers.Conv2D),
+               isinstance(obj, tf.keras.layers.SeparableConv2D),
+               isinstance(obj, tf.keras.layers.DepthwiseConv2D) ])
+  
+
 def show_attr( obj1, obj2, n_layer, show = "all" ):
   if not show in ["all", "equal", "diff"]:
     show = "all"
@@ -20,7 +26,7 @@ def show_attr( obj1, obj2, n_layer, show = "all" ):
     has_activation = False
     attr_list = ["pool_size", "strides", "padding"]
     
-  elif all([isinstance(obj, tf.keras.layers.Conv2D) or isinstance(obj, tf.keras.layers.SeparableConv2D) for obj in objs]):
+  elif all([is_conv(obj) for obj in objs]):
     if not all([("_0_conv" in obj.name.lower()) or ("_num0" in obj.name.lower()) for obj in objs]):
       n_layer += 1
       prefix = f"{str(n_layer).zfill(3)} "
@@ -61,8 +67,8 @@ def show_attr( obj1, obj2, n_layer, show = "all" ):
 # List of hyperparameter possible values
 hyperparameter_dict = { "num_epochs":                      50,  # Total number of training epochs
                         "batchsize":                        8,  # Minibatch size
-                        "input_height":                   299,  # Model's input height
-                        "input_width":                    299,  # Model's input width
+                        "input_height":                   224,  # Model's input height
+                        "input_width":                    224,  # Model's input width
                         "input_channels":                   1,  # Model's input channels
                         "start_lr":                      1e-3,  # Starting learning rate
                         "min_lr":                        1e-5,  # Smallest learning rate value allowed
@@ -74,7 +80,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture":     "custom_xception",  # Chosen architecture
+                        "architecture": "custom_mobilenet_v2",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -87,8 +93,8 @@ model_mine = model_builder( hyperparameter_dict, seed = 69 )
 # model_keras = model_builder( hyperparameter_dict, seed = 69 )
 
 input_size = (hyperparameter_dict["input_height"], hyperparameter_dict["input_width"], hyperparameter_dict["input_channels"])
-model_keras = tf.keras.applications.Xception( input_shape = input_size, include_top = True, classes = 1, weights = None )
-path = os.path.join (".", "output", "models", "joao_123", "Xception_keras.png" )
+model_keras = tf.keras.applications.MobileNetV2( input_shape = input_size, include_top = True, classes = 1, weights = None )
+path = os.path.join (".", "output", "models", "joao_123", "MobileNetV2_keras.png" )
 tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show_layer_names = True, 
                             rankdir = "TB", expand_nested = False, dpi = 96 )
         
@@ -97,8 +103,8 @@ trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in model_
 non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in model_keras.layers ]))
 print("\nCreated model with {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
-k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or isinstance(layer, tf.keras.layers.Conv2D) or isinstance(layer, tf.keras.layers.Dense) ]
-m_layer_idxs = [ i for i, layer in enumerate(model_mine.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or isinstance(layer, tf.keras.layers.Conv2D) or isinstance(layer, tf.keras.layers.Dense) ]
+k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or is_conv(layer) or isinstance(layer, tf.keras.layers.Dense) ]
+m_layer_idxs = [ i for i, layer in enumerate(model_mine.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or is_conv(layer) or isinstance(layer, tf.keras.layers.Dense) ]
 assert len(k_layer_idxs) == len(m_layer_idxs)
 
 n_layers = 0
