@@ -1,5 +1,6 @@
 import os
 import json
+from platform import architecture
 import random
 import tempfile
 import numpy as np
@@ -13,7 +14,9 @@ from utils.architectures.inception import Inception
 from utils.architectures.inception_resnet import InceptionResNet
 from tensorflow.python.keras.utils.layer_utils import count_params
 
-from keras.applications import MobileNetV2, EfficientNetB0
+from keras.applications import MobileNetV2
+from keras.applications import MobileNetV3Large
+from keras.applications import EfficientNetB0
 
 class ModelBuilder:
 
@@ -178,10 +181,24 @@ class ModelBuilder:
         
         elif "mobilenet" in hyperparameters["architecture"].lower():
             builder = MobileNet()
+            alpha = float(hyperparameters["architecture"].split("_")[-1])
+            architecture_name = "_".join(hyperparameters["architecture"].split("_")[:-1])
+            print(f"Got Arq.: '{architecture_name}' with alpha: '{alpha}'")
             
-            model = builder.get_MobileNetV2( input_size, 1., 6., 1, "sigmoid", "avg", 
-                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
-                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            if architecture_name.lower() == "custom_mobilenetv2":
+                model = builder.get_MobileNetV2( input_size, alpha, 6., 1, "sigmoid", "avg", 
+                                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if architecture_name.lower() == "custom_mobilenetv3_small":
+                model = builder.get_MobileNetV3_Small( input_size, alpha, 6., 1, "sigmoid", "avg", 
+                                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if architecture_name.lower() == "custom_mobilenetv3_large":
+                model = builder.get_MobileNetV3_Large( input_size, alpha, 6., 1, "sigmoid", "avg", 
+                                                hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                                hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
         
         return model

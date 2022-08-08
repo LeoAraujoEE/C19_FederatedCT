@@ -14,7 +14,6 @@ def is_conv(obj):
                isinstance(obj, tf.keras.layers.SeparableConv2D),
                isinstance(obj, tf.keras.layers.DepthwiseConv2D) ])
   
-
 def show_attr( obj1, obj2, n_layer, show = "all" ):
   if not show in ["all", "equal", "diff"]:
     show = "all"
@@ -80,7 +79,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture": "custom_mobilenet_v2",  # Chosen architecture
+                        "architecture": "custom_mobilenetv3_small_1.5",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -92,9 +91,24 @@ model_mine = model_builder( hyperparameter_dict, seed = 69 )
 # hyperparameter_dict["architecture"] = "densenet_201"
 # model_keras = model_builder( hyperparameter_dict, seed = 69 )
 
+alpha = float(hyperparameter_dict['architecture'].split("_")[-1])
 input_size = (hyperparameter_dict["input_height"], hyperparameter_dict["input_width"], hyperparameter_dict["input_channels"])
-model_keras = tf.keras.applications.MobileNetV2( input_shape = input_size, include_top = True, classes = 1, weights = None )
-path = os.path.join (".", "output", "models", "joao_123", "MobileNetV2_keras.png" )
+
+if "mobilenetv2" in hyperparameter_dict['architecture'].lower():
+  model_keras = tf.keras.applications.MobileNetV2( input_shape = input_size, include_top = True, classes = 1, weights = None, 
+                                                   alpha = alpha, classifier_activation='sigmoid')
+  path = os.path.join (".", "output", "models", "joao_123", f"MobileNetV2_{alpha}_keras.png" )
+
+elif "mobilenetv3_small" in hyperparameter_dict['architecture'].lower():
+  model_keras = tf.keras.applications.MobileNetV3Small( input_shape = input_size, include_top = True, classes = 1, weights = None,
+                                                        classifier_activation='sigmoid', include_preprocessing=False, alpha = alpha )
+  path = os.path.join (".", "output", "models", "joao_123", f"MobileNetV3Small_{alpha}_keras.png" )
+
+elif "mobilenetv3_large" in hyperparameter_dict['architecture'].lower():
+  model_keras = tf.keras.applications.MobileNetV3Large( input_shape = input_size, include_top = True, classes = 1, weights = None,
+                                                        classifier_activation='sigmoid', include_preprocessing=False, alpha = alpha )
+  path = os.path.join (".", "output", "models", "joao_123", f"MobileNetV3Large_{alpha}_keras.png" )
+
 tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show_layer_names = True, 
                             rankdir = "TB", expand_nested = False, dpi = 96 )
         
