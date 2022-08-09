@@ -1,6 +1,5 @@
 import os
 import json
-from platform import architecture
 import random
 import tempfile
 import numpy as np
@@ -11,12 +10,9 @@ from utils.architectures.densenet import DenseNet
 from utils.architectures.xception import Xception
 from utils.architectures.mobilenet import MobileNet
 from utils.architectures.inception import Inception
+from utils.architectures.efficientnet import EfficientNet
 from utils.architectures.inception_resnet import InceptionResNet
 from tensorflow.python.keras.utils.layer_utils import count_params
-
-from keras.applications import MobileNetV2
-from keras.applications import MobileNetV3Large
-from keras.applications import EfficientNetB0
 
 class ModelBuilder:
 
@@ -199,6 +195,49 @@ class ModelBuilder:
                 model = builder.get_MobileNetV3_Large( input_size, alpha, 6., 1, "sigmoid", "avg", 
                                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+        
+        elif "efficientnet" in hyperparameters["architecture"].lower():
+            builder = EfficientNet()
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b0":
+                model = builder.get_EfficientNetB0( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b1":
+                model = builder.get_EfficientNetB1( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b2":
+                model = builder.get_EfficientNetB2( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b3":
+                model = builder.get_EfficientNetB3( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b4":
+                model = builder.get_EfficientNetB4( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b5":
+                model = builder.get_EfficientNetB5( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b6":
+                model = builder.get_EfficientNetB6( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if hyperparameters["architecture"].lower() == "custom_efficientnet_b7":
+                model = builder.get_EfficientNetB7( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
         
         return model

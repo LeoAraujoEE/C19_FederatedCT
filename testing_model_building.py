@@ -9,6 +9,17 @@ from tensorflow.python.keras.utils.layer_utils import count_params
 
 from utils.custom_models import ModelBuilder
 
+def has_params(obj):
+  if hasattr(obj, "trainable_weights"):
+    if int(count_params(obj.trainable_weights)) > 0:
+      return True
+    
+  if hasattr(obj, "non_trainable_weights"):
+    if int(count_params(obj.non_trainable_weights)) > 0:
+      return True
+    
+  return False
+
 def is_conv(obj):
   return any([ isinstance(obj, tf.keras.layers.Conv2D),
                isinstance(obj, tf.keras.layers.SeparableConv2D),
@@ -63,12 +74,15 @@ def show_attr( obj1, obj2, n_layer, show = "all" ):
 # efficientnet_b0, efficientnet_b1, efficientnet_b2, efficientnet_b3, 
 # efficientnet_b4, efficientnet_b5, efficientnet_b6, efficientnet_b7
 
+res = 260
+input_size = (res, res, 1)
+
 # List of hyperparameter possible values
 hyperparameter_dict = { "num_epochs":                      50,  # Total number of training epochs
                         "batchsize":                        8,  # Minibatch size
-                        "input_height":                   224,  # Model's input height
-                        "input_width":                    224,  # Model's input width
-                        "input_channels":                   1,  # Model's input channels
+                        "input_height":         input_size[0],  # Model's input height
+                        "input_width":          input_size[1],  # Model's input width
+                        "input_channels":       input_size[2],  # Model's input channels
                         "start_lr":                      1e-3,  # Starting learning rate
                         "min_lr":                        1e-5,  # Smallest learning rate value allowed
                         "monitor":                   "val_f1",  # Monitored variable for callbacks
@@ -79,7 +93,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture": "custom_mobilenetv3_small_1.5",  # Chosen architecture
+                        "architecture": "custom_efficientnet_b3",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -88,26 +102,9 @@ model_path = os.path.join( model_dir, f"{hyperparameter_dict['architecture']}.h5
 model_builder = ModelBuilder( model_path = model_path, gen_fig = True )
 model_mine = model_builder( hyperparameter_dict, seed = 69 )
 
-# hyperparameter_dict["architecture"] = "densenet_201"
-# model_keras = model_builder( hyperparameter_dict, seed = 69 )
-
-alpha = float(hyperparameter_dict['architecture'].split("_")[-1])
-input_size = (hyperparameter_dict["input_height"], hyperparameter_dict["input_width"], hyperparameter_dict["input_channels"])
-
-if "mobilenetv2" in hyperparameter_dict['architecture'].lower():
-  model_keras = tf.keras.applications.MobileNetV2( input_shape = input_size, include_top = True, classes = 1, weights = None, 
-                                                   alpha = alpha, classifier_activation='sigmoid')
-  path = os.path.join (".", "output", "models", "joao_123", f"MobileNetV2_{alpha}_keras.png" )
-
-elif "mobilenetv3_small" in hyperparameter_dict['architecture'].lower():
-  model_keras = tf.keras.applications.MobileNetV3Small( input_shape = input_size, include_top = True, classes = 1, weights = None,
-                                                        classifier_activation='sigmoid', include_preprocessing=False, alpha = alpha )
-  path = os.path.join (".", "output", "models", "joao_123", f"MobileNetV3Small_{alpha}_keras.png" )
-
-elif "mobilenetv3_large" in hyperparameter_dict['architecture'].lower():
-  model_keras = tf.keras.applications.MobileNetV3Large( input_shape = input_size, include_top = True, classes = 1, weights = None,
-                                                        classifier_activation='sigmoid', include_preprocessing=False, alpha = alpha )
-  path = os.path.join (".", "output", "models", "joao_123", f"MobileNetV3Large_{alpha}_keras.png" )
+model_keras = tf.keras.applications.EfficientNetB3( input_shape = input_size, include_top = True, classes = 1, weights = None,
+                                                    classifier_activation='sigmoid' )
+path = os.path.join (".", "output", "models", "joao_123", f"efficientnet_keras.png" )
 
 tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show_layer_names = True, 
                             rankdir = "TB", expand_nested = False, dpi = 96 )
@@ -119,7 +116,18 @@ print("\nCreated model with {:,} trainable parameters and {:,} non trainable one
 
 k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or is_conv(layer) or isinstance(layer, tf.keras.layers.Dense) ]
 m_layer_idxs = [ i for i, layer in enumerate(model_mine.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or is_conv(layer) or isinstance(layer, tf.keras.layers.Dense) ]
-assert len(k_layer_idxs) == len(m_layer_idxs)
+assert len(k_layer_idxs) == len(m_layer_idxs), f"{len(k_layer_idxs)} layers for Keras and {len(m_layer_idxs)} layers for mine"
+
+# for l, (idx_k, idx_m) in enumerate(zip(k_layer_idxs, m_layer_idxs)):
+  
+#   k_layer = model_keras.layers[idx_k]
+#   k_layer_type = k_layer.__class__.__name__
+  
+#   m_layer = model_mine.layers[idx_m]
+#   m_layer_type = m_layer.__class__.__name__
+  
+#   if m_layer_type != k_layer_type:
+#     print(f"{str(l).zfill(3)}: Keras: '{k_layer.name}' ({k_layer_type}), Mine: '{m_layer.name}' ({m_layer_type})")
 
 n_layers = 0
 for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
@@ -128,12 +136,32 @@ for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
   
   n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
 
-# k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if not i in k_layer_idxs ]
+# k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if (not i in k_layer_idxs) and has_params(layer) ]
 # trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in k_other_layers ]))
 # non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in k_other_layers ]))
 # print("\nKeras Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
-# m_other_layers = [ layer for i, layer in enumerate(model_mine.layers) if not i in m_layer_idxs ]
+# m_other_layers = [ layer for i, layer in enumerate(model_mine.layers) if (not i in m_layer_idxs) and has_params(layer) ]
 # trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in m_other_layers ]))
 # non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in m_other_layers ]))
 # print("\nMine Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
+
+# k_trainable_count = 0
+# m_trainable_count = 0
+# k_non_trainable_count = 0
+# m_non_trainable_count = 0
+# for n_layers, (layer_k, layer_m) in enumerate(zip(k_other_layers, m_other_layers)):
+#   k_trainable = int(count_params(layer_k.trainable_weights))
+#   m_trainable = int(count_params(layer_m.trainable_weights))
+#   k_non_trainable = int(count_params(layer_k.non_trainable_weights))
+#   m_non_trainable = int(count_params(layer_m.non_trainable_weights))
+  
+#   k_trainable_count += k_trainable
+#   m_trainable_count += m_trainable
+#   k_non_trainable_count += k_non_trainable
+#   m_non_trainable_count += m_non_trainable
+  
+#   print(f"{str(n_layers+1).zfill(3)}: Keras: '{layer_k.name}', Mine: '{layer_m.name}'")
+#   print(f"\t{k_trainable_count}/{m_trainable_count} - Trainable - Keras: '{k_trainable}', Mine: '{m_trainable}'")
+#   print(f"\t{k_non_trainable_count}/{m_non_trainable_count} - Non Trainable - Keras: '{k_non_trainable}', Mine: '{m_non_trainable}'")
+#   print("\n")
