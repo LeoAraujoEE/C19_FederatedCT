@@ -69,6 +69,43 @@ def show_attr( obj1, obj2, n_layer, show = "all" ):
     
   return n_layer
 
+def remove_normalization_layers(model, start = 3):
+    # Used to remove normalization layers from keras' EfficientNetV1
+    # Based on: https://stackoverflow.com/questions/67176547/how-to-remove-first-n-layers-from-a-keras-model
+    confs = model.get_config()
+    kept_layers = set()
+    
+    for i, l in enumerate(confs['layers']):
+        if i == 0:
+            confs['layers'][0]['config']['batch_input_shape'] = model.layers[start].input_shape
+            if i != start:
+                #confs['layers'][0]['name'] += str(random.randint(0, 100000000)) # rename the input layer to avoid conflicts on merge
+                confs['layers'][0]['config']['name'] = confs['layers'][0]['name']
+                
+        elif i < start:
+            continue
+          
+        kept_layers.add(l['name'])
+        if l['class_name'] == "Dense":
+          break
+        
+    # filter layers
+    layers = [l for l in confs['layers'] if l['name'] in kept_layers]
+    layers[1]['inbound_nodes'][0][0][0] = layers[0]['name']
+    
+    # set conf
+    confs['layers'] = layers
+    confs['input_layers'][0][0] = layers[0]['name']
+    confs['output_layers'][0][0] = layers[-1]['name']
+    
+    # create new model
+    submodel = tf.keras.Model.from_config(confs)
+    for l in submodel.layers:
+        orig_l = model.get_layer(l.name)
+        if orig_l is not None:
+            l.set_weights(orig_l.get_weights())
+    return submodel
+
 # vgg_16, vgg_19,  
 # mobilenet_v2, xception, densenet_121, densenet_169, densenet_201, 
 # efficientnet_b0, efficientnet_b1, efficientnet_b2, efficientnet_b3, 
@@ -93,7 +130,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture": "custom_efficientnet_b3",  # Chosen architecture
+                        "architecture": "custom_efficientnet_v2_b0",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -102,8 +139,16 @@ model_path = os.path.join( model_dir, f"{hyperparameter_dict['architecture']}.h5
 model_builder = ModelBuilder( model_path = model_path, gen_fig = True )
 model_mine = model_builder( hyperparameter_dict, seed = 69 )
 
-model_keras = tf.keras.applications.EfficientNetB3( input_shape = input_size, include_top = True, classes = 1, weights = None,
-                                                    classifier_activation='sigmoid' )
+if not "v2" in hyperparameter_dict['architecture'].lower():
+  model_keras = tf.keras.applications.EfficientNetB0( input_shape = input_size, include_top = True, classes = 1, weights = None,
+                                                      classifier_activation='sigmoid' )
+  model_keras = remove_normalization_layers(model_keras, start = 3)
+    
+
+else:
+  model_keras = tf.keras.applications.EfficientNetV2B0( input_shape = input_size, include_top = True, classes = 1, weights = None,
+                                                      classifier_activation='sigmoid', include_preprocessing = False )
+
 path = os.path.join (".", "output", "models", "joao_123", f"efficientnet_keras.png" )
 
 tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show_layer_names = True, 
@@ -118,50 +163,53 @@ k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(l
 m_layer_idxs = [ i for i, layer in enumerate(model_mine.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or is_conv(layer) or isinstance(layer, tf.keras.layers.Dense) ]
 assert len(k_layer_idxs) == len(m_layer_idxs), f"{len(k_layer_idxs)} layers for Keras and {len(m_layer_idxs)} layers for mine"
 
-# for l, (idx_k, idx_m) in enumerate(zip(k_layer_idxs, m_layer_idxs)):
-  
-#   k_layer = model_keras.layers[idx_k]
-#   k_layer_type = k_layer.__class__.__name__
-  
-#   m_layer = model_mine.layers[idx_m]
-#   m_layer_type = m_layer.__class__.__name__
-  
-#   if m_layer_type != k_layer_type:
-#     print(f"{str(l).zfill(3)}: Keras: '{k_layer.name}' ({k_layer_type}), Mine: '{m_layer.name}' ({m_layer_type})")
+input_txt = input()
+if input_txt != "":
 
-n_layers = 0
-for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
-  layer_m = model_mine.layers[idx_m]
-  layer_k = model_keras.layers[idx_k]
-  
-  n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
+  # for l, (idx_k, idx_m) in enumerate(zip(k_layer_idxs, m_layer_idxs)):
+    
+  #   k_layer = model_keras.layers[idx_k]
+  #   k_layer_type = k_layer.__class__.__name__
+    
+  #   m_layer = model_mine.layers[idx_m]
+  #   m_layer_type = m_layer.__class__.__name__
+    
+  #   if m_layer_type != k_layer_type:
+  #     print(f"{str(l).zfill(3)}: Keras: '{k_layer.name}' ({k_layer_type}), Mine: '{m_layer.name}' ({m_layer_type})")
 
-# k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if (not i in k_layer_idxs) and has_params(layer) ]
-# trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in k_other_layers ]))
-# non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in k_other_layers ]))
-# print("\nKeras Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
+  n_layers = 0
+  for idx_k, idx_m in zip(k_layer_idxs, m_layer_idxs):
+    layer_m = model_mine.layers[idx_m]
+    layer_k = model_keras.layers[idx_k]
+    
+    n_layers = show_attr( layer_k, layer_m, n_layers, show = "diff" )
 
-# m_other_layers = [ layer for i, layer in enumerate(model_mine.layers) if (not i in m_layer_idxs) and has_params(layer) ]
-# trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in m_other_layers ]))
-# non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in m_other_layers ]))
-# print("\nMine Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
+  # k_other_layers = [ layer for i, layer in enumerate(model_keras.layers) if (not i in k_layer_idxs) and has_params(layer) ]
+  # trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in k_other_layers ]))
+  # non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in k_other_layers ]))
+  # print("\nKeras Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
-# k_trainable_count = 0
-# m_trainable_count = 0
-# k_non_trainable_count = 0
-# m_non_trainable_count = 0
-# for n_layers, (layer_k, layer_m) in enumerate(zip(k_other_layers, m_other_layers)):
-#   k_trainable = int(count_params(layer_k.trainable_weights))
-#   m_trainable = int(count_params(layer_m.trainable_weights))
-#   k_non_trainable = int(count_params(layer_k.non_trainable_weights))
-#   m_non_trainable = int(count_params(layer_m.non_trainable_weights))
-  
-#   k_trainable_count += k_trainable
-#   m_trainable_count += m_trainable
-#   k_non_trainable_count += k_non_trainable
-#   m_non_trainable_count += m_non_trainable
-  
-#   print(f"{str(n_layers+1).zfill(3)}: Keras: '{layer_k.name}', Mine: '{layer_m.name}'")
-#   print(f"\t{k_trainable_count}/{m_trainable_count} - Trainable - Keras: '{k_trainable}', Mine: '{m_trainable}'")
-#   print(f"\t{k_non_trainable_count}/{m_non_trainable_count} - Non Trainable - Keras: '{k_non_trainable}', Mine: '{m_non_trainable}'")
-#   print("\n")
+  # m_other_layers = [ layer for i, layer in enumerate(model_mine.layers) if (not i in m_layer_idxs) and has_params(layer) ]
+  # trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in m_other_layers ]))
+  # non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in m_other_layers ]))
+  # print("\nMine Other Layers have {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
+
+  # k_trainable_count = 0
+  # m_trainable_count = 0
+  # k_non_trainable_count = 0
+  # m_non_trainable_count = 0
+  # for n_layers, (layer_k, layer_m) in enumerate(zip(k_other_layers, m_other_layers)):
+  #   k_trainable = int(count_params(layer_k.trainable_weights))
+  #   m_trainable = int(count_params(layer_m.trainable_weights))
+  #   k_non_trainable = int(count_params(layer_k.non_trainable_weights))
+  #   m_non_trainable = int(count_params(layer_m.non_trainable_weights))
+    
+  #   k_trainable_count += k_trainable
+  #   m_trainable_count += m_trainable
+  #   k_non_trainable_count += k_non_trainable
+  #   m_non_trainable_count += m_non_trainable
+    
+  #   print(f"{str(n_layers+1).zfill(3)}: Keras: '{layer_k.name}', Mine: '{layer_m.name}'")
+  #   print(f"\t{k_trainable_count}/{m_trainable_count} - Trainable - Keras: '{k_trainable}', Mine: '{m_trainable}'")
+  #   print(f"\t{k_non_trainable_count}/{m_non_trainable_count} - Non Trainable - Keras: '{k_non_trainable}', Mine: '{m_non_trainable}'")
+  #   print("\n")

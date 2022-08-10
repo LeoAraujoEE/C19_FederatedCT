@@ -198,44 +198,60 @@ class ModelBuilder:
         
         elif "efficientnet" in hyperparameters["architecture"].lower():
             builder = EfficientNet()
+            is_v2 = "v2" in hyperparameters["architecture"].lower()
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b0":
-                model = builder.get_EfficientNetB0( input_size, 1, "sigmoid", "avg", 
+            if "_b0" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB0( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b1":
-                model = builder.get_EfficientNetB1( input_size, 1, "sigmoid", "avg", 
+            if "_b1" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB1( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b2":
-                model = builder.get_EfficientNetB2( input_size, 1, "sigmoid", "avg", 
+            if "_b2" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB2( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b3":
-                model = builder.get_EfficientNetB3( input_size, 1, "sigmoid", "avg", 
+            if "_b3" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB3( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b4":
-                model = builder.get_EfficientNetB4( input_size, 1, "sigmoid", "avg", 
+            if "_b4" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB4( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b5":
-                model = builder.get_EfficientNetB5( input_size, 1, "sigmoid", "avg", 
+            if "_b5" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB5( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b6":
-                model = builder.get_EfficientNetB6( input_size, 1, "sigmoid", "avg", 
+            if "_b6" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB6( input_size, 1, "sigmoid", "avg", is_v2,
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if hyperparameters["architecture"].lower() == "custom_efficientnet_b7":
-                model = builder.get_EfficientNetB7( input_size, 1, "sigmoid", "avg", 
+            if "_b7" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetB7( input_size, 1, "sigmoid", "avg", is_v2,
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if "v2_s" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetV2_S( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if "v2_m" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetV2_M( input_size, 1, "sigmoid", "avg", 
+                                            hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
+                                            hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
+            
+            if "v2_l" in hyperparameters["architecture"].lower():
+                model = builder.get_EfficientNetV2_L( input_size, 1, "sigmoid", "avg", 
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             

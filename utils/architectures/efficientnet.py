@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend
@@ -16,61 +17,67 @@ from tensorflow.keras.layers import GlobalMaxPooling2D
 from tensorflow.keras.layers import GlobalAveragePooling2D
 
 DEFAULT_BLOCKS_ARGS = {
-    "efficientnetv2-s": [{
-        "kernel_size": 3,
-        "num_repeat": 2,
-        "input_filters": 24,
-        "output_filters": 24,
-        "expand_ratio": 1,
-        "se_ratio": 0.0,
-        "strides": 1,
-        "conv_type": 1,
-    }, {
-        "kernel_size": 3,
-        "num_repeat": 4,
-        "input_filters": 24,
-        "output_filters": 48,
-        "expand_ratio": 4,
-        "se_ratio": 0.0,
-        "strides": 2,
-        "conv_type": 1,
-    }, {
-        "conv_type": 1,
-        "expand_ratio": 4,
-        "input_filters": 48,
-        "kernel_size": 3,
-        "num_repeat": 4,
-        "output_filters": 64,
-        "se_ratio": 0,
-        "strides": 2,
-    }, {
-        "conv_type": 0,
-        "expand_ratio": 4,
-        "input_filters": 64,
-        "kernel_size": 3,
-        "num_repeat": 6,
-        "output_filters": 128,
-        "se_ratio": 0.25,
-        "strides": 2,
-    }, {
-        "conv_type": 0,
-        "expand_ratio": 6,
-        "input_filters": 128,
-        "kernel_size": 3,
-        "num_repeat": 9,
-        "output_filters": 160,
-        "se_ratio": 0.25,
-        "strides": 1,
-    }, {
-        "conv_type": 0,
-        "expand_ratio": 6,
-        "input_filters": 160,
-        "kernel_size": 3,
-        "num_repeat": 15,
-        "output_filters": 256,
-        "se_ratio": 0.25,
-        "strides": 2,
-    }],
+    "efficientnetv2-s": [
+        {
+            "kernel_size": 3,
+            "num_repeat": 2,
+            "input_filters": 24,
+            "output_filters": 24,
+            "expand_ratio": 1,
+            "se_ratio": 0.0,
+            "strides": 1,
+            "conv_type": 1,
+        }, 
+        {
+            "kernel_size": 3,
+            "num_repeat": 4,
+            "input_filters": 24,
+            "output_filters": 48,
+            "expand_ratio": 4,
+            "se_ratio": 0.0,
+            "strides": 2,
+            "conv_type": 1,
+        }, 
+        {
+            "kernel_size": 3,
+            "num_repeat": 4,
+            "input_filters": 48,
+            "output_filters": 64,
+            "expand_ratio": 4,
+            "se_ratio": 0,
+            "strides": 2,
+            "conv_type": 1,
+        }, 
+        {
+            "kernel_size": 3,
+            "num_repeat": 6,
+            "input_filters": 64,
+            "output_filters": 128,
+            "expand_ratio": 4,
+            "se_ratio": 0.25,
+            "strides": 2,
+            "conv_type": 0,
+        }, 
+        {
+            "kernel_size": 3,
+            "num_repeat": 9,
+            "input_filters": 128,
+            "output_filters": 160,
+            "expand_ratio": 6,
+            "se_ratio": 0.25,
+            "strides": 1,
+            "conv_type": 0,
+        }, 
+        {
+            "kernel_size": 3,
+            "num_repeat": 15,
+            "input_filters": 160,
+            "output_filters": 256,
+            "expand_ratio": 6,
+            "se_ratio": 0.25,
+            "strides": 2,
+            "conv_type": 0,
+        }],
     "efficientnetv2-m": [
         {
             "kernel_size": 3,
@@ -215,7 +222,7 @@ DEFAULT_BLOCKS_ARGS = {
             "conv_type": 0,
         },
     ],
-    "efficientnetv2-b0": [
+    "efficientnetv2-b": [
         {
             "kernel_size": 3,
             "num_repeat": 1,
@@ -276,274 +283,147 @@ DEFAULT_BLOCKS_ARGS = {
             "strides": 2,
             "conv_type": 0,
         },
-    ],
-    "efficientnetv2-b1": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-b2": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
-    "efficientnetv2-b3": [
-        {
-            "kernel_size": 3,
-            "num_repeat": 1,
-            "input_filters": 32,
-            "output_filters": 16,
-            "expand_ratio": 1,
-            "se_ratio": 0,
-            "strides": 1,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 16,
-            "output_filters": 32,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 2,
-            "input_filters": 32,
-            "output_filters": 48,
-            "expand_ratio": 4,
-            "se_ratio": 0,
-            "strides": 2,
-            "conv_type": 1,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 3,
-            "input_filters": 48,
-            "output_filters": 96,
-            "expand_ratio": 4,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 5,
-            "input_filters": 96,
-            "output_filters": 112,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 1,
-            "conv_type": 0,
-        },
-        {
-            "kernel_size": 3,
-            "num_repeat": 8,
-            "input_filters": 112,
-            "output_filters": 192,
-            "expand_ratio": 6,
-            "se_ratio": 0.25,
-            "strides": 2,
-            "conv_type": 0,
-        },
-    ],
+    ]
 }
 
 class EfficientNet:
 
     def __init__(self):
         self.args_v1 = [ # Args for EfficientNetV1 B0 ~ B7
-                         { # Block 1 --------------------------------------------
+                         { # Block 1 -----------------------------------------
                           "kernel_size": 3,
-                          "repeats": 1,
-                          "filters_in": 32,
-                          "filters_out": 16,
+                          "num_repeat": 1,
+                          "input_filters": 32,
+                          "output_filters": 16,
                           "expand_ratio": 1,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 1,
-                          "se_ratio": 0.25 }, 
-                         { # Blocks 2 and 3 ------------------------------------
+                          "conv_type": 0 }, 
+                         { # Blocks 2 and 3 ----------------------------------
                           "kernel_size": 3,
-                          "repeats": 2,
-                          "filters_in": 16,
-                          "filters_out": 24,
+                          "num_repeat": 2,
+                          "input_filters": 16,
+                          "output_filters": 24,
                           "expand_ratio": 6,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 2,
-                          "se_ratio": 0.25 }, 
-                         { # Blocks 4 and 5 ------------------------------------
+                          "conv_type": 0 }, 
+                         { # Blocks 4 and 5 ----------------------------------
                           "kernel_size": 5,
-                          "repeats": 2,
-                          "filters_in": 24,
-                          "filters_out": 40,
+                          "num_repeat": 2,
+                          "input_filters": 24,
+                          "output_filters": 40,
                           "expand_ratio": 6,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 2,
-                          "se_ratio": 0.25 }, 
-                         { # Blocks 6, 7 and 8 ---------------------------------
+                          "conv_type": 0 }, 
+                         { # Blocks 6, 7 and 8 -------------------------------
                           "kernel_size": 3,
-                          "repeats": 3,
-                          "filters_in": 40,
-                          "filters_out": 80,
+                          "num_repeat": 3,
+                          "input_filters": 40,
+                          "output_filters": 80,
                           "expand_ratio": 6,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 2,
-                          "se_ratio": 0.25 }, 
-                         { # Blocks 9, 10 and 11 -------------------------------
+                          "conv_type": 0 }, 
+                         { # Blocks 9, 10 and 11 -----------------------------
                           "kernel_size": 5,
-                          "repeats": 3,
-                          "filters_in": 80,
-                          "filters_out": 112,
+                          "num_repeat": 3,
+                          "input_filters": 80,
+                          "output_filters": 112,
                           "expand_ratio": 6,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 1,
-                          "se_ratio": 0.25 }, 
-                         { # Blocks 12, 13, 14 and 15 --------------------------
+                          "conv_type": 0 }, 
+                         { # Blocks 12, 13, 14 and 15 ------------------------
                           "kernel_size": 5,
-                          "repeats": 4,
-                          "filters_in": 112,
-                          "filters_out": 192,
+                          "num_repeat": 4,
+                          "input_filters": 112,
+                          "output_filters": 192,
                           "expand_ratio": 6,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 2,
-                          "se_ratio": 0.25 }, 
-                         { # Block 16 ------------------------------------------
+                          "conv_type": 0 }, 
+                         { # Block 16 ----------------------------------------
                           "kernel_size": 3,
-                          "repeats": 1,
-                          "filters_in": 192,
-                          "filters_out": 320,
+                          "num_repeat": 1,
+                          "input_filters": 192,
+                          "output_filters": 320,
                           "expand_ratio": 6,
-                          "id_skip": True,
+                          "se_ratio": 0.25,
                           "strides": 1,
-                          "se_ratio": 0.25
-                  }]
+                          "conv_type": 0 }
+                       ]
+        
+        self.args_v2 = [ # Args for EfficientNetV2 B0 ~ B3
+                         { # Block 1 -----------------------------------------
+                          "kernel_size": 3,
+                          "num_repeat": 1,
+                          "input_filters": 32,
+                          "output_filters": 16,
+                          "expand_ratio": 1,
+                          "se_ratio": 0,
+                          "strides": 1,
+                          "conv_type": 1, },
+                         { # Blocks 2 and 3 ----------------------------------
+                          "kernel_size": 3,
+                          "num_repeat": 2,
+                          "input_filters": 16,
+                          "output_filters": 32,
+                          "expand_ratio": 4,
+                          "se_ratio": 0,
+                          "strides": 2,
+                          "conv_type": 1, },
+                         { # Blocks 4 and 5 ----------------------------------
+                          "kernel_size": 3,
+                          "num_repeat": 2,
+                          "input_filters": 32,
+                          "output_filters": 48,
+                          "expand_ratio": 4,
+                          "se_ratio": 0,
+                          "strides": 2,
+                          "conv_type": 1, },
+                         { # Blocks 6, 7 and 8 -------------------------------
+                          "kernel_size": 3,
+                          "num_repeat": 3,
+                          "input_filters": 48,
+                          "output_filters": 96,
+                          "expand_ratio": 4,
+                          "se_ratio": 0.25,
+                          "strides": 2,
+                          "conv_type": 0, },
+                         { # Blocks 9 - 13 -----------------------------------
+                          "kernel_size": 3,
+                          "num_repeat": 5,
+                          "input_filters": 96,
+                          "output_filters": 112,
+                          "expand_ratio": 6,
+                          "se_ratio": 0.25,
+                          "strides": 1,
+                          "conv_type": 0, },
+                         { # Blocks 14 - 23 ----------------------------------
+                          "kernel_size": 3,
+                          "num_repeat": 8,
+                          "input_filters": 112,
+                          "output_filters": 192,
+                          "expand_ratio": 6,
+                          "se_ratio": 0.25,
+                          "strides": 2,
+                          "conv_type": 0, },
+                     ]
+        
         return
     
     def __call__( self, input_shape: tuple[int], w_coef: float, d_coef: float, model_args: dict, 
-                  num_outputs: int, output_activation: str, pool: bool, base_dropout: float, 
+                  v2: bool, num_outputs: int, output_activation: str, pool: bool, base_dropout: float, 
                   top_dropout: float, l1_val: float, l2_val: float ) -> Model:
 
         # Model's input layer
         input_layer = tf.keras.layers.Input( shape = input_shape, name = "Input" )
         
         # Entry flow
-        n_filters = EfficientNet.make_divisible(32 * w_coef, 8)
+        base_filters = model_args[0]["input_filters"]
+        n_filters = EfficientNet.make_divisible( base_filters * w_coef, 8, check_round = (not v2) )
         x = EfficientNet.conv_bn( input_layer, num_filters = n_filters, kernel_size = 3, strides = 2, 
                                   padding = "same", activation = True, block = 1, num = 1, 
                                   dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val )
@@ -552,27 +432,34 @@ class EfficientNet:
         block = 2
         for args in model_args:
             # Update block input and output filters based on depth multiplier.
-            args["filters_in"] = EfficientNet.make_divisible(args["filters_in"] * w_coef, 8)
-            args["filters_out"] = EfficientNet.make_divisible(args["filters_out"] * w_coef, 8)
+            args["input_filters"] = EfficientNet.make_divisible(args["input_filters"] * w_coef, 8, check_round = (not v2) )
+            args["output_filters"] = EfficientNet.make_divisible(args["output_filters"] * w_coef, 8, check_round = (not v2) )
             
             # Number of repetitions for the current block
-            repeats = int(np.ceil(d_coef * args["repeats"]))
+            repeats = int(np.ceil(d_coef * args["num_repeat"]))
             
             for i in range(repeats):
                 
                 # Updates parameters that change from first repeat to the rest
                 if i > 0:
                     args["strides"] = 1
-                    args["filters_in"] = args["filters_out"]
+                    args["input_filters"] = args["output_filters"]
                 
-                # Adds a block
-                x = EfficientNet.inv_res_block( x, args["filters_in"], args["filters_out"], args["expand_ratio"], 
-                                             args["kernel_size"], args["strides"], args["se_ratio"], args["id_skip"], 
-                                             block = block, dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val )
+                if args["conv_type"] == 0:
+                    # Adds an Inverse Residual Block
+                    x = EfficientNet.inv_res_block( x, args["input_filters"], args["output_filters"], args["expand_ratio"], 
+                                                    args["kernel_size"], args["strides"], args["se_ratio"], block = block, 
+                                                    dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val )
+                
+                else:
+                    # Adds a Fused Inverse Residual Block (Expansion Conv and DepthWise Conv are combined)
+                    x = EfficientNet.fused_inv_res_block( x, args["input_filters"], args["output_filters"], args["expand_ratio"], 
+                                                          args["kernel_size"], args["strides"], args["se_ratio"], block = block, 
+                                                          dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val )
                 block += 1
             
         # Exit flow
-        n_filters = EfficientNet.make_divisible(1280 * w_coef, 8)
+        n_filters = EfficientNet.make_divisible(1280 * w_coef, 8, check_round = (not v2) )
         x = EfficientNet.conv_bn( x, num_filters = n_filters, kernel_size = 1, strides = 1, padding = "same", 
                                   activation = True, block = block, num = 1, dropchance = base_dropout, 
                                   l1_val = l1_val, l2_val = l2_val )
@@ -594,11 +481,14 @@ class EfficientNet:
         return tf.keras.models.Model( input_layer, output_layer )
     
     def get_EfficientNetB0(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 224 x 224 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.0, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.0, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -606,11 +496,14 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB1(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 240 x 240 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.1, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.1, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -618,11 +511,14 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB2(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 260 x 260 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.1, d_coef = 1.2, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.1, d_coef = 1.2, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -630,11 +526,14 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB3(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 300 x 300 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.2, d_coef = 1.4, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.2, d_coef = 1.4, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -642,11 +541,14 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB4(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 380 x 380 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.4, d_coef = 1.8, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.4, d_coef = 1.8, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -654,11 +556,14 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB5(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 456 x 456 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.6, d_coef = 2.2, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.6, d_coef = 2.2, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -666,11 +571,14 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB6(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 528 x 528 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 1.8, d_coef = 2.6, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 1.8, d_coef = 2.6, model_args = model_args, v2 = v2, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -678,11 +586,119 @@ class EfficientNet:
         return model
     
     def get_EfficientNetB7(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
-                           base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+                           v2: bool, base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 600 x 600 x 3 (but other input resolutions can be used)
         
+        # Uses the base params accordingly to the selected version
+        model_args = self.args_v2 if v2 else self.args_v1
+        
         # Uses the call function to build the model
-        model = self(input_shape = input_shape, w_coef = 2.0, d_coef = 3.1, model_args = self.args_v1,
+        model = self(input_shape = input_shape, w_coef = 2.0, d_coef = 3.1, model_args = model_args, v2 = v2, 
+                     num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
+                     base_dropout = base_dropout, top_dropout = top_dropout, 
+                     l1_val = l1_val, l2_val = l2_val )
+        
+        return model
+    
+    def get_EfficientNetV2_S(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+                             base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+        # Designed for 384 x 384 x 3 (but other input resolutions can be used)
+        
+        # Adapts EfficientNetV2_B models to EfficientNetV2_S
+        model_args = copy.deepcopy(self.args_v2)
+        
+        # List of "num_repeat" property for EfficientNetV2_S model blocks
+        repeat_list = [ 2, 4, 4, 6, 9, 15 ]
+        
+        # List of input/output filters for EfficientNetV2_S model blocks
+        filter_list = [ 24, 24, 48, 64, 128, 160, 256 ]
+        
+        # Adjusts values 
+        for i, repeats in enumerate(repeat_list):
+            model_args[i]["num_repeat"] = repeats
+            model_args[i]["input_filters"] = filter_list[i]
+            model_args[i]["output_filters"] = filter_list[i+1]
+        
+        # Uses the call function to build the model
+        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.0, model_args = model_args, v2 = True, 
+                     num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
+                     base_dropout = base_dropout, top_dropout = top_dropout, 
+                     l1_val = l1_val, l2_val = l2_val )
+        
+        return model
+    
+    def get_EfficientNetV2_M(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+                             base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+        # Designed for 480 x 480 x 3 (but other input resolutions can be used)
+        
+        # Adapts EfficientNetV2_B models to EfficientNetV2_M
+        model_args = copy.deepcopy(self.args_v2)
+        
+        # Adds an extra block at the end of the list in model_args
+        extra_block = { "kernel_size": 3,
+                        "num_repeat": 5,
+                        "input_filters": 304,
+                        "output_filters": 512,
+                        "expand_ratio": 6,
+                        "se_ratio": 0.25,
+                        "strides": 1,
+                        "conv_type": 0 
+                      } 
+        model_args.append( extra_block )
+        
+        # List of "num_repeat" property for EfficientNetV2_M model blocks
+        repeat_list = [ 3, 5, 5, 7, 14, 18, 5 ]
+        
+        # List of input/output filters for EfficientNetV2_M model blocks
+        filter_list = [ 24, 24, 48, 80, 160, 176, 304, 512 ]
+        
+        # Adjusts values 
+        for i, repeats in enumerate(repeat_list):
+            model_args[i]["num_repeat"] = repeats
+            model_args[i]["input_filters"] = filter_list[i]
+            model_args[i]["output_filters"] = filter_list[i+1]
+        
+        # Uses the call function to build the model
+        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.0, model_args = model_args, v2 = True, 
+                     num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
+                     base_dropout = base_dropout, top_dropout = top_dropout, 
+                     l1_val = l1_val, l2_val = l2_val )
+        
+        return model
+    
+    def get_EfficientNetV2_L(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+                             base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
+        # Designed for 480 x 480 x 3 (but other input resolutions can be used)
+        
+        # Adapts EfficientNetV2_B models to EfficientNetV2_L
+        model_args = copy.deepcopy(self.args_v2)
+        
+        # Adds an extra block at the end of the list in model_args
+        extra_block = { "kernel_size": 3,
+                        "num_repeat": 7,
+                        "input_filters": 384,
+                        "output_filters": 640,
+                        "expand_ratio": 6,
+                        "se_ratio": 0.25,
+                        "strides": 1,
+                        "conv_type": 0 
+                      } 
+        model_args.append( extra_block )
+        
+        # List of "num_repeat" property for EfficientNetV2_L model blocks
+        repeat_list = [ 4, 7, 7, 10, 19, 25, 7 ]
+        
+        # List of input/output filters for EfficientNetV2_L model blocks
+        filter_list = [ 32, 32, 64, 96, 192, 224, 384, 640 ]
+        
+        # Adjusts values 
+        for i, repeats in enumerate(repeat_list):
+            model_args[i]["num_repeat"] = repeats
+            model_args[i]["input_filters"] = filter_list[i]
+            model_args[i]["output_filters"] = filter_list[i+1]
+        
+        # Uses the call function to build the model
+        model = self(input_shape = input_shape, w_coef = 1.0, d_coef = 1.0, model_args = model_args, v2 = True, 
                      num_outputs = num_outputs, output_activation = output_activation, pool = pool, 
                      base_dropout = base_dropout, top_dropout = top_dropout, 
                      l1_val = l1_val, l2_val = l2_val )
@@ -690,14 +706,15 @@ class EfficientNet:
         return model
     
     @staticmethod
-    def make_divisible(val, div):
+    def make_divisible(val, div, check_round = True):
         """ Rounds val to the nearest number divisible by div.
         If the closest divisible number is lower than 90% of val, 
         the new_val is rounded up instead. """
         new_val = max([div, div * (int(val + div / 2) // div) ])
         
-        # Make sure that round down does not go down by more than 10%.
-        if new_val < 0.9 * val:
+        # Checks if round down goes down by more than 10%.
+        # If specified, rounds up for losses above 10%.
+        if check_round and (new_val < 0.9 * val):
             new_val += div
         return new_val
     
@@ -762,23 +779,24 @@ class EfficientNet:
     
     @staticmethod
     def inv_res_block( x: tf.Tensor, filters_in: int, filters_out: int, expansion: float, 
-                       kernel_size: int, strides: int, se_ratio: float, id_skip: bool, block: int, 
+                       kernel_size: int, strides: int, se_ratio: float, block: int, 
                        dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
         
+        y = x
         expansion_filters = expansion * filters_in
         
         num = 1
         if expansion != 1:
-            y = EfficientNet.conv_bn( x, num_filters = expansion_filters, kernel_size = 1, strides = 1, padding = "same", 
+            y = EfficientNet.conv_bn( y, num_filters = expansion_filters, kernel_size = 1, strides = 1, padding = "same", 
                                       activation = True, block = block, num = num, dropchance = dropchance, 
                                       l1_val = l1_val, l2_val = l2_val)
             num += 1
             
-        y = EfficientNet.dw_conv_bn_relu( y if (expansion != 1) else x, kernel_size = kernel_size, strides = strides, padding = "same", 
-                                       activation = True, block = block, num = 1, dropchance = dropchance, 
-                                       l1_val = l1_val, l2_val = l2_val)
+        y = EfficientNet.dw_conv_bn_relu( y, kernel_size = kernel_size, strides = strides, padding = "same", 
+                                          activation = True, block = block, num = 1, dropchance = dropchance, 
+                                          l1_val = l1_val, l2_val = l2_val)
         
-        if not se_ratio is None:
+        if (not se_ratio is None) and (se_ratio > 0):
             y = EfficientNet.squeeze_excite_block( layer_input = y, filters = filters_in, ratio = se_ratio, 
                                                    block = block, num = 1 )
         
@@ -787,6 +805,35 @@ class EfficientNet:
                                   l1_val = l1_val, l2_val = l2_val)
         
         in_channels = backend.int_shape(x)[-1]
-        if id_skip and in_channels == filters_out and strides == 1:
+        if in_channels == filters_out and strides == 1:
+            y = Add(name = f"block{block}_Add_num1")([x, y])
+        return y
+    
+    @staticmethod
+    def fused_inv_res_block( x: tf.Tensor, filters_in: int, filters_out: int, expansion: float, 
+                             kernel_size: int, strides: int, se_ratio: float, block: int, 
+                             dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
+        
+        y = x
+        expansion_filters = expansion * filters_in
+        
+        num = 1
+        if expansion != 1:
+            y = EfficientNet.conv_bn( y, num_filters = expansion_filters, kernel_size = kernel_size, strides = strides, 
+                                      padding = "same", activation = True, block = block, num = num, 
+                                      dropchance = dropchance, l1_val = l1_val, l2_val = l2_val)
+            num += 1
+        
+        if (not se_ratio is None) and (se_ratio > 0):
+            y = EfficientNet.squeeze_excite_block( layer_input = y, filters = filters_in, ratio = se_ratio, 
+                                                   block = block, num = 1 )
+        
+        kernel_size = 1 if expansion != 1 else kernel_size
+        y = EfficientNet.conv_bn( y, num_filters = filters_out, kernel_size = kernel_size, strides = 1, 
+                                  padding = "same", activation = False, block = block, num = num, 
+                                  dropchance = dropchance, l1_val = l1_val, l2_val = l2_val)
+        
+        in_channels = backend.int_shape(x)[-1]
+        if in_channels == filters_out and strides == 1:
             y = Add(name = f"block{block}_Add_num1")([x, y])
         return y
