@@ -16,6 +16,8 @@ hyperparameter_ranges = { "num_epochs":                            (30,),  # Tot
                           "input_width":                          (256,),  # Model's input size
                           "input_channels":                         (1,),  # Model's input size
                           "start_lr":           ([1e-3, 1e-4], "sample"),  # Starting learning rate
+                          "lr_adjust_frac":                       (0.1,),  # Fraction to adjust learning rate
+                          "lr_adjust_freq":                        (10,),  # Frequency to adjust learning rate
                           "optimizer":                         ("adam",),  # Chosen optimizer
                           "monitor":                         ("val_f1",),  # Monitored variable for callbacks
                           "augmentation":                        (True,),  # If data augmentation should be used

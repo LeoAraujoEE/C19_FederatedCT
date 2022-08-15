@@ -45,11 +45,9 @@ class ModelBuilder:
         tf.random.set_seed(seed)
         
         # Creates a model with all layers up to the end of the convolutional base
-        model  = self.create_model(hyperparameters)
+        model = self.create_model(hyperparameters)
         
         # Counts the model's parameters
-        # trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in model.layers ]))
-        # non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in model.layers ]))
         trainable_count, non_trainable_count = self.count_model_params(model)
         print("\nCreated model with {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
@@ -104,27 +102,27 @@ class ModelBuilder:
         elif "resnet" in hyperparameters["architecture"].lower():
             builder = ResNet()
             
-            if hyperparameters["architecture"].lower() == "custom_resnet18":
+            if hyperparameters["architecture"].lower() == "resnet18":
                 model  = builder.get_ResNet18( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
-            elif hyperparameters["architecture"].lower() == "custom_resnet34":
+            elif hyperparameters["architecture"].lower() == "resnet34":
                 model  = builder.get_ResNet34( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
-            elif hyperparameters["architecture"].lower() == "custom_resnet50":
+            elif hyperparameters["architecture"].lower() == "resnet50":
                 model  = builder.get_ResNet50( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
-            elif hyperparameters["architecture"].lower() == "custom_resnet101":
+            elif hyperparameters["architecture"].lower() == "resnet101":
                 model  = builder.get_ResNet101( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
                 
-            elif hyperparameters["architecture"].lower() == "custom_resnet152":
+            elif hyperparameters["architecture"].lower() == "resnet152":
                 model  = builder.get_ResNet152( input_size, 1, "sigmoid", "avg", 
                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
@@ -132,22 +130,22 @@ class ModelBuilder:
         elif "densenet" in hyperparameters["architecture"].lower():
             builder = DenseNet()
             
-            if hyperparameters["architecture"].lower() == "custom_densenet121":
+            if hyperparameters["architecture"].lower() == "densenet121":
                 model  = builder.get_DenseNet121( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            elif hyperparameters["architecture"].lower() == "custom_densenet169":
+            elif hyperparameters["architecture"].lower() == "densenet169":
                 model  = builder.get_DenseNet169( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            elif hyperparameters["architecture"].lower() == "custom_densenet201":
+            elif hyperparameters["architecture"].lower() == "densenet201":
                 model  = builder.get_DenseNet201( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            elif hyperparameters["architecture"].lower() == "custom_densenet264":
+            elif hyperparameters["architecture"].lower() == "densenet264":
                 model  = builder.get_DenseNet264( input_size, 1, "sigmoid", "avg", 
                                         hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                         hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
@@ -155,12 +153,12 @@ class ModelBuilder:
         elif "inception" in hyperparameters["architecture"].lower():
             builder = Inception()
             
-            if hyperparameters["architecture"].lower() == "custom_inceptionv3":
+            if hyperparameters["architecture"].lower() == "inceptionv3":
                 model = builder.get_InceptionV3( input_size, 1, "sigmoid", "avg", 
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            elif hyperparameters["architecture"].lower() == "custom_inceptionv4":
+            elif hyperparameters["architecture"].lower() == "inceptionv4":
                 model = builder.get_InceptionV4( input_size, 1, "sigmoid", "avg", 
                                             hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                             hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
@@ -178,17 +176,17 @@ class ModelBuilder:
             architecture_name = "_".join(hyperparameters["architecture"].split("_")[:-1])
             print(f"Got Arq.: '{architecture_name}' with alpha: '{alpha}'")
             
-            if architecture_name.lower() == "custom_mobilenetv2":
+            if architecture_name.lower() == "mobilenetv2":
                 model = builder.get_MobileNetV2( input_size, alpha, 6., 1, "sigmoid", "avg", 
                                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if architecture_name.lower() == "custom_mobilenetv3_small":
+            if architecture_name.lower() == "mobilenetv3_small":
                 model = builder.get_MobileNetV3_Small( input_size, alpha, 6., 1, "sigmoid", "avg", 
                                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )
             
-            if architecture_name.lower() == "custom_mobilenetv3_large":
+            if architecture_name.lower() == "mobilenetv3_large":
                 model = builder.get_MobileNetV3_Large( input_size, alpha, 6., 1, "sigmoid", "avg", 
                                                 hyperparameters["base_dropout"], hyperparameters["top_dropout"], 
                                                 hyperparameters["l1_reg"], hyperparameters["l2_reg"] )

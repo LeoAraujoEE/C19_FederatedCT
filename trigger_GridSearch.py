@@ -9,19 +9,16 @@ from utils.custom_model_trainer import ModelManager
 PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
               "outputs" : os.path.join( "." ) }
 
-# List of used models
-#model_list = [ "resnet_50v2", "densenet_121", "xception", "mobilenet_v2", "efficientnet_b0" ]
-model_list = [ "custom_resnet50", "custom_densenet121" ]
-model_list = [ "custom_resnet50" ]
-
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                     [1],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [5],  # Total N° of training epochs
                         "batchsize":                     [16],  # Minibatch size
                         "early_stop":                    [13],  # Early Stopping patience
                         "input_height":                 [256],  # Model's input size
                         "input_width":                  [256],  # Model's input size
                         "input_channels":                 [1],  # Model's input size
                         "start_lr":                    [1e-2],  # Starting learning rate
+                        "lr_adjust_frac":               [0.5],  # Fraction to adjust learning rate
+                        "lr_adjust_freq":                 [2],  # Frequency to adjust learning rate
                         "optimizer":                 ["adam"],  # Chosen optimizer
                         "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                         "augmentation":                [True],  # If data augmentation should be used
@@ -31,7 +28,7 @@ hyperparameter_dict = { "num_epochs":                     [1],  # Total N° of t
                         "l2_reg":                         [0],  # Amount of L2 regularization
                         "base_dropout":                 [.15],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                  [0.3],  # Dropout between dense layers in model top
-                        "architecture":            model_list,  # Chosen architecture
+                        "architecture":          ["resnet50"],  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
                       } 
 
@@ -50,8 +47,11 @@ augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
                       }
 
 keep_pneumonia = True
-dataset_list = [ "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB" ]
+dataset_list = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB" ]
 
-for dataset in dataset_list[:]:
-  trainManager = ModelManager( PATH_DICT, dataset, hyperparameter_dict, augmentation_dict, keep_pneumonia = keep_pneumonia )
-  trainManager.doGridSearch( shuffle = False )
+trainManager = ModelManager( path_dict = PATH_DICT, dataset_name = "radiopaedia.org", 
+                             hyperparam_values = hyperparameter_dict, 
+                             aug_params = augmentation_dict, 
+                             keep_pneumonia = keep_pneumonia )
+
+trainManager.doGridSearch( shuffle = False )

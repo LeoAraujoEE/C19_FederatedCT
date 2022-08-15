@@ -146,8 +146,9 @@ class Dataset():
 def load_datasets( import_dir, train_dataset, input_col, output_col, keep_pneumonia ):
 
     # List of all available datasets
-    available_datasets = [ "Comp_CNCB_iCTCF_a", "Comp_CNCB_iCTCF_b", "radiopaedia.org",
-                           "COVID-CTSet", "COVID-CT-MD", "Comp_LIDC-SB" ]
+    available_datasets = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", 
+                           "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", 
+                           "Comp_LIDC-SB" ]
 
     print("Checking datasets:")
     if keep_pneumonia:

@@ -46,6 +46,8 @@ class ModelEntity():
                         "input_width":                  512,  # Model's input width
                         "input_channels":                 1,  # Model's input channels
                         "start_lr":                    1e-1,  # Starting learning rate
+                        "lr_adjust_frac":               1.0,  # Fraction to adjust learning rate
+                        "lr_adjust_freq":               999,  # Frequency to adjust learning rate
                         "optimizer":                 "adam",  # Chosen optimizer
                         "monitor":                "val_acc",  # Monitored variable for callbacks
                         "augmentation":               False,  # If data augmentation should be used
@@ -597,9 +599,10 @@ class ModelTrainer(ModelEntity):
         
         # Learning Rate Scheduler
         def scheduler(epoch, lr):
-            if (epoch + 1) % 10 == 0:
-                print(f"[LR Scheduler] Updating LearningRate from '{lr:.3E}' to '{lr/10:.3E}'...")
-                return lr / 10
+            if (epoch + 1) % hyperparameters["lr_adjust_freq"] == 0:
+                new_lr = lr * hyperparameters["lr_adjust_frac"]
+                print(f"[LR Scheduler] Updating LearningRate from '{lr:.3E}' to '{new_lr:.3E}'...")
+                return new_lr
             return lr
         
         lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose = 0)
