@@ -20,17 +20,35 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         # If Random Undersampling should be applied to balance the batches
         self.undersample = undersample
 
+        # Extracts the targeted shape
+        inputH = hyperparameters["input_height"]
+        inputW = hyperparameters["input_width"]
+        inputC = hyperparameters["input_channels"]
+        
+        # Defines other metadata based on the given parameters 
+        self.batch_size = hyperparameters["batchsize"]
+        self.input_size = (inputH, inputW, inputC)
+        self.shuffle = shuffle
+
         # Gets the dataframe with input/output paths 
-        # and the relative path to the dataset
         df = dataset.get_dataframe(partition)
-        self.import_dir = dataset.get_relative_path()
+        
+        # Gets the relative path to the dataset
+        image_dir = f"{inputH}x{inputW}"
+        data_path = dataset.get_relative_path()
+        self.import_dir = os.path.join(data_path, image_dir)
+        
+        # If the targeted size is unavailable,
+        # samples are resized from 512x512 images
+        if not os.path.exists(self.import_dir):
+            self.import_dir = os.path.join(data_path, "512x512")    
 
         # Gets the names of the input and output columns in the dataf ame
-        self.X_col = getattr( dataset, "input_col")
-        self.Y_col = getattr( dataset, "output_col")
+        self.X_col = dataset.input_col
+        self.Y_col = dataset.output_col
 
         # Identifies each individual class from given labels
-        self.unq_labels = [ clss for clss in getattr( dataset, "classes" ).keys() ]
+        self.unq_labels = [ clss for clss in dataset.classes.keys() ]
         self.label2class_dict = { label: clss for clss, label in enumerate(self.unq_labels) }
         self.class2label_dict = { clss: label for clss, label in enumerate(self.unq_labels) }
 
@@ -39,15 +57,7 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         self.n_classes = len(self.unq_labels)
 
         if self.n_classes != len(self.unq_labels):
-            print( "\nOnly {} of {} classes are represented in this dataset...".format( getattr(dataset, "n_classes"), self.n_classes ) )
-
-        # Defines other metadata based on the given parameters
-        inputH = hyperparameters["input_height"]
-        inputW = hyperparameters["input_width"]
-        inputC = hyperparameters["input_channels"]
-        self.batch_size = hyperparameters["batchsize"]
-        self.input_size = (inputH, inputW, inputC)
-        self.shuffle = shuffle
+            print( f"\nOnly {dataset.n_classes} of {self.n_classes} classes are represented in this dataset..." )
 
         self.set_dataframes( df )
             

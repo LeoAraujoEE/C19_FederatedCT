@@ -8,11 +8,11 @@ from utils.custom_plots import CustomPlots
 from utils.custom_generator import CustomDataGenerator
 
 # Path to resized datasets in COVIDx CT-3A
-path2datasets = os.path.join( ".", "data", "classification" )
+path2datasets = os.path.join( "..", "..", "..", "..", "Datasets", "COVID19", "CT", "classification" )
 
 # Builds object to handle radiopaedia dataset 
 dataset = Dataset( import_dir = path2datasets, folder = "COVID-CT-MD", 
-                           input_col = "path_512", output_col = "class",  
+                           input_col = "path", output_col = "class",  
                            keep_pneumonia = True, trainable = True )
 dataset.load_dataframes()
 
@@ -29,7 +29,7 @@ hyperparameters = { "batchsize"          :                16,
 augmentation_dict = { "zoom_in":                 0.00,          # Max zoom in
                       "zoom_out":                0.10,          # Max zoom out
                       "shear":                   00.0,          # Max random shear
-                      "rotation":                05.0,          # Max random rotation
+                      "rotation":                 5.0,          # Max random rotation
                       "vertical_translation":    0.05,          # Max vertical translation
                       "horizontal_translation":  0.05,          # Max horizontal translation
                       "vertical_flip":          False,          # Allow vertical flips  

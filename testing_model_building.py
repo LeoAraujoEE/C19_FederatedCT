@@ -130,7 +130,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture": "custom_efficientnet_v2_b0",  # Chosen architecture
+                        "architecture":  "efficientnet_v2_b0",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -155,8 +155,7 @@ tf.keras.utils.plot_model( model_keras, to_file = path, show_shapes = True, show
                             rankdir = "TB", expand_nested = False, dpi = 96 )
         
 # Counts the model's parameters
-trainable_count = int(np.sum([ count_params(l.trainable_weights) for l in model_keras.layers ]))
-non_trainable_count = int(np.sum([ count_params(l.non_trainable_weights) for l in model_keras.layers ]))
+trainable_count, non_trainable_count = ModelBuilder.count_model_params(model_keras)
 print("\nCreated model with {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
 k_layer_idxs = [ i for i, layer in enumerate(model_keras.layers) if isinstance(layer, tf.keras.layers.MaxPooling2D) or is_conv(layer) or isinstance(layer, tf.keras.layers.Dense) ]

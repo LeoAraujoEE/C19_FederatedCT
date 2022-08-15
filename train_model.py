@@ -15,15 +15,10 @@ from utils.custom_model_trainer import ModelTrainer
 # Decodes all the input args and creates a dict
 arg_dict = ModelTrainer.decode_args(sys.argv)
 
-# Path to resized datasets in COVIDx CT-3A
-path2datasets = arg_dict["data_path"]
-
-# Checks the desired input shape and uses resized images if Height and Width are set to 256
-input_column = "path_256" if (arg_dict["input_height"] == 256) and (arg_dict["input_width"] == 256) else "path_512"
-
 # Builds object to handle datasets for training and for external validation
-dataTrain, dataVal_list = load_datasets( import_dir = path2datasets, train_dataset = arg_dict["train_dataset"], 
-                                         input_col = input_column, output_col = "class", 
+dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
+                                         train_dataset = arg_dict["train_dataset"], 
+                                         input_col = "path", output_col = "class", 
                                          keep_pneumonia = arg_dict["keep_pneumonia"] )
 
 trainer = ModelTrainer( dataTrain, dataVal_list, dst_dir = arg_dict["output_dir"] )
