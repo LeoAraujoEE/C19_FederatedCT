@@ -426,6 +426,9 @@ class ModelTrainer(ModelEntity):
         print(f"\nTrained model '{os.path.basename(model_path)}' in {train_time}. Plotting results...")
         self.plotter.plot_train_results( history_dict, dataset_name )
 
+        # Prints current hyperparameters
+        self.print_dict( hyperparameters, round = True )
+
         # Announces the start of the testing process
         print("\nTesting model '{}'...".format( os.path.basename(model_path) ))
         results_dict = self.test_model( model_path, hyperparameters )
@@ -584,7 +587,7 @@ class ModelTrainer(ModelEntity):
         # Callbacks --------------------------------------------------------------------------------------------------
         # Sets callback_mode based on the selected monitored metric
         callback_mode = "min" if "loss" in hyperparameters["monitor"].lower() else "max"
-        print("\n\tMonitoring '{}' with '{}' mode...\n".format(hyperparameters["monitor"], callback_mode))
+        print("\nMonitoring '{}' with '{}' mode...\n".format(hyperparameters["monitor"], callback_mode))
 
         # Model Checkpoint
         model_checkpoint = tf.keras.callbacks.ModelCheckpoint( model_path, monitor = hyperparameters["monitor"],

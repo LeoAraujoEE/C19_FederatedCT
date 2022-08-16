@@ -351,8 +351,6 @@ class MobileNet:
                         se_idx: list[int], kernel_idx: list[int], relu_idx: list[int], dropchance: float, 
                         l1_val: float, l2_val: float ) -> tf.Tensor:
         
-        print("Layer, expansion, base_filters, kernel_size, strides, se_ratio, activation")
-        
         block = 2
         for base_filters, exp_list in stack_dict.items():
             for expansion in exp_list:
@@ -366,8 +364,6 @@ class MobileNet:
                 in_channels = backend.int_shape(x)[-1]
                 pointwise_filters = MobileNet.make_divisible(alpha * base_filters, 8)
                 expansion_filters = MobileNet.make_divisible(expansion * in_channels, 8)
-                
-                print(f"Layer {(block-2)}: {expansion}, {base_filters}, {kernel_size}, {strides}, {se_ratio}, {activation}")
                 
                 x = MobileNet.bottleneck_res_block( x, expansion_filters = expansion_filters, pointwise_filters = pointwise_filters, 
                                                     kernel_size = kernel_size, strides = strides, se_ratio = se_ratio, 
