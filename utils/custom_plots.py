@@ -1,5 +1,4 @@
 import os
-from re import I
 import cv2
 import numpy as np
 import seaborn as sns
@@ -22,7 +21,7 @@ class CustomPlots:
 
         return
 
-    def plot_train_results( self, history, dataset_name, fine_tune = False, figsize = (6, 9) ):
+    def plot_train_results( self, history, dataset_name, figsize = (6, 9) ):
 
         # Defines the path to the plot directory inside the model's directory
         dst_dir = os.path.join( self.plot_dir, "1.Training Results" )
@@ -144,7 +143,7 @@ class CustomPlots:
 
         return
 
-    def plot_roc_curve( self, true_labels, scores, dataset_name, partition, labels ):
+    def plot_roc_curve( self, true_labels, scores, dataset_name, partition ):
         
         # Defines the path to the plot file inside the model's directory
         dst_dir = os.path.join( self.plot_dir, "3.ROC Curves" )
@@ -222,8 +221,8 @@ class CustomPlots:
                            xticklabels = labels, yticklabels = labels, vmin = 0, vmax = 1)
 
         # Adds extra information on each label and a title
-        ax.set_ylabel("True")
-        ax.set_xlabel("Predicted")
+        ax.set_ylabel("True Labels")
+        ax.set_xlabel("Predicted Labels")
         if partition.lower() == "test":
             ax.set_title("{} Dataset".format(dataset_name.title()))
         else:

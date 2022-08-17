@@ -735,7 +735,7 @@ class ModelTrainer(ModelEntity):
             self.plotter.plot_confusion_matrix( conf_matrix, dataset_name, partition, class_labels )
 
             # Plots ROC curves TODO: fix this
-            self.plotter.plot_roc_curve( y_true, y_preds, dataset_name, partition, class_labels )
+            self.plotter.plot_roc_curve( y_true, y_preds, dataset_name, partition )
 
         # If there are datasets for cross-validation
         if not self.dataset_list is None:
@@ -768,7 +768,7 @@ class ModelTrainer(ModelEntity):
                 self.plotter.plot_confusion_matrix( conf_matrix, dset_name, "test", class_labels )
 
                 # Plots ROC curves TODO: fix this
-                self.plotter.plot_roc_curve( y_true, y_preds, dset_name, "test", class_labels )
+                self.plotter.plot_roc_curve( y_true, y_preds, dset_name, "test" )
                 
             results["crossval_acc"] = "{:.4f}".format( np.mean(cval_acc_list) )
             results["crossval_f1"] = "{:.4f}".format( np.mean(cval_f1_list) )

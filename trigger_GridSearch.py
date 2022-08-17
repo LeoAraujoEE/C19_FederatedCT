@@ -10,7 +10,7 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
               "outputs" : os.path.join( "." ) }
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                    [1],  # Total N° of training epochs
                         "batchsize":                     [32],  # Minibatch size
                         "early_stop":                    [13],  # Early Stopping patience
                         "input_height":                 [224],  # Model's input size
@@ -26,7 +26,7 @@ hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of t
                         "apply_undersampling":         [True],  # Wether to apply Random Undersampling
                         "l1_reg":                         [0],  # Amount of L1 regularization
                         "l2_reg":                         [0],  # Amount of L2 regularization
-                        "base_dropout":  [0.0, 0.1, 0.2, 0.3],  # SpatialDropout2d between blocks in convolutional base
+                        "base_dropout":    [0.00, 0.30, 0.50],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":           [0.30, 0.50],  # Dropout between dense layers in model top
                         "architecture":          ["resnet50"],  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
