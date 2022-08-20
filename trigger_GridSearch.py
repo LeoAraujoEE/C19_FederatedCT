@@ -1,7 +1,4 @@
 import os
-import warnings
-warnings.filterwarnings("ignore")
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
 
 from utils.custom_model_trainer import ModelManager
 
@@ -10,7 +7,7 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
               "outputs" : os.path.join( "." ) }
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                    [1],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of training epochs
                         "batchsize":                     [32],  # Minibatch size
                         "early_stop":                    [13],  # Early Stopping patience
                         "input_height":                 [224],  # Model's input size
@@ -56,10 +53,20 @@ dataset_list = [ "COVIDxCT",        # Whole COVIDxCT-3A dataset
                  "radiopaedia.org", #  4k /  3k
                ]
 
-trainManager = ModelManager( path_dict = PATH_DICT, 
-                             dataset_name = "COVID-CT-MD", 
-                             hyperparam_values = hyperparameter_dict, 
-                             aug_params = augmentation_dict, 
-                             keep_pneumonia = False )
+for idx, dataset in enumerate(dataset_list):
+  if idx < 2:
+    continue
+  
+  elif idx < 4:
+    hyperparameter_dict["num_epochs"] = [20]
+  
+  else:
+    hyperparameter_dict["num_epochs"] = [30]
+  
+  trainManager = ModelManager( path_dict = PATH_DICT, 
+                              dataset_name = dataset, 
+                              hyperparam_values = hyperparameter_dict, 
+                              aug_params = augmentation_dict, 
+                              keep_pneumonia = False )
 
-trainManager.doGridSearch( shuffle = False )
+  trainManager.doGridSearch( shuffle = False )
