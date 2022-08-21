@@ -200,17 +200,17 @@ class ModelManager(ModelEntity):
 
         return
 
-    def doRandomSearch( self, hyperparam_ranges, n_models ):
+    def doRandomSearch( self, n_models ):
         self.check_trainability()
         print("\nStarting RandomSearch:")
 
         # Prints the possible values
         print("\nList of possible hyperparameter ranges:")
-        self.print_dict(hyperparam_ranges)
+        self.print_dict(self.hyperparam_values)
 
         idx_h = 0
         while idx_h < n_models:
-            hyperparameters = self.gen_random_hyperparameters( hyperparam_ranges )
+            hyperparameters = self.gen_random_hyperparameters(self.hyperparam_values)
 
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")

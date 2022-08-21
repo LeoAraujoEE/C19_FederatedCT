@@ -5,14 +5,11 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
               "outputs" : os.path.join( "." ) }
 
 train_dataset = "radiopaedia.org"
-model_fname = "resnet50_3c803bd9da2c949cf20b8eda384b6155"
+reference_dataset = "Comp_CNCB_iCTCF_a_dropped"
+reference_metrics = ["test_f1"]
 
-json_path = os.path.join( ".", "output", "models", "radiopaedia_dropped", 
-                          model_fname, f"params_{model_fname}.json" )
-
-  
 trainManager = ModelManager( path_dict = PATH_DICT, 
                              dataset_name = train_dataset, 
                              keep_pneumonia = False )
 
-trainManager.doTrainFromJSON( json_path, copy_augmentation = True )
+trainManager.doJsonSearch( reference_dataset, reference_metrics )

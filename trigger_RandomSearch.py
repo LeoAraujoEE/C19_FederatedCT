@@ -1,23 +1,20 @@
 import os
-import warnings
-warnings.filterwarnings("ignore")
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
-
 from utils.custom_model_trainer import ModelManager
 
-# List of used models
-model_list = [ "resnet_50v2", "densenet_121", "xception", "mobilenet_v2", "efficientnet_b0" ]
+# 
+PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
+              "outputs" : os.path.join( "." ) }
 
 # List of hyperparameter values
-hyperparameter_ranges = { "num_epochs":                            (30,),  # Total N° of training epochs
-                          "batchsize":                             (16,),  # Minibatch size
-                          "early_stop":                            (13,),  # Early Stopping patience
-                          "input_height":                         (256,),  # Model's input size
-                          "input_width":                          (256,),  # Model's input size
+hyperparameter_ranges = { "num_epochs":                             (3,),  # Total N° of training epochs
+                          "batchsize":                             (32,),  # Minibatch size
+                          "early_stop":                            (11,),  # Early Stopping patience
+                          "input_height":                         (224,),  # Model's input size
+                          "input_width":                          (224,),  # Model's input size
                           "input_channels":                         (1,),  # Model's input size
                           "start_lr":           ([1e-3, 1e-4], "sample"),  # Starting learning rate
-                          "lr_adjust_frac":                       (0.1,),  # Fraction to adjust learning rate
-                          "lr_adjust_freq":                        (10,),  # Frequency to adjust learning rate
+                          "lr_adjust_frac":                       (0.5,),  # Fraction to adjust learning rate
+                          "lr_adjust_freq":                         (5,),  # Frequency to adjust learning rate
                           "optimizer":                         ("adam",),  # Chosen optimizer
                           "monitor":                         ("val_f1",),  # Monitored variable for callbacks
                           "augmentation":                        (True,),  # If data augmentation should be used
@@ -25,9 +22,9 @@ hyperparameter_ranges = { "num_epochs":                            (30,),  # Tot
                           "apply_undersampling":                 (True,),  # Wether to apply Random Undersampling
                           "l1_reg":                  (1e-4, 1e-2, "log"),  # Amount of L1 regularization
                           "l2_reg":                  (1e-4, 1e-2, "log"),  # Amount of L2 regularization
-                          "base_dropout":            (0.05, 0.25, "lin"),  # Dropout for layers in skip connections
-                          "top_dropout":             (0.25, 0.50, "lin"),  # Dropout for layers in skip connections
-                          "architecture":         (model_list, "sample"),  # Chosen architecture
+                          "base_dropout":                         (0.3,),  # Dropout for layers in skip connections
+                          "top_dropout":                          (0.5,),  # Dropout for layers in skip connections
+                          "architecture":                  ("resnet50",),  # Chosen architecture
                           "seed":                                  (69,),  # Seed for pseudorandom generators
                         } 
 
@@ -43,6 +40,11 @@ augmentation_dict = { "zoom":                    0.10,          # Max zoom in/zo
                       "constant_val":            00.0,
                       "fill_mode":          "constant"
                       }
+  
+trainManager = ModelManager( path_dict = PATH_DICT, 
+                             dataset_name = "radiopaedia.org", 
+                             hyperparam_values = hyperparameter_ranges, 
+                             aug_params = augmentation_dict, 
+                             keep_pneumonia = False )
 
-trainManager = ModelManager( "radiopaedia.org", hyperparameter_ranges, augmentation_dict, keep_pneumonia = True )
-trainManager.doRandomSearch( hyperparameter_ranges, n_models = 3 )
+trainManager.doRandomSearch( n_models = 1 )
