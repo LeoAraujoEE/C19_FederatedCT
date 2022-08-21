@@ -5,9 +5,11 @@ warnings.filterwarnings("ignore")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
 
 import tensorflow as tf
-config = tf.compat.v1.ConfigProto()
-config.gpu_options.allow_growth = True
-tf.compat.v1.keras.backend.set_session(tf.compat.v1.Session(config=config))
+for device in tf.config.list_physical_devices("GPU"):
+  try:
+    tf.config.experimental.set_memory_growth( device, True )
+  except:
+    pass
 
 from utils.dataset import load_datasets
 from utils.custom_model_trainer import ModelTrainer

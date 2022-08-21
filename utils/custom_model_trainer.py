@@ -1,4 +1,3 @@
-import gc
 import os
 import glob
 import json
@@ -382,9 +381,6 @@ class ModelTrainer(ModelEntity):
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
 
-        # Reset Keras state to free GPU memmory
-        self.reset_keras()
-
         return
         
     def train_test_iteration(self, args_dict):
@@ -485,24 +481,6 @@ class ModelTrainer(ModelEntity):
 
         return
 
-    def reset_keras( self ):
-
-        sess = tf.compat.v1.keras.backend.get_session()
-        tf.compat.v1.keras.backend.clear_session()
-        sess.close()
-
-        try:
-            del self.model
-        except:
-            pass
-
-        gc.collect()
-
-        config = tf.compat.v1.ConfigProto()
-        config.gpu_options.allow_growth = True
-        tf.compat.v1.keras.backend.set_session(tf.compat.v1.Session(config=config))
-        return
-
     def gen_model_name( self, hyperparameters, aug_params ):
         # Creates a single dict to store all hyperparameters
         all_param_dict = {}
@@ -566,7 +544,7 @@ class ModelTrainer(ModelEntity):
 
         return
 
-    def train_model( self, hyperparameters, aug_params, model_path, reset = True ):
+    def train_model( self, hyperparameters, aug_params, model_path ):
         
         # Announces the dataset used for training
         print("\nTraining model '{}' on '{}' dataset...".format( os.path.basename( model_path ), self.dataset.name ))
@@ -640,10 +618,6 @@ class ModelTrainer(ModelEntity):
         # Extracts the dict with the training and validation values for loss and IoU during training
         history_dict = history.history
 
-        # Reset Keras state to free GPU memmory
-        if reset:
-            self.reset_keras()
-
         return history_dict
 
     def get_base_results_dict( self ):
@@ -682,7 +656,6 @@ class ModelTrainer(ModelEntity):
 
         # Gets all labels in the dataframe as their corresponding class numbers to compute accuracy and f1-score
         y_true = datagen.get_labels()[:num_samples]
-        fnames = datagen.get_fnames()[:num_samples]
 
         # Computes the average loss for the current partition
         scores = self.model.predict( datagen, batch_size = hyperparameters["batchsize"], 
@@ -773,9 +746,6 @@ class ModelTrainer(ModelEntity):
             results["crossval_acc"] = "{:.4f}".format( np.mean(cval_acc_list) )
             results["crossval_f1"] = "{:.4f}".format( np.mean(cval_f1_list) )
             results["crossval_auc"] = "{:.4f}".format( np.mean(cval_auroc_list) )
-
-        # Reset Keras state to free GPU memmory
-        self.reset_keras()
 
         return results
 

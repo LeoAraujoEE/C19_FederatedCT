@@ -6,9 +6,9 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
               "outputs" : os.path.join( "." ) }
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of training epochs
                         "batchsize":                     [32],  # Minibatch size
-                        "early_stop":                    [13],  # Early Stopping patience
+                        "early_stop":                    [20],  # Early Stopping patience
                         "input_height":                 [224],  # Model's input size
                         "input_width":                  [224],  # Model's input size
                         "input_channels":                 [1],  # Model's input size
@@ -22,7 +22,7 @@ hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of t
                         "apply_undersampling":         [True],  # Wether to apply Random Undersampling
                         "l1_reg":                         [0],  # Amount of L1 regularization
                         "l2_reg":                         [0],  # Amount of L2 regularization
-                        "base_dropout":    [0.00, 0.30, 0.50],  # SpatialDropout2d between blocks in convolutional base
+                        "base_dropout":          [0.30, 0.50],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":           [0.30, 0.50],  # Dropout between dense layers in model top
                         "architecture":          ["resnet50"],  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
@@ -52,20 +52,28 @@ dataset_list = [ "COVIDxCT",        # Whole COVIDxCT-3A dataset
                  "radiopaedia.org", #  4k /  3k
                ]
 
-for idx, dataset in enumerate(dataset_list):
-  if idx < 2:
-    continue
+# for idx, dataset in enumerate(dataset_list):
+#   if idx < 2:
+#     continue
   
-  elif idx < 4:
-    hyperparameter_dict["num_epochs"] = [20]
+#   elif idx < 4:
+#     hyperparameter_dict["num_epochs"] = [20]
   
-  else:
-    hyperparameter_dict["num_epochs"] = [30]
+#   else:
+#     hyperparameter_dict["num_epochs"] = [30]
   
-  trainManager = ModelManager( path_dict = PATH_DICT, 
-                              dataset_name = dataset, 
-                              hyperparam_values = hyperparameter_dict, 
-                              aug_params = augmentation_dict, 
-                              keep_pneumonia = False )
+#   trainManager = ModelManager( path_dict = PATH_DICT, 
+#                               dataset_name = dataset, 
+#                               hyperparam_values = hyperparameter_dict, 
+#                               aug_params = augmentation_dict, 
+#                               keep_pneumonia = False )
 
-  trainManager.doGridSearch( shuffle = False )
+#   trainManager.doGridSearch( shuffle = False )
+  
+trainManager = ModelManager( path_dict = PATH_DICT, 
+                            dataset_name = "radiopaedia.org", 
+                            hyperparam_values = hyperparameter_dict, 
+                            aug_params = augmentation_dict, 
+                            keep_pneumonia = False )
+
+trainManager.doGridSearch( shuffle = False )
