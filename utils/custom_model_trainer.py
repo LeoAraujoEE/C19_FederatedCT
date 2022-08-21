@@ -526,11 +526,11 @@ class ModelTrainer(ModelEntity):
         f1_metric = tfa.metrics.F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
         if hyperparameters["optimizer"].lower() == "adam":
             print("\nCompiling model with 'Adam' optimizer...")
-            self.model.compile(optimizer = tf.keras.optimizers.Adam(lr = hyperparameters["start_lr"]), 
+            self.model.compile(optimizer = tf.keras.optimizers.Adam(learning_rate = hyperparameters["start_lr"]), 
                                loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
         else:
             print("\nCompiling model with 'RMSprop' optimizer...")
-            self.model.compile(optimizer = tf.keras.optimizers.RMSprop(lr = hyperparameters["start_lr"]), 
+            self.model.compile(optimizer = tf.keras.optimizers.RMSprop(learning_rate = hyperparameters["start_lr"]), 
                                loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
         
         if mock_test:
