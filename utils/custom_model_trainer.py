@@ -257,7 +257,7 @@ class ModelManager(ModelEntity):
             seed (int): seed to be used during the training process
         """
 
-        csv_path = os.path.join( "output", "models", reference_dataset, "training_results.csv" )
+        csv_path = os.path.join( self.dst_dir, reference_dataset, "training_results.csv" )
 
         # Returns if CSV file doesn't exist
         if not os.path.exists(csv_path):
@@ -374,8 +374,8 @@ class ModelTrainer(ModelEntity):
             print("\nNo dataset found for cross-validation:")
 
         # Relative path to where the models will be stored
-        self.model_dir = os.path.join( dst_dir, "output", "models", self.dataset.name )
-        print("\nSaving model to '{}'...".format( self.model_dir ))
+        self.model_dir = os.path.join(dst_dir, self.dataset.name)
+        print(f"\nSaving model to '{self.model_dir}'...")
         
         # Creates model_dir if needed
         if not os.path.exists(self.model_dir):
@@ -413,6 +413,9 @@ class ModelTrainer(ModelEntity):
         # Records the total training time
         ellapsed_time = (time.time() - train_start_t)
         train_time = self.ellapsed_time_as_str(ellapsed_time)
+        
+        # Saves history_dict to CSV
+        self.history_to_csv(history_dict, model_path)
                 
         # Gets the names of the datasets used in training/testing the models
         dataset_name = self.dataset.name
@@ -426,7 +429,7 @@ class ModelTrainer(ModelEntity):
         self.print_dict( hyperparameters, round = True )
 
         # Announces the start of the testing process
-        print("\nTesting model '{}'...".format( os.path.basename(model_path) ))
+        print(f"\nTesting model '{os.path.basename(model_path)}'...")
         results_dict = self.test_model( model_path, hyperparameters )
         results_dict["train_time"] = train_time
 
@@ -494,18 +497,20 @@ class ModelTrainer(ModelEntity):
         # this current training step
         model_id = self.dict_hash( all_param_dict ) 
 
-        # Combines model_id with the architecture name to create the model filename
-        model_fname = "{}_{}".format( hyperparameters["architecture"], model_id )
+        # Combines model_id with the architecture name 
+        # to create the model filename
+        model_fname = f"{hyperparameters['architecture']}_{model_id}"
 
         # Creates the full model path
-        model_path = os.path.join( self.model_dir, model_fname, model_fname+".h5" )
+        model_path = os.path.join( self.model_dir, model_fname, 
+                                   model_fname+".h5" )
 
         idx = 1
-        # while os.path.exists(model_path):
         while os.path.exists( os.path.dirname(model_path) ):
             idx += 1
-            model_fname = "{}_{}_{}".format( hyperparameters["architecture"], model_id, idx )
-            model_path  = os.path.join( self.model_dir, model_fname, model_fname+".h5" )
+            model_fname=f"{hyperparameters['architecture']}_{model_id}_{idx}"
+            model_path=os.path.join( self.model_dir, model_fname, 
+                                     model_fname+".h5" )
 
         return model_path, model_id
 
@@ -547,7 +552,7 @@ class ModelTrainer(ModelEntity):
     def train_model( self, hyperparameters, aug_params, model_path ):
         
         # Announces the dataset used for training
-        print("\nTraining model '{}' on '{}' dataset...".format( os.path.basename( model_path ), self.dataset.name ))
+        print(f"\nTraining model '{os.path.basename( model_path )}' on '{self.dataset.name}' dataset...")
 
         # Creates and compiles the Model
         model_builder = ModelBuilder( model_path = model_path )
@@ -565,18 +570,29 @@ class ModelTrainer(ModelEntity):
         # Callbacks --------------------------------------------------------------------------------------------------
         # Sets callback_mode based on the selected monitored metric
         callback_mode = "min" if "loss" in hyperparameters["monitor"].lower() else "max"
-        print("\nMonitoring '{}' with '{}' mode...\n".format(hyperparameters["monitor"], callback_mode))
+        print(f"\nMonitoring '{hyperparameters['monitor']}' with '{callback_mode}' mode...\n")
 
-        # Model Checkpoint
-        model_checkpoint = tf.keras.callbacks.ModelCheckpoint( model_path, monitor = hyperparameters["monitor"],
-                                                              mode = callback_mode, save_best_only = True,
-                                                              save_weights_only = True, include_optimizer=False, 
-                                                              verbose = 1 )
+        # List of used callbacks
+        callback_list = [] 
 
-        # Early Stopping
-        early_stopping = tf.keras.callbacks.EarlyStopping( monitor = hyperparameters["monitor"], 
-                                                           patience = hyperparameters["early_stop"], 
-                                                           mode = callback_mode, verbose = 1 )
+        # Adds Model Checkpoint/Early Stopping if a monitor variable is passed
+        var_list = ["val_loss", "val_acc", "val_f1", "val_auc"]
+        if hyperparameters["monitor"] in var_list:
+            # Model Checkpoint
+            model_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path,
+                                      monitor = hyperparameters["monitor"],
+                                      mode = callback_mode, 
+                                      save_best_only = True,
+                                      save_weights_only = True, 
+                                      include_optimizer = False, verbose = 1)
+            callback_list.append(model_checkpoint)
+            
+            # Early Stopping
+            early_stopping = tf.keras.callbacks.EarlyStopping(
+                                    monitor = hyperparameters["monitor"],
+                                    patience = hyperparameters["early_stop"],
+                                    mode = callback_mode, verbose = 1 )
+            callback_list.append(early_stopping)
         
         # Learning Rate Scheduler
         def scheduler(epoch, lr):
@@ -586,10 +602,9 @@ class ModelTrainer(ModelEntity):
                 return new_lr
             return lr
         
-        lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, verbose = 0)
-
-        # List of used callbacks
-        callback_list = [ model_checkpoint, early_stopping, lr_scheduler ] 
+        lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, 
+                                                                verbose = 0)
+        callback_list.append(lr_scheduler)
         # Callbacks --------------------------------------------------------------------------------------------------
 
         # Creates train data generator
@@ -622,25 +637,26 @@ class ModelTrainer(ModelEntity):
 
     def get_base_results_dict( self ):
         
-        # Generates all keys and instantiates their value as None in the result dict
-        # The main goal of this part is to establish the order of the keys in results
+        # Generates keys and instantiates their value as None
+        # The goal is to establish the order of the keys in results
         results = { "train_time": None }
         for metric in ["acc", "f1", "auc"]:
             # Generates 1 entry for each metric for each partition
             for partition in ["train", "val", "test"]:
-                key = "{}_{}".format(partition, metric)
+                key = f"{partition}_{metric}"
                 results[key] = None
 
             # If there are datasets for cross-validation
             if not self.dataset_list is None:
 
                 # Adds an entry for the average value across datasets
-                key = "crossval_{}".format(metric)
+                key = f"crossval_{metric}"
                 results[key] = None
 
                 # Also generates 1 entry for each metric for each dataset
                 for dset in self.dataset_list:
-                    key = "{}_{}".format(dset.name.lower().replace(" ", ""), metric)
+                    dset_name = dset.name.lower().replace(" ", "")
+                    key = f"{dset_name}_{metric}"
                     results[key] = None
 
         return results
@@ -673,7 +689,7 @@ class ModelTrainer(ModelEntity):
         return mean_acc, mean_f1, mean_auroc, conf_matrix, y_true, scores
 
     def test_model( self, model_path, hyperparameters ):
-        print("\nLoading model from '{}'...".format(model_path))
+        print(f"\nLoading model from '{model_path}'...")
 
         ###
         print("\nLoading model...")
@@ -684,8 +700,7 @@ class ModelTrainer(ModelEntity):
         
         # Announces the dataset used for training
         dataset_name = self.dataset.name
-        print("\nValidating model '{}' on '{}' dataset...".format( os.path.basename(model_path), 
-                                                                   dataset_name ))
+        print(f"\nValidating model '{os.path.basename(model_path)}' on '{dataset_name}' dataset...")
 
         # Loads dataset's dataframes if needed
         self.dataset.load_dataframes()
@@ -695,13 +710,13 @@ class ModelTrainer(ModelEntity):
 
         # Evaluates each partition to fill results dict
         for partition in ["train", "val", "test"]:
-            print("\n\n{}:".format(partition.title()))
+            print(f"\n\n{partition.title()}:")
             acc, f1_score, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( self.dataset, hyperparameters, partition )
 
             for metric, value in zip( ["acc", "f1", "auc"], [acc, f1_score, auroc] ):
                 # Adds the results to the result dict
-                key = "{}_{}".format( partition, metric )
-                results[key] = "{:.4f}".format( value )
+                key = f"{partition}_{metric}"
+                results[key] = f"{value:.4f}"
 
             # Plots confusion matrix
             class_labels = self.dataset.classes
@@ -717,8 +732,7 @@ class ModelTrainer(ModelEntity):
             for dset in self.dataset_list:
                 dset_name = dset.name
                 # Announces the dataset used for testing
-                print("\nCross-Validating model '{}' on '{}' dataset...".format( os.path.basename(model_path),
-                                                                                 dset_name ))
+                print(f"\nCross-Validating model '{os.path.basename(model_path)}' on '{dset_name}' dataset...")
 
                 # Loads dataset's dataframes if needed
                 dset.load_dataframes()
@@ -733,31 +747,63 @@ class ModelTrainer(ModelEntity):
 
                 for metric, value in zip( ["acc", "f1", "auc"], [acc, f1_score, auroc] ):
                     # Adds the results to the result dict
-                    key = "{}_{}".format(dset_name.lower().replace(" ", ""), metric)
-                    results[key] = "{:.4f}".format( value )
+                    dname = dset_name.lower().replace(" ", "")
+                    key = f"{dname}_{metric}"
+                    results[key] = f"{value:.4f}"
 
                 # Plots confusion matrix
                 class_labels = dset.classes
-                self.plotter.plot_confusion_matrix( conf_matrix, dset_name, "test", class_labels )
+                self.plotter.plot_confusion_matrix(conf_matrix, dset_name, 
+                                                   "test", class_labels)
 
-                # Plots ROC curves TODO: fix this
-                self.plotter.plot_roc_curve( y_true, y_preds, dset_name, "test" )
+                # Plots ROC curves
+                self.plotter.plot_roc_curve( y_true, y_preds, 
+                                             dset_name, "test" )
                 
-            results["crossval_acc"] = "{:.4f}".format( np.mean(cval_acc_list) )
-            results["crossval_f1"] = "{:.4f}".format( np.mean(cval_f1_list) )
-            results["crossval_auc"] = "{:.4f}".format( np.mean(cval_auroc_list) )
+            results["crossval_acc"] = f"{np.mean(cval_acc_list):.4f}"
+            results["crossval_f1"] = f"{np.mean(cval_f1_list):.4f}"
+            results["crossval_auc"] = f"{np.mean(cval_auroc_list):.4f}"
 
         return results
+    
+    def history_to_csv(self, history_dict, model_path):
+
+        # Converts that history_dict to a DataFrame
+        model_df = pd.DataFrame.from_dict( history_dict )
+        
+        # Gets model's name from its path
+        mdl_name = os.path.basename(model_path).split(".")[0]
+
+        # Path to CSV file
+        csv_path = os.path.join(self.model_dir, mdl_name, "history_dict.csv")
+
+        # Creates model_dir if it doesnt already exist
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
+        
+        # If the CSV file already exists
+        if os.path.exists(csv_path):
+            # Loads the old file
+            old_df = pd.read_csv( csv_path, sep = ";" )
+
+            # Appends the new dataframe as extra rows
+            model_df = pd.concat( [old_df, model_df], ignore_index = True )
+        
+        # Saves the dataframe as CSV
+        model_df.to_csv( csv_path, index = False, sep = ";" )
+        
+        return
 
     def append_to_csv( self, model_path, model_id, hyperparameters, aug_params, results ):
 
-        # Combines all available information about the model in a single dictionary
+        # Combines all available information about the model in a single dict
         combined_dict = { "model_path": model_path, "model_hash": model_id }
         combined_dict.update( results )
         combined_dict.update( hyperparameters )
         combined_dict.update( aug_params )
 
-        # Wraps values from combined_dict as lists to convert to DataFrame, tuples are converted to string
+        # Wraps values from combined_dict as lists to convert to DataFrame, 
+        # tuples are converted to string
         wrapped_dict = { k: [v] if not v is None else ["None"] for k,v in combined_dict.items() }
 
         # Converts that dictionary to a DataFrame

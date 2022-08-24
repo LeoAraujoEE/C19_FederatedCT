@@ -2,7 +2,7 @@ import os
 import sys
 import warnings
 warnings.filterwarnings("ignore")
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import tensorflow as tf
 for device in tf.config.list_physical_devices("GPU"):
