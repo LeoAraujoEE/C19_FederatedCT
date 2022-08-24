@@ -107,7 +107,7 @@ class Inception:
         
         # Uses the call function to build the model
         model = self(num_block_list = num_blocks, input_shape = input_shape, num_outputs = num_outputs, 
-                     output_activation = output_activation, pool = pool, bn_scaling = False, v3 = True, 
+                     output_activation = output_activation, pool = pool, bn_scaling = True, v3 = True, 
                      base_dropout = base_dropout, top_dropout = top_dropout, l1_val = l1_val, l2_val = l2_val )
         
         return model
@@ -126,7 +126,7 @@ class Inception:
         
         # Uses the call function to build the model
         model = self(num_block_list = num_blocks, input_shape = input_shape, num_outputs = num_outputs, 
-                     output_activation = output_activation, pool = pool, bn_scaling = False, v3 = False, 
+                     output_activation = output_activation, pool = pool, bn_scaling = True, v3 = False, 
                      base_dropout = base_dropout, top_dropout = top_dropout, l1_val = l1_val, l2_val = l2_val )
         
         return model
