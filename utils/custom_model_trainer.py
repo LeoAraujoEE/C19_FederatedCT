@@ -135,6 +135,16 @@ class ModelEntity():
         time_str  = f"{str_hours}:{str_mins}:{str_secs}"
         return time_str
 
+    @staticmethod
+    def dict_hash( src_dict ) :
+        """ MD5 hash of a dictionary.
+        Based on: https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html
+        """
+        dhash = hashlib.md5()
+        encoded = json.dumps(src_dict, sort_keys=True).encode()
+        dhash.update(encoded)
+        return dhash.hexdigest()
+
 class ModelManager(ModelEntity):
     def __init__(self, path_dict, dataset_name, hyperparam_values = None, aug_params = None, keep_pneumonia = False):
         
@@ -296,7 +306,9 @@ class ModelManager(ModelEntity):
                  "data_path"     :      self.data_path,
                  "train_dataset" :   self.dataset_name,
                  "keep_pneumonia": self.keep_pneumonia,
-                 "ignore_check"  :        ignore_check }
+                 "ignore_check"  :        ignore_check,
+                 "test_model"    :                True, 
+               }
         
         for dictionary in [self.aug_params, hyperparams]:
             args.update(dictionary)
@@ -380,73 +392,6 @@ class ModelTrainer(ModelEntity):
         # Creates model_dir if needed
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
-
-        return
-        
-    def train_test_iteration(self, args_dict):
-        # Extracts hyperparameters and parameters for data augmentation from args_dict
-        hyperparameters, data_aug_params = self.get_dicts(args_dict)
-
-        # Sets the seed for Numpy and Tensorflow
-        random.seed( hyperparameters["seed"] )
-        np.random.seed( hyperparameters["seed"] )
-        tf.random.set_seed( hyperparameters["seed"] )
-        
-        if (self.check_step(hyperparameters, data_aug_params)) and (not args_dict["ignore_check"]):
-            print("\tStep already executed: Skipping...")
-            return
-
-        # Removes models whose training process did not finish properly
-        self.remove_unfinished()
-        
-        # Generates model path and the model id
-        model_path, model_id = self.gen_model_name( hyperparameters, data_aug_params )
-
-        # Object responsible for plotting
-        self.plotter = CustomPlots(model_path)
-
-        # Prints current hyperparameters and starts training
-        self.print_dict( hyperparameters, round = True )
-        train_start_t = time.time()
-        history_dict  = self.train_model( hyperparameters, data_aug_params, model_path )
-        
-        # Records the total training time
-        ellapsed_time = (time.time() - train_start_t)
-        train_time = self.ellapsed_time_as_str(ellapsed_time)
-        
-        # Saves history_dict to CSV
-        self.history_to_csv(history_dict, model_path)
-                
-        # Gets the names of the datasets used in training/testing the models
-        dataset_name = self.dataset.name
-        cval_dataset_names = [ dset.name for dset in self.dataset_list ]
-
-        # Announces the end of the training process
-        print(f"\nTrained model '{os.path.basename(model_path)}' in {train_time}. Plotting results...")
-        self.plotter.plot_train_results( history_dict, dataset_name )
-
-        # Prints current hyperparameters
-        self.print_dict( hyperparameters, round = True )
-
-        # Announces the start of the testing process
-        print(f"\nTesting model '{os.path.basename(model_path)}'...")
-        results_dict = self.test_model( model_path, hyperparameters )
-        results_dict["train_time"] = train_time
-
-        print("\nPlotting test results...")
-        self.plotter.plot_test_results( results_dict, dataset_name, cval_dataset_names )
-
-        # Prints the results
-        print("\nTest Results:")
-        self.print_dict( results_dict, round = True )
-
-        # Saves the results to a CSV file
-        print("\nSaving model hyperparameters and results as CSV...")
-        self.append_to_csv( model_path, model_id, hyperparameters, data_aug_params, results_dict )
-
-        #
-        print("\nSaving training hyperparameters as JSON...")
-        self.hyperparam_to_json(model_path, hyperparameters, data_aug_params)
 
         return
 
@@ -849,7 +794,11 @@ class ModelTrainer(ModelEntity):
 
         return
     
-    def check_step( self, hyperparameters, aug_params ):
+    def check_step( self, hyperparameters, aug_params, ignore = False ):
+        # If the ignore flag is raised, the verification is ignored
+        # and a model with already used hyperparameters can be trained
+        if ignore:
+            return False
 
         # Generates model_id
         _, model_id = self.gen_model_name( hyperparameters, aug_params )
@@ -869,13 +818,3 @@ class ModelTrainer(ModelEntity):
             return True
         # Otherwise returns false to execute the current step
         return False
-
-    @staticmethod
-    def dict_hash( src_dict ) :
-        """ MD5 hash of a dictionary.
-        Based on: https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html
-        """
-        dhash = hashlib.md5()
-        encoded = json.dumps(src_dict, sort_keys=True).encode()
-        dhash.update(encoded)
-        return dhash.hexdigest()
