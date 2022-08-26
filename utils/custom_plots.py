@@ -30,7 +30,7 @@ class CustomPlots:
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
 
-        for metric in [ "loss", "acc", "f1", "auc" ]:
+        for metric in [ "loss", "acc", "f1"]:
 
             # Defines the plot name
             plot_name = "{}_{}.png".format( metric, dataset_name )

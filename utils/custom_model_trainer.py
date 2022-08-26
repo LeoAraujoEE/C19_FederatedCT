@@ -10,13 +10,13 @@ import subprocess
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 # Metrics used in model evaluation
 from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
+from tensorflow_addons.metrics import F1Score
 
 # Custom models and DataGenerator
 from utils.custom_plots import CustomPlots
@@ -473,15 +473,15 @@ class ModelTrainer(ModelEntity):
     def prepare_model( self, hyperparameters, mock_test = False ):
 
         # Compiles the model
-        f1_metric = tfa.metrics.F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
+        f1_metric = F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
         if hyperparameters["optimizer"].lower() == "adam":
             print("\nCompiling model with 'Adam' optimizer...")
             self.model.compile(optimizer = tf.keras.optimizers.Adam(learning_rate = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
+                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
         else:
             print("\nCompiling model with 'RMSprop' optimizer...")
             self.model.compile(optimizer = tf.keras.optimizers.RMSprop(learning_rate = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", "AUC", f1_metric])
+                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
         
         if mock_test:
             # Extracts the expected input shape from the model's configs
@@ -521,7 +521,7 @@ class ModelTrainer(ModelEntity):
         callback_list = [] 
 
         # Adds Model Checkpoint/Early Stopping if a monitor variable is passed
-        var_list = ["val_loss", "val_acc", "val_f1", "val_auc"]
+        var_list = ["val_loss", "val_acc", "val_f1"]
         if hyperparameters["monitor"] in var_list:
             # Model Checkpoint
             model_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path,
@@ -560,8 +560,8 @@ class ModelTrainer(ModelEntity):
         val_datagen   = CustomDataGenerator( self.dataset, "val", hyperparameters, undersample = False, shuffle = False )
 
         # Gets the number of samples and the number of batches using the current batchsize
-        val_steps   = self.dataset.get_num_steps("val", hyperparameters["batchsize"])
-        train_steps = self.dataset.get_num_steps("train", hyperparameters["batchsize"])
+        val_steps   = len(val_datagen)
+        train_steps = len(train_datagen)
 
         # Gets class_weights from training dataset
         class_weights = self.dataset.class_weights if hyperparameters["class_weights"] else None
@@ -571,8 +571,7 @@ class ModelTrainer(ModelEntity):
         # Fits the model
         history = self.model.fit( x = train_datagen, steps_per_epoch = train_steps, epochs = num_epochs, 
                                   validation_data = val_datagen, validation_steps = val_steps, 
-                                  callbacks = callback_list, class_weight = class_weights, workers = 4, 
-                                  verbose = 1
+                                  callbacks = callback_list, class_weight = class_weights, verbose = 1
                                 )
 
         # Extracts the dict with the training and validation values for loss and IoU during training
@@ -798,7 +797,7 @@ class ModelTrainer(ModelEntity):
         # If the ignore flag is raised, the verification is ignored
         # and a model with already used hyperparameters can be trained
         if ignore:
-            return False
+            return True
 
         # Generates model_id
         _, model_id = self.gen_model_name( hyperparameters, aug_params )
@@ -806,15 +805,15 @@ class ModelTrainer(ModelEntity):
         # Path to CSV file
         csv_path = os.path.join( self.model_dir, "training_results.csv" )
 
-        # Returns false if the csv file does not exist yet
+        # Returns True if the csv file does not exist yet
         if not os.path.exists( csv_path ):
-            return False
+            return True
 
-        # If the csv file exists, it is read and filtered for models with the same hash
+        # The csv fileis read and filtered for models with the same hash
         result_df = pd.read_csv(csv_path, sep = ";")
 
         # If there are any rows with the same hash, the step is skipped
         if len( result_df[result_df["model_hash"] == model_id] ) > 0:
-            return True
-        # Otherwise returns false to execute the current step
-        return False
+            return False
+        # Otherwise returns True to execute the current step
+        return True

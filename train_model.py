@@ -3,23 +3,41 @@ import sys
 import time
 import random
 import warnings
+import numpy as np
+import tensorflow as tf
+
+# Disables warning messages
 warnings.filterwarnings("ignore")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-import numpy as np
-import tensorflow as tf
+# Enabled deterministic mode/disables multiprocessing to enforce determinism
+os.environ['TF_CUDNN_DETERMINISTIC'] = 'True'
+tf.config.experimental.enable_op_determinism()
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+
+# Allows memory growth for GPU usage
 for device in tf.config.list_physical_devices("GPU"):
   try:
     tf.config.experimental.set_memory_growth( device, True )
   except:
     pass
 
+# Imports from other scripts
 from utils.dataset import load_datasets
 from utils.custom_plots import CustomPlots
 from utils.custom_model_trainer import ModelTrainer
 
 # Decodes all the input args and creates a dict
 arg_dict = ModelTrainer.decode_args(sys.argv)
+
+# Setting seeds to enforce deterministic behaviour
+random.seed(arg_dict["seed"])
+np.random.seed(arg_dict["seed"])
+tf.random.set_seed(arg_dict["seed"])
+tf.keras.utils.set_random_seed(arg_dict["seed"])
+tf.experimental.numpy.random.seed(arg_dict["seed"])
+os.environ["PYTHONHASHSEED"] = str(0)
 
 # Builds object to handle datasets for training and for external validation
 dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
@@ -32,16 +50,9 @@ trainer = ModelTrainer( dataTrain, dataVal_list, dst_dir = arg_dict["output_dir"
 # Extracts hyperparameters and parameters for data augmentation from args_dict
 hyperparameters, data_aug_params = trainer.get_dicts(arg_dict)
 
-# Sets the seed for Numpy and Tensorflow
-random.seed( hyperparameters["seed"] )
-np.random.seed( hyperparameters["seed"] )
-tf.random.set_seed( hyperparameters["seed"] )
-
 if trainer.check_step( hyperparameters, data_aug_params, 
                        ignore = arg_dict["ignore_check"] ):
-    print("\tStep already executed: Skipping...")
-
-else:
+  
   # Removes models whose training process did not finish properly
   trainer.remove_unfinished()
 
@@ -93,3 +104,6 @@ else:
   #
   print("\nSaving training hyperparameters as JSON...")
   trainer.hyperparam_to_json(model_path, hyperparameters, data_aug_params)
+
+else:
+    print("\tStep already executed: Skipping...")
