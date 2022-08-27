@@ -1,9 +1,13 @@
 import os
+import warnings
+
+# Suppresses warning messages
+warnings.filterwarnings("ignore")
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 import glob
 import json
-import time
 import shutil
-import random
 import hashlib
 import itertools
 import subprocess
@@ -19,7 +23,6 @@ from sklearn.metrics import confusion_matrix
 from tensorflow_addons.metrics import F1Score
 
 # Custom models and DataGenerator
-from utils.custom_plots import CustomPlots
 from utils.custom_models import ModelBuilder
 from utils.custom_generator import CustomDataGenerator
 
@@ -146,7 +149,8 @@ class ModelEntity():
         return dhash.hexdigest()
 
 class ModelManager(ModelEntity):
-    def __init__(self, path_dict, dataset_name, hyperparam_values = None, aug_params = None, keep_pneumonia = False):
+    def __init__(self, path_dict, dataset_name, hyperparam_values = None, 
+                 aug_params = None, keep_pneumonia = False, federated = False):
         
         # Name of the selected train dataset
         self.dataset_name = dataset_name
@@ -159,6 +163,9 @@ class ModelManager(ModelEntity):
         
         # Wether to keep pneumonia sample or remove them
         self.keep_pneumonia = keep_pneumonia
+        
+        # Wether to simulate Federated Learning or not
+        self.federated = federated
         
         self.hyperparam_values = hyperparam_values
         if not (self.hyperparam_values is None):
@@ -201,11 +208,11 @@ class ModelManager(ModelEntity):
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_permutations).zfill(3)} Iteration of GridSearch:")
             
-            # Adds augmentation parameters to selected hyperparameters
-            train_command = self.create_command(hyperparameters, ignore_check = False)
-
-            # Trains and Tests the model
-            subprocess.Popen.wait(subprocess.Popen( train_command ))
+            # Trains model
+            self.run_train_process(hyperparameters, ignore_check = False)
+                
+            # Tests model
+            self.run_test_process(hyperparameters, ignore_check = False)
 
         return
 
@@ -224,11 +231,11 @@ class ModelManager(ModelEntity):
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
             
-            # Adds augmentation parameters to selected hyperparameters
-            train_command = self.create_command(hyperparameters, ignore_check = False)
-
-            # Trains and Tests the model
-            subprocess.Popen.wait(subprocess.Popen( train_command ))
+            # Trains model
+            self.run_train_process(hyperparameters, ignore_check = False)
+                
+            # Tests model
+            self.run_test_process(hyperparameters, ignore_check = False)
 
             # Increases the number of trained models
             idx_h += 1
@@ -247,11 +254,11 @@ class ModelManager(ModelEntity):
         if not seed is None:
             hyperparameters["seed"] = seed
             
-        # Adds augmentation parameters to selected hyperparameters
-        train_command = self.create_command(hyperparameters, ignore_check = True)
-
-        # Trains and Tests the model
-        subprocess.Popen.wait(subprocess.Popen( train_command ))
+        # Trains model
+        self.run_train_process(hyperparameters, ignore_check = True)
+            
+        # Tests model
+        self.run_test_process(hyperparameters, ignore_check = True)
 
         return
     
@@ -299,8 +306,28 @@ class ModelManager(ModelEntity):
             self.doTrainFromJSON( json_path, copy_augmentation = True, seed = seed )
             
         return
+    
+    def run_train_process(self, hyperparams, ignore_check):
+        # Creates train command
+        command = self.create_command( hyperparams, ignore_check, 
+                                       "train_model" )
 
-    def create_command(self, hyperparams, ignore_check):
+        # Trains model
+        subprocess.Popen.wait(subprocess.Popen( command ))
+        return
+    
+    def run_test_process(self, hyperparams, ignore_check):
+        # Creates test command
+        command = self.create_command( hyperparams, ignore_check, 
+                                       "test_model" )
+
+        # Tests model
+        subprocess.Popen.wait(subprocess.Popen( command ))
+        return
+
+    def create_command(self, hyperparams, ignore_check, script):
+        
+        fname, model_id = self.get_model_name(hyperparams, self.aug_params)
         
         args = { "output_dir"    :        self.dst_dir, 
                  "data_path"     :      self.data_path,
@@ -308,16 +335,37 @@ class ModelManager(ModelEntity):
                  "keep_pneumonia": self.keep_pneumonia,
                  "ignore_check"  :        ignore_check,
                  "test_model"    :                True, 
+                 "model_hash"    :            model_id, 
+                 "model_filename":               fname,
                }
         
         for dictionary in [self.aug_params, hyperparams]:
             args.update(dictionary)
         
-        command = ["python", "-m", "train_model"]
+        command = ["python", "-m", script]
         for k, v in args.items():
             command.extend([self.get_flag_from_type(k, v), str(k), str(v)])
 
         return command
+
+    def get_model_name( self, hyperparameters, aug_params ):
+        # Creates a single dict to store all hyperparameters
+        all_param_dict = {}
+
+        # Iterates through existing dicts
+        for param_dict in [ hyperparameters, aug_params]:
+            # Adds their keys/values to all_param_dict
+            all_param_dict.update(param_dict)
+        
+        # Hashes the produced dict to produce an unique string for
+        # this current training step
+        model_id = self.dict_hash( all_param_dict ) 
+
+        # Combines model_id with the architecture name 
+        # to create the model filename
+        model_fname = f"{hyperparameters['architecture']}_{model_id}"
+
+        return model_fname, model_id
     
     @staticmethod
     def product_dict(**kwargs):
@@ -429,35 +477,32 @@ class ModelTrainer(ModelEntity):
 
         return
 
-    def gen_model_name( self, hyperparameters, aug_params ):
-        # Creates a single dict to store all hyperparameters
-        all_param_dict = {}
-
-        # Iterates through existing dicts
-        for param_dict in [ hyperparameters, aug_params]:
-            # Adds their keys/values to all_param_dict
-            all_param_dict.update(param_dict)
-        
-        # Hashes the produced dict to produce an unique string for
-        # this current training step
-        model_id = self.dict_hash( all_param_dict ) 
-
-        # Combines model_id with the architecture name 
-        # to create the model filename
-        model_fname = f"{hyperparameters['architecture']}_{model_id}"
+    def get_model_path( self, model_fname, model_id ):
 
         # Creates the full model path
         model_path = os.path.join( self.model_dir, model_fname, 
-                                   model_fname+".h5" )
+                                   f"{model_fname}.h5" )
+        
+        # Checks if a model with the same name already exists
+        # possible if a combination of hyperparameters is being retrained
+        if os.path.exists( os.path.dirname(model_path) ):
+            # Path to results CSV file
+            csv_path = os.path.join( self.model_dir, "training_results.csv" )
 
-        idx = 1
-        while os.path.exists( os.path.dirname(model_path) ):
-            idx += 1
-            model_fname=f"{hyperparameters['architecture']}_{model_id}_{idx}"
-            model_path=os.path.join( self.model_dir, model_fname, 
-                                     model_fname+".h5" )
+            # The csv fileis read and filtered for models with the same hash
+            result_df = pd.read_csv(csv_path, sep = ";")
 
-        return model_path, model_id
+            # Counts the amount of models with the same hash and adds 1
+            idx = 1 + len(result_df[result_df["model_hash"] == model_id])
+            
+            # Updates model_fname
+            model_fname = f"{model_fname}_{idx}"
+            
+            # Updates the model path to avoid overwritting the existant model
+            model_path = os.path.join(self.model_dir, model_fname,
+                                      f"{model_fname}.h5")
+
+        return model_path, model_fname
 
     def load_model( self, model_path ):
         config_path = model_path.replace(".h5", ".json")
@@ -651,6 +696,15 @@ class ModelTrainer(ModelEntity):
 
         # Creates a dictionary with ordered keys, but no values
         results = self.get_base_results_dict()
+        
+        # Opening JSON file to extract training time
+        basedir, basename = os.path.split(model_path.replace("h5","json"))
+        json_path = os.path.join(basedir, f"params_{basename}")
+        with open( json_path ) as json_file:
+            data = json.load(json_file)
+
+        # Recovers model training time from JSON file
+        results["train_time"] = data["train_time"]
 
         # Evaluates each partition to fill results dict
         for partition in ["train", "val", "test"]:
@@ -773,11 +827,14 @@ class ModelTrainer(ModelEntity):
 
         return
     
-    def hyperparam_to_json( self, model_path, hyperparameters, aug_params ):
+    def hyperparam_to_json( self, model_path, hyperparameters, 
+                            aug_params, train_time ):
 
         # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
-        dict_of_dicts = { "hyperparameters": hyperparameters, 
-                          "augmentation_params": aug_params }
+        dict_of_dicts = { "hyperparameters"    : hyperparameters, 
+                          "augmentation_params": aug_params,
+                          "train_time"         : train_time
+                        }
         
         model_dir   = os.path.dirname( model_path )
         model_fname = os.path.basename( model_path ).split(".")[0]
@@ -793,14 +850,11 @@ class ModelTrainer(ModelEntity):
 
         return
     
-    def check_step( self, hyperparameters, aug_params, ignore = False ):
+    def check_step( self, model_id, ignore = False ):
         # If the ignore flag is raised, the verification is ignored
         # and a model with already used hyperparameters can be trained
         if ignore:
             return True
-
-        # Generates model_id
-        _, model_id = self.gen_model_name( hyperparameters, aug_params )
 
         # Path to CSV file
         csv_path = os.path.join( self.model_dir, "training_results.csv" )
@@ -814,6 +868,8 @@ class ModelTrainer(ModelEntity):
 
         # If there are any rows with the same hash, the step is skipped
         if len( result_df[result_df["model_hash"] == model_id] ) > 0:
+            print("\tStep already executed: Skipping...")
             return False
+        
         # Otherwise returns True to execute the current step
         return True

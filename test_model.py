@@ -1,15 +1,6 @@
 import os
 import sys
-import time
-import random
-import numpy as np
 import tensorflow as tf
-
-# Enabled deterministic mode/disables multiprocessing to enforce determinism
-os.environ['TF_CUDNN_DETERMINISTIC'] = 'True'
-tf.config.experimental.enable_op_determinism()
-tf.config.threading.set_inter_op_parallelism_threads(1)
-tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # Allows memory growth for GPU usage
 for device in tf.config.list_physical_devices("GPU"):
@@ -26,12 +17,7 @@ from utils.custom_model_trainer import ModelTrainer
 # Decodes all the input args and creates a dict
 arg_dict = ModelTrainer.decode_args(sys.argv)
 
-# Setting seeds to enforce deterministic behaviour
-random.seed(arg_dict["seed"])
-np.random.seed(arg_dict["seed"])
-tf.random.set_seed(arg_dict["seed"])
-tf.keras.utils.set_random_seed(arg_dict["seed"])
-tf.experimental.numpy.random.seed(arg_dict["seed"])
+# Setting seeds to enforce deterministic behaviour in hashing processes
 os.environ["PYTHONHASHSEED"] = str(0)
 
 # Builds object to handle datasets for training and for external validation
@@ -60,22 +46,24 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
   # Object responsible for plotting
   trainer.plotter = CustomPlots(model_path)
 
+  # Gets the names of the datasets used in training/testing the models
+  dataset_name = trainer.dataset.name
+  cval_dataset_names = [ dset.name for dset in trainer.dataset_list ]
+
   # Prints current hyperparameters
   trainer.print_dict( hyperparameters, round = True )
-  
-  # Starts training while recording the total training time
-  train_start_t = time.time()
-  history_dict  = trainer.train_model( hyperparameters, data_aug_params, model_path )
-  ellapsed_time = (time.time() - train_start_t)
-  train_time = trainer.ellapsed_time_as_str(ellapsed_time)
 
-  # Saves history_dict to CSV
-  trainer.history_to_csv(history_dict, model_path)
+  # Announces the start of the testing process
+  print(f"\nTesting model '{os.path.basename(model_path)}'...")
+  results_dict = trainer.test_model( model_path, hyperparameters )
 
-  # Announces the end of the training process
-  print(f"\nTrained model '{model_fname}' in {train_time}. Plotting train results...")
-  trainer.plotter.plot_train_results( history_dict, trainer.dataset.name )
+  print("\nPlotting test results...")
+  trainer.plotter.plot_test_results( results_dict, dataset_name, cval_dataset_names )
 
-  #
-  print("\nSaving training hyperparameters as JSON...")
-  trainer.hyperparam_to_json(model_path, hyperparameters, data_aug_params, train_time)
+  # Prints the results
+  print("\nTest Results:")
+  trainer.print_dict( results_dict, round = True )
+
+  # Saves the results to a CSV file
+  print("\nSaving model hyperparameters and results as CSV...")
+  trainer.append_to_csv( model_path, model_id, hyperparameters, data_aug_params, results_dict )
