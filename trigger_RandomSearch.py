@@ -3,7 +3,8 @@ from utils.custom_model_trainer import ModelManager
 
 # 
 PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( "." ) }
+              "outputs" : os.path.join( ".", "output", "models" ) 
+            }
 
 # List of hyperparameter values
 hyperparameter_ranges = { "num_epochs":                             (3,),  # Total N° of training epochs

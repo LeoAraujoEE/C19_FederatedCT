@@ -19,7 +19,7 @@ for device in tf.config.list_physical_devices("GPU"):
     pass
 
 # Imports from other scripts
-from utils.dataset import load_datasets
+from utils.dataset import Dataset
 from utils.custom_plots import CustomPlots
 from utils.custom_model_trainer import ModelTrainer
 
@@ -33,14 +33,14 @@ tf.random.set_seed(arg_dict["seed"])
 tf.keras.utils.set_random_seed(arg_dict["seed"])
 tf.experimental.numpy.random.seed(arg_dict["seed"])
 os.environ["PYTHONHASHSEED"] = str(0)
+        
+# Builds object to handle the training dataset
+dataTrain = Dataset( arg_dict["data_path"], folder = arg_dict["dataset"], 
+                     input_col = "path", output_col = "class", 
+                     keep_pneumonia = arg_dict["keep_pneumonia"], 
+                     trainable = True )
 
-# Builds object to handle datasets for training and for external validation
-dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
-                                         train_dataset = arg_dict["train_dataset"], 
-                                         input_col = "path", output_col = "class", 
-                                         keep_pneumonia = arg_dict["keep_pneumonia"] )
-
-trainer = ModelTrainer( dataTrain, dataVal_list, dst_dir = arg_dict["output_dir"] )
+trainer = ModelTrainer( dataTrain, dst_dir = arg_dict["output_dir"] )
 
 # Extract model's hash and model's filename from args_dict
 model_id = arg_dict["model_hash"]
@@ -65,7 +65,9 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
   
   # Starts training while recording the total training time
   train_start_t = time.time()
-  history_dict  = trainer.train_model( hyperparameters, data_aug_params, model_path )
+  history_dict  = trainer.train_model( hyperparameters, data_aug_params, model_path, 
+                                       max_steps = arg_dict["max_train_steps"],
+                                       load_from = arg_dict["load_from"] )
   ellapsed_time = (time.time() - train_start_t)
   train_time = trainer.ellapsed_time_as_str(ellapsed_time)
 

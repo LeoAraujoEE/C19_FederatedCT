@@ -39,13 +39,22 @@ class ModelEntity():
         return dst_dict
     
     @staticmethod
+    def get_default_fl_params():
+        # List of default values for federated learning
+        fedlearn_params = { "epochs_per_step":            3,  # N° epochs before aggregation
+                            "client_frac":              1.0,  # Fraction of selected clientes for a step
+                            "aggregation":        "fed_avg",  # Method of aggregation used
+                          }
+        return fedlearn_params
+    
+    @staticmethod
     def get_default_hyperparams():
         # List of default values for each hyperparameter
         hyperparams = { "num_epochs":                     1,  # Total N° of training epochs
-                        "batchsize":                      8,  # Minibatch size
+                        "batchsize":                     32,  # Minibatch size
                         "early_stop":                    30,  # Early Stopping patience
-                        "input_height":                 512,  # Model's input height
-                        "input_width":                  512,  # Model's input width
+                        "input_height":                 224,  # Model's input height
+                        "input_width":                  224,  # Model's input width
                         "input_channels":                 1,  # Model's input channels
                         "start_lr":                    1e-1,  # Starting learning rate
                         "lr_adjust_frac":               1.0,  # Fraction to adjust learning rate
@@ -150,9 +159,10 @@ class ModelEntity():
 
 class ModelManager(ModelEntity):
     def __init__(self, path_dict, dataset_name, hyperparam_values = None, 
-                 aug_params = None, keep_pneumonia = False, federated = False):
+                 aug_params = None, fl_params = None, keep_pneumonia = False):
         
-        # Name of the selected train dataset
+        # Train dataset for regular training
+        # Validation dataset for Federated Learning simulations
         self.dataset_name = dataset_name
         
         # Directory for all available datasets
@@ -164,30 +174,52 @@ class ModelManager(ModelEntity):
         # Wether to keep pneumonia sample or remove them
         self.keep_pneumonia = keep_pneumonia
         
-        # Wether to simulate Federated Learning or not
-        self.federated = federated
+        # Checks wether to simulate Federated Learning or not
+        self.federated = isinstance(fl_params, dict)
+        if self.federated:
+            # Prints possible values for Federated Learning parameters
+            print("\nSimulating Federated Learning w/ the following values:")
+            self.print_dict(fl_params)
         
-        self.hyperparam_values = hyperparam_values
-        if not (self.hyperparam_values is None):
-            # Prints the possible values
+        # Checks wether hyperparameter values were provided
+        if isinstance(hyperparam_values, dict):
+            # Prints possible values for training hyperparameters
             print("\nList of possible hyperparameter values:")
-            self.print_dict(self.hyperparam_values)
+            self.print_dict(hyperparam_values)
+            
+            # If running a Federated Learning Simulation
+            if self.federated:
+                # Combines fl_params and hyperparam_values into a single dict
+                fl_params.update(hyperparam_values)
+                self.hyperparam_values = fl_params
+                
+            else:
+                # Else, uses hyperparam_values as training hyperparameters
+                self.hyperparam_values = hyperparam_values
+                
         
+        # Checks wether data augmentation parameter values were provided
         self.aug_params = aug_params
-        if not (self.aug_params is None):
+        if isinstance(aug_params, dict):
             # Prints the given data augmentation parameters
             print("\nUsing the current parameters for Data Augmentation:")
             self.print_dict(self.aug_params)
 
         return
     
-    def check_trainability(self):
+    def check_trainability(self, list_values = True):
         assert not (self.hyperparam_values is None), "\nHyperparameter values were not provided..."
         assert not (self.aug_params is None), "\nData augmentation parameters were not provided..."
+        if list_values:
+            txt = "All hyperparameter values should be lists..."
+            assert all([isinstance(v, list) for v in self.hyperparam_values.values()]), txt
+        else:
+            txt = "All hyperparameter values should be tuples..."
+            assert all([isinstance(v, tuple) for v in self.hyperparam_values.values()]), txt
         return True
 
     def doGridSearch( self, shuffle = False ):
-        self.check_trainability()
+        self.check_trainability(list_values = True)
         print("\nStarting GridSearch:")
 
         # Prints the possible values
@@ -206,18 +238,30 @@ class ModelManager(ModelEntity):
         for idx_h, hyperparameters in enumerate(hyperparam_permutations):
 
             # Announces the start of the training process
-            print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_permutations).zfill(3)} Iteration of GridSearch:")
+            current_idx = str(idx_h+1).zfill(3)
+            maximum_idx = str(n_permutations).zfill(3)
+            print(f"\n\n{current_idx}/{maximum_idx} Iteration of GridSearch:")
             
-            # Trains model
-            self.run_train_process(hyperparameters, ignore_check = False)
+            # Runs "simulate_fl.py" if a Federated Learning simulation is 
+            # being performed
+            if self.federated:
+                # Trains model
+                self.run_process( "simulate_fl", hyperparameters, 
+                                  ignore_check = False )
+            
+            else:
+                # Otherwise, runs "train_model.py" to train a model
+                self.run_process( "train_model", hyperparameters, 
+                                ignore_check = False )
                 
-            # Tests model
-            self.run_test_process(hyperparameters, ignore_check = False)
+                # Then "test_model.py" to evaluate the trained model
+                self.run_process( "test_model", hyperparameters, 
+                                ignore_check = False )
 
         return
 
     def doRandomSearch( self, n_models ):
-        self.check_trainability()
+        self.check_trainability(list_values = False)
         print("\nStarting RandomSearch:")
 
         # Prints the possible values
@@ -231,11 +275,22 @@ class ModelManager(ModelEntity):
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
             
-            # Trains model
-            self.run_train_process(hyperparameters, ignore_check = False)
+            # Runs "simulate_fl.py" if a Federated Learning simulation is 
+            # being performed
+            if self.federated:
+                # Trains model
+                self.run_process( "simulate_fl", hyperparameters, 
+                                  ignore_check = False )
+                continue
+            
+            else:
+                # Otherwise, runs "train_model.py" to train a model
+                self.run_process( "train_model", hyperparameters, 
+                                ignore_check = False )
                 
-            # Tests model
-            self.run_test_process(hyperparameters, ignore_check = False)
+                # Then "test_model.py" to evaluate the trained model
+                self.run_process( "test_model", hyperparameters, 
+                                ignore_check = False )
 
             # Increases the number of trained models
             idx_h += 1
@@ -254,11 +309,21 @@ class ModelManager(ModelEntity):
         if not seed is None:
             hyperparameters["seed"] = seed
             
-        # Trains model
-        self.run_train_process(hyperparameters, ignore_check = True)
+        # Runs "simulate_fl.py" if a Federated Learning simulation is 
+        # being performed
+        if self.federated:
+            # Trains model
+            self.run_process( "simulate_fl", hyperparameters, 
+                              ignore_check = True )
+        
+        else:
+            # Otherwise, runs "train_model.py" to train a model
+            self.run_process( "train_model", hyperparameters, 
+                              ignore_check = True )
             
-        # Tests model
-        self.run_test_process(hyperparameters, ignore_check = True)
+            # Then "test_model.py" to evaluate the trained model
+            self.run_process( "test_model", hyperparameters, 
+                              ignore_check = True )
 
         return
     
@@ -306,22 +371,15 @@ class ModelManager(ModelEntity):
             self.doTrainFromJSON( json_path, copy_augmentation = True, seed = seed )
             
         return
-    
-    def run_train_process(self, hyperparams, ignore_check):
-        # Creates train command
-        command = self.create_command( hyperparams, ignore_check, 
-                                       "train_model" )
-
-        # Trains model
-        subprocess.Popen.wait(subprocess.Popen( command ))
-        return
-    
-    def run_test_process(self, hyperparams, ignore_check):
+        
+    def run_process(self, script, hyperparams, ignore_check):
+        assert os.path.exists(f"{script}.py"), "Couldn't find '{script}' script..."
+        
         # Creates test command
         command = self.create_command( hyperparams, ignore_check, 
-                                       "test_model" )
+                                       script )
 
-        # Tests model
+        # Runs script as subprocess
         subprocess.Popen.wait(subprocess.Popen( command ))
         return
 
@@ -329,14 +387,16 @@ class ModelManager(ModelEntity):
         
         fname, model_id = self.get_model_name(hyperparams, self.aug_params)
         
-        args = { "output_dir"    :        self.dst_dir, 
-                 "data_path"     :      self.data_path,
-                 "train_dataset" :   self.dataset_name,
-                 "keep_pneumonia": self.keep_pneumonia,
-                 "ignore_check"  :        ignore_check,
-                 "test_model"    :                True, 
-                 "model_hash"    :            model_id, 
-                 "model_filename":               fname,
+        # Base args dict
+        args = { "dataset"        :   self.dataset_name, 
+                 "output_dir"     :        self.dst_dir, 
+                 "data_path"      :      self.data_path,
+                 "keep_pneumonia" : self.keep_pneumonia,
+                 "ignore_check"   :        ignore_check,
+                 "model_hash"     :            model_id, 
+                 "model_filename" :               fname,
+                 "load_from"      :                None,
+                 "max_train_steps":                None,
                }
         
         for dictionary in [self.aug_params, hyperparams]:
@@ -364,6 +424,10 @@ class ModelManager(ModelEntity):
         # Combines model_id with the architecture name 
         # to create the model filename
         model_fname = f"{hyperparameters['architecture']}_{model_id}"
+        
+        # Adds a prefix in case of federated models
+        if self.federated:
+            model_fname = "fl_" + model_fname
 
         return model_fname, model_id
     
@@ -459,22 +523,30 @@ class ModelTrainer(ModelEntity):
 
     def remove_unfinished(self):
 
+        # Path to CSV file
+        csv_path = os.path.join( self.model_dir, "training_results.csv" )
+
+        # Returns True if the csv file does not exist yet
+        finished_models = []
+        if os.path.exists( csv_path ):
+            results_df = pd.read_csv(csv_path, sep = ";")
+            finished_models = results_df["model_path"].to_list()
+
         # Lists all model subdirs in self.model_dir
         all_subdirs = glob.glob(os.path.join(self.model_dir, "*"))
         all_subdirs = sorted([p for p in all_subdirs if os.path.isdir(p)])
 
-        # Iterates through those files to check for params.json
-        # This file's presence indicates that train/test process finished correctly
+        # Iterates through those files to check .h5 path in the CSV
+        # Which indicates that train/test process finished correctly
         for path2subdir in all_subdirs:
             model_basename = os.path.split(path2subdir)[-1]
-            path_to_params = os.path.join(path2subdir, f"params_{model_basename}.json")
+            weights_path = os.path.join(path2subdir, f"{model_basename}.h5")
 
-            if os.path.exists(path_to_params):
+            if weights_path in finished_models:
                 continue
 
             print(f"Deleting '{model_basename}' subdir as its training did not finish properly...")
             shutil.rmtree(path2subdir, ignore_errors=False)
-
         return
 
     def get_model_path( self, model_fname, model_id ):
@@ -485,22 +557,25 @@ class ModelTrainer(ModelEntity):
         
         # Checks if a model with the same name already exists
         # possible if a combination of hyperparameters is being retrained
-        if os.path.exists( os.path.dirname(model_path) ):
+        if os.path.exists(os.path.dirname(model_path)):
             # Path to results CSV file
             csv_path = os.path.join( self.model_dir, "training_results.csv" )
-
-            # The csv fileis read and filtered for models with the same hash
-            result_df = pd.read_csv(csv_path, sep = ";")
-
-            # Counts the amount of models with the same hash and adds 1
-            idx = 1 + len(result_df[result_df["model_hash"] == model_id])
             
-            # Updates model_fname
-            model_fname = f"{model_fname}_{idx}"
+            idx = 0
+            if os.path.exists(csv_path):
+                # Reads CSV file to count models w/ same hash
+                result_df = pd.read_csv(csv_path, sep = ";")
+
+                # Counts the amount of models with the same hash
+                idx = len(result_df[result_df["model_hash"] == model_id])
             
-            # Updates the model path to avoid overwritting the existant model
-            model_path = os.path.join(self.model_dir, model_fname,
-                                      f"{model_fname}.h5")
+            # Keeps the same path / fname if there're no entries
+            if idx > 0:
+                # Otherwise, updates model_fname and model_path 
+                # to avoid overwritting the existant model
+                model_fname = f"{model_fname}_{idx+1}"
+                model_path = os.path.join(self.model_dir, model_fname,
+                                          f"{model_fname}.h5")
 
         return model_path, model_fname
 
@@ -539,14 +614,24 @@ class ModelTrainer(ModelEntity):
 
         return
 
-    def train_model( self, hyperparameters, aug_params, model_path ):
+    def train_model( self, hyperparameters, aug_params, model_path, 
+                     max_steps = None, load_from = None ):
         
         # Announces the dataset used for training
         print(f"\nTraining model '{os.path.basename( model_path )}' on '{self.dataset.name}' dataset...")
 
-        # Creates and compiles the Model
-        model_builder = ModelBuilder( model_path = model_path )
-        self.model = model_builder( hyperparameters, seed = hyperparameters["seed"] )
+        if load_from is None:
+            # Creates the Model
+            model_builder = ModelBuilder( model_path = model_path )
+            self.model = model_builder( hyperparameters, seed = hyperparameters["seed"] )
+            
+        else:
+            # Loads weights from a specific path
+            # Used when applying Federated learning
+            print(f"\nLoading model from '{load_from}'...")
+            self.load_model( load_from )
+        
+        # Compiles the model
         self.prepare_model( hyperparameters )
 
         # Loads datasets - Reloads training dataset to keep the same order of examples in each train
@@ -607,6 +692,11 @@ class ModelTrainer(ModelEntity):
         # Gets the number of samples and the number of batches using the current batchsize
         val_steps   = len(val_datagen)
         train_steps = len(train_datagen)
+        
+        # Limits the maximum training steps if necessary
+        if not max_steps is None:
+            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
         class_weights = self.dataset.class_weights if hyperparameters["class_weights"] else None
@@ -678,14 +768,11 @@ class ModelTrainer(ModelEntity):
         return mean_acc, mean_f1, mean_auroc, conf_matrix, y_true, scores
 
     def test_model( self, model_path, hyperparameters ):
-        print(f"\nLoading model from '{model_path}'...")
 
-        ###
-        print("\nLoading model...")
+        print(f"\nLoading model from '{model_path}'...")
         self.load_model( model_path )
         self.prepare_model( hyperparameters, mock_test = True )
         print("\n\tModel loaded...")
-        ###
         
         # Announces the dataset used for training
         dataset_name = self.dataset.name

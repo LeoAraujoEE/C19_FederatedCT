@@ -22,7 +22,7 @@ os.environ["PYTHONHASHSEED"] = str(0)
 
 # Builds object to handle datasets for training and for external validation
 dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
-                                         train_dataset = arg_dict["train_dataset"], 
+                                         train_dataset = arg_dict["dataset"], 
                                          input_col = "path", output_col = "class", 
                                          keep_pneumonia = arg_dict["keep_pneumonia"] )
 
@@ -36,9 +36,6 @@ model_fname = arg_dict["model_filename"]
 hyperparameters, data_aug_params = trainer.get_dicts(arg_dict)
 
 if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
-  
-  # Removes models whose training process did not finish properly
-  trainer.remove_unfinished()
 
   # Generates model path
   model_path, model_fname = trainer.get_model_path( model_fname, model_id )

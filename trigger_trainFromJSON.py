@@ -2,10 +2,11 @@ import os
 from utils.custom_model_trainer import ModelManager
 
 PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( "." ) }
+              "outputs" : os.path.join( ".", "output", "models" ) 
+            }
 
-train_dataset = "radiopaedia.org"
-model_fname = "resnet50_3c803bd9da2c949cf20b8eda384b6155"
+train_dataset = "COVID-CT-MD"
+model_fname = "efficientnetv2_b0_94de7f456996e39af676173246d61888"
 
 json_path = os.path.join( ".", "output", "models", "radiopaedia_dropped", 
                           model_fname, f"params_{model_fname}.json" )
