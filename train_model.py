@@ -35,10 +35,8 @@ tf.experimental.numpy.random.seed(arg_dict["seed"])
 os.environ["PYTHONHASHSEED"] = str(0)
         
 # Builds object to handle the training dataset
-dataTrain = Dataset( arg_dict["data_path"], folder = arg_dict["dataset"], 
-                     input_col = "path", output_col = "class", 
-                     keep_pneumonia = arg_dict["keep_pneumonia"], 
-                     trainable = True )
+dataTrain = Dataset( arg_dict["data_path"], name = arg_dict["dataset"], 
+                     keep_pneumonia = arg_dict["keep_pneumonia"] )
 
 trainer = ModelTrainer( dataTrain, dst_dir = arg_dict["output_dir"] )
 
@@ -63,21 +61,20 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
   # Prints current hyperparameters
   trainer.print_dict( hyperparameters, round = True )
   
-  # Starts training while recording the total training time
-  train_start_t = time.time()
+  # Starts training
   history_dict  = trainer.train_model( hyperparameters, data_aug_params, model_path, 
+                                       initial_epoch = arg_dict["current_epoch_num"], 
+                                       epochs_per_step = arg_dict["epochs_per_step"], 
                                        max_steps = arg_dict["max_train_steps"],
                                        load_from = arg_dict["load_from"] )
-  ellapsed_time = (time.time() - train_start_t)
-  train_time = trainer.ellapsed_time_as_str(ellapsed_time)
 
   # Saves history_dict to CSV
   trainer.history_to_csv(history_dict, model_path)
 
   # Announces the end of the training process
-  print(f"\nTrained model '{model_fname}' in {train_time}. Plotting train results...")
+  print(f"\nTrained model '{model_fname}'. Plotting train results...")
   trainer.plotter.plot_train_results( history_dict, trainer.dataset.name )
 
   #
   print("\nSaving training hyperparameters as JSON...")
-  trainer.hyperparam_to_json(model_path, hyperparameters, data_aug_params, train_time)
+  trainer.hyperparam_to_json(model_path, hyperparameters, data_aug_params)

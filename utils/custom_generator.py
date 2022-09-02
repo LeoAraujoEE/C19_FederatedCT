@@ -196,5 +196,5 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
     def __len__(self):
         # Returns the number of batches the generator can produce
         if not self.undersample:
-            return self.generators[0].__len__()
-        return np.min([gen.__len__() for gen in self.generators])
+            return len(self.generators[0])
+        return np.min([len(gen) for gen in self.generators])

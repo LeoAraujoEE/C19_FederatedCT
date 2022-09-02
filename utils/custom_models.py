@@ -51,13 +51,6 @@ class ModelBuilder:
         trainable_count, non_trainable_count = self.count_model_params(model)
         print("\nCreated model with {:,} trainable parameters and {:,} non trainable ones...".format(trainable_count, non_trainable_count))
 
-        # Saves model configs
-        json_config = model.to_json()
-        config_path = self.model_path.replace(".h5", ".json")
-
-        with open(config_path, "w") as json_file:
-            json.dump( json_config, json_file, indent=4 )
-
         # Generates the model plot if specified
         if self.gen_fig:        
             self.gen_model_as_figure(model)

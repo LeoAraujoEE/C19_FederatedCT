@@ -23,7 +23,6 @@ os.environ["PYTHONHASHSEED"] = str(0)
 # Builds object to handle datasets for training and for external validation
 dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
                                          train_dataset = arg_dict["dataset"], 
-                                         input_col = "path", output_col = "class", 
                                          keep_pneumonia = arg_dict["keep_pneumonia"] )
 
 trainer = ModelTrainer( dataTrain, dataVal_list, dst_dir = arg_dict["output_dir"] )
@@ -52,7 +51,8 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
 
   # Announces the start of the testing process
   print(f"\nTesting model '{os.path.basename(model_path)}'...")
-  results_dict = trainer.test_model( model_path, hyperparameters )
+  results_dict = trainer.test_model(model_path, hyperparameters,
+                         eval_part = arg_dict["eval_partition"])
 
   print("\nPlotting test results...")
   trainer.plotter.plot_test_results( results_dict, dataset_name, cval_dataset_names )

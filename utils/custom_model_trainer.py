@@ -42,8 +42,9 @@ class ModelEntity():
     def get_default_fl_params():
         # List of default values for federated learning
         fedlearn_params = { "epochs_per_step":            3,  # N° epochs before aggregation
-                            "client_frac":              1.0,  # Fraction of selected clientes for a step
-                            "aggregation":        "fed_avg",  # Method of aggregation used
+                            "max_steps_frac" :         0.25,  # Regulates the max training steps in local trainings
+                            "client_frac"    :          1.0,  # Fraction of selected clientes for a step
+                            "aggregation"    :    "fed_avg",  # Method of aggregation used
                           }
         return fedlearn_params
     
@@ -388,15 +389,18 @@ class ModelManager(ModelEntity):
         fname, model_id = self.get_model_name(hyperparams, self.aug_params)
         
         # Base args dict
-        args = { "dataset"        :   self.dataset_name, 
-                 "output_dir"     :        self.dst_dir, 
-                 "data_path"      :      self.data_path,
-                 "keep_pneumonia" : self.keep_pneumonia,
-                 "ignore_check"   :        ignore_check,
-                 "model_hash"     :            model_id, 
-                 "model_filename" :               fname,
-                 "load_from"      :                None,
-                 "max_train_steps":                None,
+        args = { "dataset"          :   self.dataset_name, 
+                 "output_dir"       :        self.dst_dir, 
+                 "data_path"        :      self.data_path,
+                 "keep_pneumonia"   : self.keep_pneumonia,
+                 "ignore_check"     :        ignore_check,
+                 "model_hash"       :            model_id, 
+                 "model_filename"   :               fname,
+                 "load_from"        :                None,
+                 "max_train_steps"  :                None,
+                 "epochs_per_step"  :                None,
+                 "current_epoch_num":                   0,
+                 "eval_partition"   :              "test",
                }
         
         for dictionary in [self.aug_params, hyperparams]:
@@ -615,6 +619,7 @@ class ModelTrainer(ModelEntity):
         return
 
     def train_model( self, hyperparameters, aug_params, model_path, 
+                     initial_epoch = 0, epochs_per_step = None, 
                      max_steps = None, load_from = None ):
         
         # Announces the dataset used for training
@@ -643,16 +648,17 @@ class ModelTrainer(ModelEntity):
 
 
         # Callbacks --------------------------------------------------------------------------------------------------
-        # Sets callback_mode based on the selected monitored metric
-        callback_mode = "min" if "loss" in hyperparameters["monitor"].lower() else "max"
-        print(f"\nMonitoring '{hyperparameters['monitor']}' with '{callback_mode}' mode...\n")
-
         # List of used callbacks
         callback_list = [] 
 
         # Adds Model Checkpoint/Early Stopping if a monitor variable is passed
         var_list = ["val_loss", "val_acc", "val_f1"]
         if hyperparameters["monitor"] in var_list:
+            
+            # Sets callback_mode based on the selected monitored metric
+            callback_mode = "min" if "loss" in hyperparameters["monitor"].lower() else "max"
+            print(f"\nMonitoring '{hyperparameters['monitor']}' with '{callback_mode}' mode...\n")
+            
             # Model Checkpoint
             model_checkpoint = tf.keras.callbacks.ModelCheckpoint(model_path,
                                       monitor = hyperparameters["monitor"],
@@ -671,11 +677,21 @@ class ModelTrainer(ModelEntity):
         
         # Learning Rate Scheduler
         def scheduler(epoch, lr):
+                
+            # Number of completed steps
+            steps = (epoch + 1) // hyperparameters["lr_adjust_freq"]
+            
+            # Coeficient to multiply initial lr and get the new lr
+            coef = hyperparameters["lr_adjust_frac"] ** steps
+            
+            # Gets the new lr value and prints the change
+            new_lr = hyperparameters["start_lr"] * coef
+            
+            # Prints only in the epochs where the lr is changed
             if (epoch + 1) % hyperparameters["lr_adjust_freq"] == 0:
-                new_lr = lr * hyperparameters["lr_adjust_frac"]
                 print(f"[LR Scheduler] Updating LearningRate from '{lr:.3E}' to '{new_lr:.3E}'...")
-                return new_lr
-            return lr
+                
+            return new_lr
         
         lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, 
                                                                 verbose = 0)
@@ -701,13 +717,32 @@ class ModelTrainer(ModelEntity):
         # Gets class_weights from training dataset
         class_weights = self.dataset.class_weights if hyperparameters["class_weights"] else None
 
-        num_epochs = hyperparameters["num_epochs"]
+        if epochs_per_step is None:
+            # For regular training, each step performs all epochs at once
+            num_epochs = hyperparameters["num_epochs"]
+        else:
+            # For Federated Learning simulations, each step performs only a 
+            # few epochs. 
+            num_epochs = initial_epoch + epochs_per_step
 
         # Fits the model
-        history = self.model.fit( x = train_datagen, steps_per_epoch = train_steps, epochs = num_epochs, 
+        history = self.model.fit( x = train_datagen, steps_per_epoch = train_steps, 
+                                  epochs = num_epochs, initial_epoch = initial_epoch, 
                                   validation_data = val_datagen, validation_steps = val_steps, 
-                                  callbacks = callback_list, class_weight = class_weights, verbose = 1
+                                  callbacks = callback_list, class_weight = class_weights, 
+                                  verbose = 1
                                 )
+
+        # Saves model configs
+        json_config = self.model.to_json()
+        config_path = model_path.replace(".h5", ".json")
+
+        with open(config_path, "w") as json_file:
+            json.dump( json_config, json_file, indent=4 )
+        
+        # Saves weights if model_checkpoint is disabled
+        if not hyperparameters["monitor"] in var_list:
+            self.model.save_weights( model_path )
 
         # Extracts the dict with the training and validation values for loss and IoU during training
         history_dict = history.history
@@ -718,7 +753,7 @@ class ModelTrainer(ModelEntity):
         
         # Generates keys and instantiates their value as None
         # The goal is to establish the order of the keys in results
-        results = { "train_time": None }
+        results = {}
         for metric in ["acc", "f1", "auc"]:
             # Generates 1 entry for each metric for each partition
             for partition in ["train", "val", "test"]:
@@ -758,6 +793,7 @@ class ModelTrainer(ModelEntity):
         y_pred  = (scores > 0.5).astype(np.float32)
 
         # Computes all metrics using scikit-learn
+        print(f"Len for y_true: {len(y_true)}, y_pred: {len(y_pred)}")
         mean_acc   = accuracy_score( y_true, y_pred )
         mean_f1    = f1_score( y_true, y_pred )
         mean_auroc = roc_auc_score( y_true, scores )
@@ -767,7 +803,7 @@ class ModelTrainer(ModelEntity):
 
         return mean_acc, mean_f1, mean_auroc, conf_matrix, y_true, scores
 
-    def test_model( self, model_path, hyperparameters ):
+    def test_model( self, model_path, hyperparameters, eval_part = "test" ):
 
         print(f"\nLoading model from '{model_path}'...")
         self.load_model( model_path )
@@ -783,15 +819,6 @@ class ModelTrainer(ModelEntity):
 
         # Creates a dictionary with ordered keys, but no values
         results = self.get_base_results_dict()
-        
-        # Opening JSON file to extract training time
-        basedir, basename = os.path.split(model_path.replace("h5","json"))
-        json_path = os.path.join(basedir, f"params_{basename}")
-        with open( json_path ) as json_file:
-            data = json.load(json_file)
-
-        # Recovers model training time from JSON file
-        results["train_time"] = data["train_time"]
 
         # Evaluates each partition to fill results dict
         for partition in ["train", "val", "test"]:
@@ -823,7 +850,8 @@ class ModelTrainer(ModelEntity):
                 dset.load_dataframes()
 
                 # Evaluates dataset
-                acc, f1_score, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, "test" )
+                acc, f1_score, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 
+                                                                                          eval_part )
 
                 # Adds to list
                 cval_acc_list.append(acc)
@@ -839,11 +867,11 @@ class ModelTrainer(ModelEntity):
                 # Plots confusion matrix
                 class_labels = dset.classes
                 self.plotter.plot_confusion_matrix(conf_matrix, dset_name, 
-                                                   "test", class_labels)
+                                                   eval_part, class_labels)
 
                 # Plots ROC curves
-                self.plotter.plot_roc_curve( y_true, y_preds, 
-                                             dset_name, "test" )
+                self.plotter.plot_roc_curve( y_true, y_preds, dset_name, 
+                                             eval_part )
                 
             results["crossval_acc"] = f"{np.mean(cval_acc_list):.4f}"
             results["crossval_f1"] = f"{np.mean(cval_f1_list):.4f}"
@@ -915,12 +943,11 @@ class ModelTrainer(ModelEntity):
         return
     
     def hyperparam_to_json( self, model_path, hyperparameters, 
-                            aug_params, train_time ):
+                            aug_params ):
 
         # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
         dict_of_dicts = { "hyperparameters"    : hyperparameters, 
                           "augmentation_params": aug_params,
-                          "train_time"         : train_time
                         }
         
         model_dir   = os.path.dirname( model_path )

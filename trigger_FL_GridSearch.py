@@ -8,13 +8,14 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
 
 # List of parameters for Federated Learning simulation
 fedlearn_params = { "epochs_per_step":                [3],
-                    "client_frac":                 [0.60],
-                    "aggregation":            ["fed_avg"],
+                    "max_steps_frac" :             [0.10],
+                    "client_frac"    :             [0.40],
+                    "aggregation"    :        ["fed_avg"],
                   }
 
 # List of hyperparameter values
-hyperparameters = { "num_epochs":                     [3],  # Total N° of training epochs
-                    "batchsize":                     [64],  # Minibatch size
+hyperparameters = { "num_epochs":                     [9],  # Total N° of training epochs
+                    "batchsize":                     [32],  # Minibatch size
                     "early_stop":                    [20],  # Early Stopping patience
                     "input_height":                 [224],  # Model's input size
                     "input_width":                  [224],  # Model's input size
@@ -29,8 +30,8 @@ hyperparameters = { "num_epochs":                     [3],  # Total N° of train
                     "apply_undersampling":         [True],  # Wether to apply Random Undersampling
                     "l1_reg":                         [0],  # Amount of L1 regularization
                     "l2_reg":                         [0],  # Amount of L2 regularization
-                    "base_dropout":                [0.30],  # SpatialDropout2d between blocks in convolutional base
-                    "top_dropout":                 [0.50],  # Dropout between dense layers in model top
+                    "base_dropout":                [0.00],  # SpatialDropout2d between blocks in convolutional base
+                    "top_dropout":                 [0.30],  # Dropout between dense layers in model top
                     "architecture": ["efficientnetv2_b0"],  # Chosen architecture
                     "seed":                          [69],  # Seed for pseudorandom generators
                   } 

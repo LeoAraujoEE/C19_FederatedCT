@@ -7,7 +7,7 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
             }
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [1],  # Total N° of training epochs
                         "batchsize":                     [64],  # Minibatch size
                         "early_stop":                    [20],  # Early Stopping patience
                         "input_height":                 [224],  # Model's input size
@@ -23,7 +23,7 @@ hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of t
                         "apply_undersampling":         [True],  # Wether to apply Random Undersampling
                         "l1_reg":                         [0],  # Amount of L1 regularization
                         "l2_reg":                         [0],  # Amount of L2 regularization
-                        "base_dropout":                [0.05],  # SpatialDropout2d between blocks in convolutional base
+                        "base_dropout":                [0.051],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                 [0.30],  # Dropout between dense layers in model top
                         "architecture": ["efficientnetv2_b0"],  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
@@ -72,7 +72,7 @@ dataset_list = [ "COVIDxCT",        # Whole COVIDxCT-3A dataset
 #   trainManager.doGridSearch( shuffle = False )
   
 trainManager = ModelManager( path_dict = PATH_DICT, 
-                            dataset_name = "radiopaedia.org", 
+                            dataset_name = "COVID-CT-MD", 
                             hyperparam_values = hyperparameter_dict, 
                             aug_params = augmentation_dict, 
                             keep_pneumonia = False )

@@ -1,9 +1,10 @@
 import os
+import json
 import numpy as np
 import pandas as pd
 
 class Dataset():
-    def __init__( self, import_dir, folder, input_col, output_col, trainable = False, keep_pneumonia = False ):
+    def __init__( self, import_dir, name, keep_pneumonia = False ):
         """ Initializes objects from Dataset class.
         Args:
             dataset_path: (str) relative path to dataset directory;
@@ -14,8 +15,55 @@ class Dataset():
         self.is_loaded = False
 
         # Builds dataset_path from import_dir and folder
-        dataset_path  = os.path.join( import_dir, folder )
-        metadata_path = os.path.join( import_dir, folder+"_data.csv" )
+        self.import_dir   = import_dir
+        self.dataset_path = os.path.join( import_dir, name )
+        
+        # Gets the path to this dataset's CSV file 
+        # and the JSON containing its metadata
+        self.csv_path  = os.path.join( import_dir, f"{name}_data.csv" )
+        self.json_path = os.path.join( import_dir, f"{name}_data.json" )
+
+        # Verifies if the dataset's CSV/JSON files exist
+        self.check_dataset()
+
+        # Opening JSON file
+        with open( self.json_path ) as json_file:
+            self.metadata = json.load(json_file)
+        
+        # Columns to input data's path and output labels
+        self.input_col = self.metadata["input_col"]
+        self.output_col = self.metadata["output_col"]
+        
+        # Gets the original number of pneumonia samples
+        pneumonia_samples = self.metadata["num_samples"]["total"]["Pneumonia"]
+        
+        # Wether the samples of pneumonia class should be kept or not
+        # A different sufix is applied for each case
+        sufix = self.set_class_remap(keep_pneumonia)
+        
+        # Only datasets with pneumonia samples have the sufix added
+        self.name = self.metadata["name"]
+        if pneumonia_samples > 0:
+            self.name = self.name + sufix
+        
+        # Total number of classes
+        self.n_classes = len(self.classes)
+        
+        # Computes class weights based on self.metadata
+        self.set_class_weights()
+
+        return
+    
+    def check_dataset( self ):
+        """ Checks the dataset's directory and looks for its metadata and the
+        CSV files with each partition's inputs/outputs. The path to the files 
+        are stored inside self.csv_dict, which stores the CSV files' attributes 
+        for each partition. """
+        for path in [self.csv_path, self.json_path]:
+            assert os.path.exists(path), f"\nCouldn't find '{path}' file..."
+        return
+    
+    def set_class_remap(self, keep_pneumonia):
         
         # Wether the samples of pneumonia class should be kept or not
         if keep_pneumonia:
@@ -25,47 +73,42 @@ class Dataset():
                                  "COVID-19" : "pos_COVID-19", 
                                  "Pneumonia": "neg_COVID-19" }
 
-            classes = { "neg_COVID-19": 0, "pos_COVID-19": 1 }
-
-            # Sets the dataset name based on wether pneumonia samples were kept or not
-            # also drops the ".org" for Radiopaedia's dataset name
-            name = "{}_remapped".format(folder.split(".")[0])
+            self.classes = { "neg_COVID-19": 0, "pos_COVID-19": 1 }
+            
+            # Iterates through partitions in self.metadata["num_samples"]
+            for part in self.metadata["num_samples"].keys():
+                # Removes COVID-19 and gets the n° of positive samples
+                pos_samples = self.metadata["num_samples"][part].pop("COVID-19")
+                
+                # Removes Normal/Pneumonia and gets the n° of negative samples
+                neg_samples = self.metadata["num_samples"][part].pop("Pneumonia")
+                neg_samples += self.metadata["num_samples"][part].pop("Normal")
+                
+                # Adds new entries to the metadata dict
+                self.metadata["num_samples"][part]["neg_COVID-19"] = neg_samples
+                self.metadata["num_samples"][part]["pos_COVID-19"] = pos_samples
+                
+            
+            # Different sufix to indicate that samples were remapped
+            sufix = "_remapped"
             
         else:
             # Else, Pneumonia samples are droped and the other labels are kept
-            classes = { "Normal": 0, "COVID-19": 1 }
+            self.classes = { "Normal": 0, "COVID-19": 1 }
             self.label_remap = None
-
-            # Sets the dataset name based on wether pneumonia samples were kept or not
-            # also drops the ".org" for Radiopaedia's dataset name
-            name = "{}_dropped".format(folder.split(".")[0])
+            
+            # Iterates through partitions in self.metadata["num_samples"]
+            for part in self.metadata["num_samples"].keys():
+                # Removes pneumonia and gets the n° of dropped samples
+                n_dropped = self.metadata["num_samples"][part].pop("Pneumonia")
+                
+                # Reduce the total number of samples by the ones dropped
+                self.metadata["num_samples"][part]["Total"] -= n_dropped
+            
+            # Different sufix to indicate that samples were discarted
+            sufix = "_dropped"
         
-        # Keeps the original name in either case if the dataset doesnt have pneumonia samples
-        no_pneumonia =  ["COVID-CTSet", "Comp_LIDC-SB"]
-        self.name = folder if (folder in no_pneumonia) else name
-        
-        # Register the dataset information to class variables
-        self.classes = classes             # Dict of class names and labels
-        self.n_classes = len(classes)      # Total number of classes
-        self.trainable = trainable         # If train/val data will be used
-        self.input_col = input_col         # Column to input data's path
-        self.output_col = output_col       # Column to output labels
-        self.import_dir = import_dir       # Path to data dir
-        self.dataset_path = dataset_path   # Path to dataset's images
-        self.metadata_path = metadata_path # Path to dataset's metadata
-
-        # Verifies if the partition's CSV files and the dataset's JSON file exist
-        self.check_dataset()
-
-        return
-    
-    def check_dataset( self ):
-        """ Checks the dataset's directory and looks for its metadata and the CSV files with each partition's inputs/outputs.
-        The path to the files are stored inside self.csv_dict, which stores the CSV files' attributes for each partition.
-        """
-        
-        assert os.path.exists(self.metadata_path), "\nCouldn't find '{}' file...".format(self.metadata_path)
-        return
+        return sufix
     
     def multiclass2binary( self, df ):
 
@@ -83,49 +126,50 @@ class Dataset():
             print("\nCSV file is already loaded as pd.Dataframe...")
             return
         
-        metadata_df = pd.read_csv( self.metadata_path, sep = ";" )
-        metadata_df = self.multiclass2binary(metadata_df)
+        df = pd.read_csv( self.csv_path, sep = ";" )
+        df = self.multiclass2binary(df)
         print(f"\tLoaded CSV file for '{self.name}'as pd.DataFrame...")
 
-        # Dictionary to store objects related to each partition
-        self.csv_dict  = {}
-
-        # List of partitions to check
-        partition_list = ["train", "val", "test"] if self.trainable else ["test"]
+        # Dictionary to store each partition's DataFrame
+        self.df_dict  = {}
 
         # For each considered partition
-        for partition in partition_list:
-            # Creates a dictionary for its CSV files attributes
-            partition_dict = { "df": None, "n_samples": None }
+        for partition in ["train", "val", "test"]:
 
-            partition_df = metadata_df[ metadata_df["partition"] == partition ].copy(deep = True)
+            # Filters only rows from the current partition and resets the index
+            partition_df = df[df["partition"] == partition].copy(deep = True)
             partition_df.reset_index(drop = True, inplace = True)
 
-            # Loads the CSV and computes the number of samples
-            partition_dict["df"] = partition_df
-            partition_dict["n_samples"] = len(partition_dict["df"])
-
-            # Adds partition dict to csv_dict
-            self.csv_dict[partition] = partition_dict
+            # Adds partition DataFrame to df_dict
+            self.df_dict[partition] = partition_df
         
+        # Updates 'is_loaded' status
         self.is_loaded = True
-
-        # If trainable, computes class_weights for this dataset
-        # Does not repeat this if the dataframes are being reloaded
-        if (self.trainable) and (not hasattr(self, "class_weights")):
-            self.compute_class_weights()
         
         return
 
-    def compute_class_weights( self ):
-        df = self.csv_dict["train"]["df"]
-        class_list = [ clss for clss in self.classes.keys() ]
-
-        counts = [ len(df[df[self.output_col] == clss]) for clss in class_list ]
-
-        weights = [ (np.max( counts ) / cts) if cts > 0 else 1 for cts in counts ]
-
-        self.class_weights = { clss: weight for clss, weight in enumerate(weights) }
+    def set_class_weights( self ):
+        
+        # Gets the n° of samples in total and for each class for training
+        train_info = self.metadata["num_samples"]["train"].copy()
+        
+        # Drops the total number of samples
+        train_info.pop("Total")
+        
+        # Gets the max amount of samples for a class in the train partition
+        max_sample_count = np.max(list( train_info.values() ))
+        
+        self.class_weights = {}
+        for clss, current_samples in enumerate(train_info.values()):
+            # If there are samples of the current class
+            if current_samples > 0:
+                # Applies max_sample_count/current_samples as class weight
+                self.class_weights[clss] = max_sample_count / current_samples
+            
+            # Otherwise
+            else:
+                # Applies 1 to avoid division by 0
+                self.class_weights[clss] = 1
 
         return
     
@@ -133,17 +177,32 @@ class Dataset():
         return self.import_dir
 
     def get_dataframe( self, partition ):
-        return self.csv_dict[partition]["df"]
+        return self.df_dict[partition]
     
-    def get_num_samples( self, partition ):
-        partition = partition.lower() if partition.lower() != "validation" else "val"
-        return self.csv_dict[partition]["n_samples"]
+    def get_num_samples( self, partition, class_label = "Total" ):
+        partition = partition.lower()
+        if partition.lower() == "validation": 
+            partition = "val"
+        return self.metadata["num_samples"][partition][class_label]
     
-    def get_num_steps( self, partition, batchsize ):
-        return int(np.ceil(self.get_num_samples( partition ) / float(batchsize)))
+    def get_num_steps( self, partition, batchsize, undersampling = False ):
+        # If undersampling is not being applied
+        if not undersampling:
+            # Returns the maximum amount of batches produceable
+            return int(np.ceil(self.get_num_samples(partition)/float(batchsize)))
+        
+        # Otherwise, computes how many batches are possible with undersampling
+        partition_info = self.metadata["num_samples"][partition]
+        
+        # Gets the max amount of samples for a class in the train partition
+        min_sample_count = np.min(list( partition_info.values() ))
+        
+        return int(np.ceil(min_sample_count/float(batchsize/self.n_classes)))
+        
+        
 
 
-def load_datasets( import_dir, train_dataset, input_col, output_col, keep_pneumonia ):
+def load_datasets( import_dir, train_dataset, keep_pneumonia ):
 
     # List of all available datasets
     available_datasets = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", 
@@ -165,9 +224,8 @@ def load_datasets( import_dir, train_dataset, input_col, output_col, keep_pneumo
         is_trainable = (dataset_name == train_dataset)
         
         # Builds object to handle the current dataset
-        dataset_obj = Dataset( import_dir, folder = dataset_name, input_col = input_col, 
-                               output_col = output_col, keep_pneumonia = keep_pneumonia, 
-                               trainable = is_trainable )
+        dataset_obj = Dataset( import_dir, name = dataset_name, 
+                               keep_pneumonia = keep_pneumonia )
 
         if is_trainable:
             # Sets object as train dataset
