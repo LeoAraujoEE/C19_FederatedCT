@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import json
 import random
 import numpy as np
 import tensorflow as tf
@@ -24,7 +25,7 @@ from utils.custom_plots import CustomPlots
 from utils.custom_model_trainer import ModelTrainer
 
 # Decodes all the input args and creates a dict
-arg_dict = ModelTrainer.decode_args(sys.argv)
+arg_dict = json.loads(sys.argv[1])
 
 # Setting seeds to enforce deterministic behaviour
 random.seed(arg_dict["seed"])
@@ -45,7 +46,8 @@ model_id = arg_dict["model_hash"]
 model_fname = arg_dict["model_filename"]
 
 # Extracts hyperparameters and parameters for data augmentation from args_dict
-hyperparameters, data_aug_params = trainer.get_dicts(arg_dict)
+hyperparameters = arg_dict["hyperparameters"]
+data_aug_params = arg_dict["data_augmentation"]
 
 if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
   

@@ -401,14 +401,15 @@ class ModelManager(ModelEntity):
                  "epochs_per_step"  :                None,
                  "current_epoch_num":                   0,
                  "eval_partition"   :              "test",
+                 "hyperparameters"  :         hyperparams,
+                 "data_augmentation":     self.aug_params,
+                 "seed"             : hyperparams["seed"],
                }
         
-        for dictionary in [self.aug_params, hyperparams]:
-            args.update(dictionary)
+        # Serializes args dict as JSON formatted string
+        serialized_args = json.dumps(args)
         
-        command = ["python", "-m", script]
-        for k, v in args.items():
-            command.extend([self.get_flag_from_type(k, v), str(k), str(v)])
+        command = ["python", "-m", script, serialized_args]
 
         return command
 
@@ -471,7 +472,7 @@ class ModelManager(ModelEntity):
     
     @staticmethod
     def json_to_hyperparam( json_path ):
-        assert os.path.exists( json_path ), "Error! Couldn't find JSON file, check 'json_path'..."
+        assert os.path.exists( json_path ), f"Error! Couldn't find '{json_path}'..."
 
         # Opening JSON file
         with open( json_path ) as json_file:
@@ -793,7 +794,7 @@ class ModelTrainer(ModelEntity):
         y_pred  = (scores > 0.5).astype(np.float32)
 
         # Computes all metrics using scikit-learn
-        print(f"Len for y_true: {len(y_true)}, y_pred: {len(y_pred)}")
+        print(f"len(y_true): {len(y_true)}, len(y_pred): {len(y_pred)}")
         mean_acc   = accuracy_score( y_true, y_pred )
         mean_f1    = f1_score( y_true, y_pred )
         mean_auroc = roc_auc_score( y_true, scores )

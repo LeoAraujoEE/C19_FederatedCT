@@ -206,7 +206,7 @@ def load_datasets( import_dir, train_dataset, keep_pneumonia ):
 
     # List of all available datasets
     available_datasets = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", 
-                           "radiopaedia.org", "COVID-CTSet", "COVID-CT-MD", 
+                           "radiopaedia.org", "COVID-CTset", "COVID-CT-MD", 
                            "Comp_LIDC-SB" ]
 
     print("Checking datasets:")
