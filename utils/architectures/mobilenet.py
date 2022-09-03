@@ -28,7 +28,9 @@ class MobileNet:
         input_layer = tf.keras.layers.Input( shape = input_shape, name = "Input" )
         
         # Entry Flow:
-        x = MobileNet.entry_flow(input_layer, alpha = alpha, v3 = v3, dropchance = base_dropout, l1_val = l1_val, l2_val = l2_val )
+        x = MobileNet.entry_flow(input_layer, alpha = alpha, v3 = v3, 
+                                 dropchance = 0, l1_val = l1_val, 
+                                 l2_val = l2_val )
         
         if v3:
             if small:

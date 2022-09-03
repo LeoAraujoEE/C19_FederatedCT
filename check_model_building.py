@@ -130,7 +130,7 @@ hyperparameter_dict = { "num_epochs":                      50,  # Total number o
                         "top_dropout":                      0,  # Dropout between dense layers
                         "pooling":                      "avg",  # Global Pooling used
                         "weights":                       None,  # Pretrained weights
-                        "architecture":  "efficientnet_v2_b0",  # Chosen architecture
+                        "architecture":  "efficientnet_B6",  # Chosen architecture
                       }       
 
 model_dir  = os.path.join( ".", "output", "models", "joao_123" )
@@ -140,13 +140,13 @@ model_builder = ModelBuilder( model_path = model_path, gen_fig = True )
 model_mine = model_builder( hyperparameter_dict, seed = 69 )
 
 if not "v2" in hyperparameter_dict['architecture'].lower():
-  model_keras = tf.keras.applications.EfficientNetB0( input_shape = input_size, include_top = True, classes = 1, weights = None,
+  model_keras = tf.keras.applications.EfficientNetB6( input_shape = input_size, include_top = True, classes = 1, weights = None,
                                                       classifier_activation='sigmoid' )
   model_keras = remove_normalization_layers(model_keras, start = 3)
     
 
 else:
-  model_keras = tf.keras.applications.EfficientNetV2B0( input_shape = input_size, include_top = True, classes = 1, weights = None,
+  model_keras = tf.keras.applications.EfficientNetV2B2( input_shape = input_size, include_top = True, classes = 1, weights = None,
                                                       classifier_activation='sigmoid', include_preprocessing = False )
 
 path = os.path.join (".", "output", "models", "joao_123", f"efficientnet_keras.png" )

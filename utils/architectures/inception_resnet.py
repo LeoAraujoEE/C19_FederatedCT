@@ -25,15 +25,18 @@ class InceptionResNet(Inception):
                   top_dropout: float, l1_val: float, l2_val: float ) -> Model:
 
         # Model's input layer
-        input_layer = tf.keras.layers.Input( shape = input_shape, name = "Input" )
+        input_layer = tf.keras.layers.Input( shape = input_shape, 
+                                             name = "Input" )
         
         # Block 1
-        x = self.inception_v3_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
-                                    l1_val = l1_val, l2_val = l2_val )
+        x = self.inception_v3_stem( x = input_layer, bn_scaling = bn_scaling,
+                                    dropchance = 0, l1_val = l1_val, 
+                                    l2_val = l2_val )
         
         # Block 2 - According to Keras, InceptionResNet_v2 starts with a Inception Block A from Inception V3
-        x = InceptionResNet.inception_v3_block_a(x, bn_scaling = bn_scaling, block = 2, dropchance = base_dropout, 
-                                                 l1_val = l1_val, l2_val = l2_val)
+        x = InceptionResNet.inception_v3_block_a( x, bn_scaling = bn_scaling,
+                                        block = 2, dropchance = base_dropout,
+                                        l1_val = l1_val, l2_val = l2_val )
             
         # Stage indicates what kind of inception block is used
         for stage, block_type in enumerate(["a", "b", "c"]):

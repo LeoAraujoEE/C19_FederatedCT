@@ -25,10 +25,10 @@ class Inception:
         
         # Block 1
         if v3:
-            x = Inception.inception_v3_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
+            x = Inception.inception_v3_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = 0, 
                                              l1_val = l1_val, l2_val = l2_val )
         else:
-            x = Inception.inception_v4_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = base_dropout, 
+            x = Inception.inception_v4_stem( x = input_layer, bn_scaling = bn_scaling, dropchance = 0, 
                                              l1_val = l1_val, l2_val = l2_val )
             
         
