@@ -100,44 +100,6 @@ class ModelEntity():
             v = np.round(v, 6) if round and isinstance(v, float) else v
             print(f"\t{k.ljust(max_key_length)}: {v}")
         return
-
-    @staticmethod
-    def get_flag_from_type(key, value):
-        if type(value) is str:
-            return "-s"
-        if type(value) is int:
-            return "-i"
-        if type(value) is float:
-            return "-f"
-        if type(value) is bool:
-            return "-b"
-        if value is None:
-            return "-n"
-        raise ValueError(f"Unknown type for '{key}' == '{value}' argument of type '{type(value)}'...")
-
-    @staticmethod
-    def decode_val_from_flag(key, value, flag):
-        assert flag in ["-s", "-i", "-f", "-b", "-n"], f"Invalid Flag '{flag}'..."
-        if flag == "-s":
-            return value
-        if flag == "-i":
-            return int(value)
-        if flag == "-f":
-            return float(value)
-        if flag == "-b":
-            return (value == "True")
-        if flag == "-n":
-            return None
-        raise ValueError(f"Unknown type of flag '{flag}' for '{key}' == '{value}' argument...")
-    
-    @staticmethod
-    def decode_args(args_list):
-        args_dict = {}
-        args = args_list[1:]
-        for i in range(0, len(args), 3):
-            flag, key, value = args[i], args[i+1], args[i+2]
-            args_dict[key] = ModelEntity.decode_val_from_flag(key, value, flag)
-        return args_dict
     
     @staticmethod
     def ellapsed_time_as_str( seconds ):
@@ -794,7 +756,6 @@ class ModelTrainer(ModelEntity):
         y_pred  = (scores > 0.5).astype(np.float32)
 
         # Computes all metrics using scikit-learn
-        print(f"len(y_true): {len(y_true)}, len(y_pred): {len(y_pred)}")
         mean_acc   = accuracy_score( y_true, y_pred )
         mean_f1    = f1_score( y_true, y_pred )
         mean_auroc = roc_auc_score( y_true, scores )
