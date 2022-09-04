@@ -23,6 +23,7 @@ from sklearn.metrics import confusion_matrix
 from tensorflow_addons.metrics import F1Score
 
 # Custom models and DataGenerator
+from utils.custom_plots import CustomPlots
 from utils.custom_models import ModelBuilder
 from utils.custom_generator import CustomDataGenerator
 
@@ -38,15 +39,6 @@ class ModelEntity():
             v = np.round(v, 6) if round and isinstance(v, float) else v
             print(f"\t{k.ljust(max_key_length)}: {v}")
         return
-    
-    @staticmethod
-    def ellapsed_time_as_str( seconds ):
-        int_secs  = int(seconds)
-        str_hours = str(int_secs // 3600).zfill(2)
-        str_mins  = str((int_secs % 3600) // 60).zfill(2)
-        str_secs  = str(int_secs % 60).zfill(2)
-        time_str  = f"{str_hours}:{str_mins}:{str_secs}"
-        return time_str
 
     @staticmethod
     def dict_hash( src_dict ) :
@@ -384,31 +376,109 @@ class ModelManager(ModelEntity):
 
         return hyperparameters, augmentation_params
 
-class ModelTrainer(ModelEntity):
-    def __init__(self, dataset, dataset_list = None, dst_dir = "."):
+class ModelHandler(ModelEntity):
+    def __init__(self, dst_dir, mkdir = False):
+
+        # Relative path to where the models will be stored
+        self.model_dir = dst_dir
+        print(f"\nSetting model directory to '{self.model_dir}'...")
+        
+        # Creates model_dir if needed
+        if mkdir and (not os.path.exists(self.model_dir)):
+            os.makedirs(self.model_dir)
+            
+        # Path to CSV file with testing results
+        self.csv_path = os.path.join( self.model_dir, "training_results.csv" )
+            
+        # Initializes other class variables
+        self.model = None
+            
+        return
+    
+    def check_step( self, model_id, ignore = False ):
+        # If the ignore flag is raised, the verification is ignored
+        # and a model with already used hyperparameters can be trained
+        if ignore:
+            return True
+
+        # Returns True if the csv file does not exist yet
+        if not os.path.exists( self.csv_path ):
+            return True
+
+        # The csv fileis read and filtered for models with the same hash
+        result_df = pd.read_csv(self.csv_path, sep = ";")
+
+        # If there are any rows with the same hash, the step is skipped
+        if len( result_df[result_df["model_hash"] == model_id] ) > 0:
+            print("\tStep already executed: Skipping...")
+            return False
+        
+        # Otherwise returns True to execute the current step
+        return True
+
+    def get_model_path( self, model_fname, model_id ):
+
+        # Creates the full model path
+        model_path = os.path.join( self.model_dir, model_fname, 
+                                   f"{model_fname}.h5" )
+        
+        # Checks if a model with the same name already exists
+        # possible if a combination of hyperparameters is being retrained
+        if os.path.exists(os.path.dirname(model_path)):
+            
+            idx = 0
+            if os.path.exists(self.csv_path):
+                # Reads CSV file to count models w/ same hash
+                result_df = pd.read_csv(self.csv_path, sep = ";")
+
+                # Counts the amount of models with the same hash
+                idx = len(result_df[result_df["model_hash"] == model_id])
+            
+            # Keeps the same path / fname if there're no entries
+            if idx > 0:
+                # Otherwise, updates model_fname and model_path 
+                # to avoid overwritting the existant model
+                model_fname = f"{model_fname}_{idx+1}"
+                model_path = os.path.join(self.model_dir, model_fname,
+                                          f"{model_fname}.h5")
+
+        return model_path, model_fname
+
+    def load_model( self, model_path ):
+        config_path = model_path.replace(".h5", ".json")
+        # Opening JSON file
+        with open( config_path ) as json_file:
+            json_config = json.load(json_file)
+
+        # Loads model from JSON configs and H5 or Tf weights
+        self.model = tf.keras.models.model_from_json(json_config)
+        self.model.load_weights( model_path )
+        return
+
+    def prepare_model( self, hyperparameters ):
+        assert not self.model is None, "There's no model to prepare..."
+
+        # Compiles the model
+        f1_metric = F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
+        if hyperparameters["optimizer"].lower() == "adam":
+            print("\nCompiling model with 'Adam' optimizer...")
+            self.model.compile(optimizer = tf.keras.optimizers.Adam(learning_rate = hyperparameters["start_lr"]), 
+                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
+        else:
+            print("\nCompiling model with 'RMSprop' optimizer...")
+            self.model.compile(optimizer = tf.keras.optimizers.RMSprop(learning_rate = hyperparameters["start_lr"]), 
+                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
+        return
+
+class ModelTrainer(ModelHandler):
+    def __init__(self, dst_dir, dataset):
+        # Inherits ModelHandler's init method
+        ModelHandler.__init__(self, dst_dir, mkdir = True)
 
         # Sets the dataset used for training
         self.dataset = dataset
         print(f"\nTraining models using '{self.dataset.name}' dataset...")
-
-        # Sets the datasets used for cross-validation if available
-        self.dataset_list = dataset_list
-        if not self.dataset_list is None:
-            # Prints the names of the datasets in dataset_list
-            print("\nUsing the following datasets for cross-validation:")
-            for idx, cval_dataset in enumerate(self.dataset_list):
-                print( "\t", str(idx+1).zfill(2), cval_dataset.name )
-        
-        else:
-            print("\nNo dataset found for cross-validation:")
-
-        # Relative path to where the models will be stored
-        self.model_dir = os.path.join(dst_dir, self.dataset.name)
-        print(f"\nSaving model to '{self.model_dir}'...")
-        
-        # Creates model_dir if needed
-        if not os.path.exists(self.model_dir):
-            os.makedirs(self.model_dir)
+        self.dataset.load_dataframes()
 
         return
 
@@ -440,77 +510,13 @@ class ModelTrainer(ModelEntity):
             shutil.rmtree(path2subdir, ignore_errors=False)
         return
 
-    def get_model_path( self, model_fname, model_id ):
-
-        # Creates the full model path
-        model_path = os.path.join( self.model_dir, model_fname, 
-                                   f"{model_fname}.h5" )
-        
-        # Checks if a model with the same name already exists
-        # possible if a combination of hyperparameters is being retrained
-        if os.path.exists(os.path.dirname(model_path)):
-            # Path to results CSV file
-            csv_path = os.path.join( self.model_dir, "training_results.csv" )
-            
-            idx = 0
-            if os.path.exists(csv_path):
-                # Reads CSV file to count models w/ same hash
-                result_df = pd.read_csv(csv_path, sep = ";")
-
-                # Counts the amount of models with the same hash
-                idx = len(result_df[result_df["model_hash"] == model_id])
-            
-            # Keeps the same path / fname if there're no entries
-            if idx > 0:
-                # Otherwise, updates model_fname and model_path 
-                # to avoid overwritting the existant model
-                model_fname = f"{model_fname}_{idx+1}"
-                model_path = os.path.join(self.model_dir, model_fname,
-                                          f"{model_fname}.h5")
-
-        return model_path, model_fname
-
-    def load_model( self, model_path ):
-        config_path = model_path.replace(".h5", ".json")
-        # Opening JSON file
-        with open( config_path ) as json_file:
-            json_config = json.load(json_file)
-
-        # Loads model from JSON configs and H5 or Tf weights
-        self.model = tf.keras.models.model_from_json(json_config)
-        self.model.load_weights( model_path )
-        return
-
-    def prepare_model( self, hyperparameters, mock_test = False ):
-
-        # Compiles the model
-        f1_metric = F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
-        if hyperparameters["optimizer"].lower() == "adam":
-            print("\nCompiling model with 'Adam' optimizer...")
-            self.model.compile(optimizer = tf.keras.optimizers.Adam(learning_rate = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
-        else:
-            print("\nCompiling model with 'RMSprop' optimizer...")
-            self.model.compile(optimizer = tf.keras.optimizers.RMSprop(learning_rate = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
-        
-        if mock_test:
-            # Extracts the expected input shape from the model's configs
-            nn_config = self.model.get_config()
-            _, h, w, c = nn_config["layers"][0]["config"]["batch_input_shape"]
-
-            # Creates a random input to mock an inference
-            mock_data = np.array( np.random.random_sample( (hyperparameters["batchsize"], h, w, c) ), dtype = np.float32 )
-            _ = self.model.predict( (mock_data / np.max(mock_data)).astype(np.float32) )
-
-        return
-
     def train_model( self, hyperparameters, aug_params, model_path, 
                      initial_epoch = 0, epochs_per_step = None, 
                      max_steps = None, load_from = None ):
         
         # Announces the dataset used for training
-        print(f"\nTraining model '{os.path.basename( model_path )}' on '{self.dataset.name}' dataset...")
+        model_fname = os.path.basename( model_path )
+        print(f"\nTraining model '{model_fname}' on '{self.dataset.name}' dataset...")
 
         if load_from is None:
             # Creates the Model
@@ -525,14 +531,6 @@ class ModelTrainer(ModelEntity):
         
         # Compiles the model
         self.prepare_model( hyperparameters )
-
-        # Loads datasets - Reloads training dataset to keep the same order of examples in each train
-        print("\nLoading Datasets...")
-        self.dataset.load_dataframes( reload = True )
-        if not self.dataset_list is None:
-            for dset in self.dataset_list:
-                dset.load_dataframes( reload = False )
-
 
         # Callbacks --------------------------------------------------------------------------------------------------
         # List of used callbacks
@@ -633,36 +631,100 @@ class ModelTrainer(ModelEntity):
 
         # Extracts the dict with the training and validation values for loss and IoU during training
         history_dict = history.history
+  
+        # Object responsible for plotting
+        print(f"\nTrained model '{model_fname}'. Plotting train results...")
+        plotter = CustomPlots(model_path)
+        plotter.plot_train_results( history_dict, self.dataset.name )
 
         return history_dict
+    
+    def history_to_csv(self, history_dict, model_path):
 
-    def get_base_results_dict( self ):
+        # Converts that history_dict to a DataFrame
+        model_df = pd.DataFrame.from_dict( history_dict )
         
-        # Generates keys and instantiates their value as None
-        # The goal is to establish the order of the keys in results
-        results = {}
-        for metric in ["acc", "f1", "auc"]:
-            # Generates 1 entry for each metric for each partition
-            for partition in ["train", "val", "test"]:
-                key = f"{partition}_{metric}"
-                results[key] = None
+        # Gets model's name from its path
+        mdl_name = os.path.basename(model_path).split(".")[0]
 
-            # If there are datasets for cross-validation
-            if not self.dataset_list is None:
+        # Path to CSV file
+        history_csv_path = os.path.join(self.model_dir, mdl_name, 
+                                        "history_dict.csv")
 
-                # Adds an entry for the average value across datasets
-                key = f"crossval_{metric}"
-                results[key] = None
+        # Creates model_dir if it doesnt already exist
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
+        
+        # If the CSV file already exists
+        if os.path.exists(history_csv_path):
+            # Loads the old file
+            old_df = pd.read_csv( history_csv_path, sep = ";" )
 
-                # Also generates 1 entry for each metric for each dataset
-                for dset in self.dataset_list:
-                    dset_name = dset.name.lower().replace(" ", "")
-                    key = f"{dset_name}_{metric}"
-                    results[key] = None
+            # Appends the new dataframe as extra rows
+            model_df = pd.concat( [old_df, model_df], ignore_index = True )
+        
+        # Saves the dataframe as CSV
+        model_df.to_csv( history_csv_path, index = False, sep = ";" )
+        
+        return
+    
+    def hyperparam_to_json( self, model_path, hyperparameters, 
+                            aug_params ):
 
-        return results
+        # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
+        dict_of_dicts = { "hyperparameters"    : hyperparameters, 
+                          "augmentation_params": aug_params,
+                        }
+        
+        model_dir   = os.path.dirname( model_path )
+        model_fname = os.path.basename( model_path ).split(".")[0]
+        json_path   = os.path.join( self.model_dir, model_fname, "params_"+model_fname+".json" )
 
+        # Creates model_dir if it doesnt already exist
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+
+        # Saves the JSON file
+        with open(json_path, "w") as json_file:
+            json.dump( dict_of_dicts, json_file, indent=4 )
+
+        return
+    
+    @staticmethod
+    def ellapsed_time_as_str( seconds ):
+        int_secs  = int(seconds)
+        str_hours = str(int_secs // 3600).zfill(2)
+        str_mins  = str((int_secs % 3600) // 60).zfill(2)
+        str_secs  = str(int_secs % 60).zfill(2)
+        time_str  = f"{str_hours}:{str_mins}:{str_secs}"
+        return time_str
+
+class ModelTester(ModelHandler):
+    def __init__(self, dst_dir, dataset = None, dataset_list = None):
+        # Inherits ModelHandler's init method
+        ModelHandler.__init__(self, dst_dir, mkdir = False)
+
+        # Sets the dataset used for training if available
+        self.dataset = dataset
+        if not self.dataset is None:
+            print(f"\nTesting w/ training dataset: '{self.dataset.name}'...")
+            self.dataset.load_dataframes()
+
+        # Sets the datasets used for cross-validation if available
+        self.dataset_list = dataset_list
+        if not self.dataset_list is None:
+            # Prints the names of the datasets in dataset_list
+            print("\nUsing the following datasets for cross-validation:")
+            for i in range(len(self.dataset_list)):
+                print(f"\t{str(i+1).zfill(2)} - {self.dataset_list[i].name}")
+                self.dataset_list[i].load_dataframes()
+        
+        # Creates model_dir if needed
+        assert os.path.exists(self.model_dir), f"Can't find {self.model_dir}"
+        return
+    
     def evaluate_model( self, dataset, hyperparameters, partition ):
+        assert not self.model is None, "Can't find a model to evaluate..."
 
         # Gets the number of samples and the number of batches using the current batchsize
         num_samples = dataset.get_num_samples( partition )
@@ -691,9 +753,12 @@ class ModelTrainer(ModelEntity):
 
     def test_model( self, model_path, hyperparameters, eval_part = "test" ):
 
+        # Object responsible for plotting ROC curves and Confusion Matrixes
+        plotter = CustomPlots(model_path)
+
         print(f"\nLoading model from '{model_path}'...")
         self.load_model( model_path )
-        self.prepare_model( hyperparameters, mock_test = True )
+        self.prepare_model( hyperparameters )
         print("\n\tModel loaded...")
         
         # Announces the dataset used for training
@@ -718,17 +783,21 @@ class ModelTrainer(ModelEntity):
 
             # Plots confusion matrix
             class_labels = self.dataset.classes
-            self.plotter.plot_confusion_matrix( conf_matrix, dataset_name, partition, class_labels )
+            plotter.plot_confusion_matrix(conf_matrix, dataset_name, 
+                                          partition, class_labels)
 
-            # Plots ROC curves TODO: fix this
-            self.plotter.plot_roc_curve( y_true, y_preds, dataset_name, partition )
+            # Plots ROC curves
+            plotter.plot_roc_curve(y_true, y_preds, dataset_name, partition)
 
         # If there are datasets for cross-validation
+        cval_dataset_names = []
         if not self.dataset_list is None:
             cval_acc_list, cval_f1_list, cval_auroc_list = [], [], []
 
             for dset in self.dataset_list:
                 dset_name = dset.name
+                cval_dataset_names.append(dset_name)
+                
                 # Announces the dataset used for testing
                 print(f"\nCross-Validating model '{os.path.basename(model_path)}' on '{dset_name}' dataset...")
 
@@ -752,49 +821,46 @@ class ModelTrainer(ModelEntity):
 
                 # Plots confusion matrix
                 class_labels = dset.classes
-                self.plotter.plot_confusion_matrix(conf_matrix, dset_name, 
-                                                   eval_part, class_labels)
+                plotter.plot_confusion_matrix(conf_matrix, dset_name, 
+                                              eval_part, class_labels)
 
                 # Plots ROC curves
-                self.plotter.plot_roc_curve( y_true, y_preds, dset_name, 
-                                             eval_part )
+                plotter.plot_roc_curve(y_true, y_preds, dset_name, eval_part)
                 
             results["crossval_acc"] = f"{np.mean(cval_acc_list):.4f}"
             results["crossval_f1"] = f"{np.mean(cval_f1_list):.4f}"
             results["crossval_auc"] = f"{np.mean(cval_auroc_list):.4f}"
 
+        print("\nPlotting test results...")
+        plotter.plot_test_results(results, dataset_name, cval_dataset_names)
+
         return results
     
-    def history_to_csv(self, history_dict, model_path):
+    def get_base_results_dict( self ):
+        # Generates keys and instantiates their value as None
+        results = {}
+        for metric in ["acc", "f1", "auc"]:
+            # Generates 1 entry for each metric for each partition
+            for partition in ["train", "val", "test"]:
+                key = f"{partition}_{metric}"
+                results[key] = None
 
-        # Converts that history_dict to a DataFrame
-        model_df = pd.DataFrame.from_dict( history_dict )
-        
-        # Gets model's name from its path
-        mdl_name = os.path.basename(model_path).split(".")[0]
+            # If there are datasets for cross-validation
+            if not self.dataset_list is None:
+                # Adds an entry for the average value across datasets
+                key = f"crossval_{metric}"
+                results[key] = None
 
-        # Path to CSV file
-        csv_path = os.path.join(self.model_dir, mdl_name, "history_dict.csv")
+                # Also generates 1 entry for each metric for each dataset
+                for dset in self.dataset_list:
+                    dset_name = dset.name.lower().replace(" ", "")
+                    key = f"{dset_name}_{metric}"
+                    results[key] = None
 
-        # Creates model_dir if it doesnt already exist
-        if not os.path.exists(self.model_dir):
-            os.makedirs(self.model_dir)
-        
-        # If the CSV file already exists
-        if os.path.exists(csv_path):
-            # Loads the old file
-            old_df = pd.read_csv( csv_path, sep = ";" )
-
-            # Appends the new dataframe as extra rows
-            model_df = pd.concat( [old_df, model_df], ignore_index = True )
-        
-        # Saves the dataframe as CSV
-        model_df.to_csv( csv_path, index = False, sep = ";" )
-        
-        return
+        return results
 
     def append_to_csv( self, model_path, model_id, hyperparameters, aug_params, results ):
-
+        
         # Combines all available information about the model in a single dict
         combined_dict = { "model_path": model_path, "model_hash": model_id }
         combined_dict.update( results )
@@ -808,72 +874,19 @@ class ModelTrainer(ModelEntity):
         # Converts that dictionary to a DataFrame
         model_df = pd.DataFrame.from_dict( wrapped_dict )
 
-        # Path to CSV file
-        csv_path = os.path.join( self.model_dir, "training_results.csv" )
-
         # Creates model_dir if it doesnt already exist
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
 
         # If the CSV file already exists
-        if os.path.exists(csv_path):
+        if os.path.exists(self.csv_path):
             # Loads the old file
-            old_df = pd.read_csv( csv_path, sep = ";" )
+            old_df = pd.read_csv( self.csv_path, sep = ";" )
 
             # Appends the new dataframe as an extra row
             model_df = pd.concat( [old_df, model_df], ignore_index = True )
         
         # Saves the dataframe as CSV
-        model_df.to_csv( csv_path, index = False, sep = ";" )
-
+        model_df.to_csv( self.csv_path, index = False, sep = ";" )
         return
     
-    def hyperparam_to_json( self, model_path, hyperparameters, 
-                            aug_params ):
-
-        # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
-        dict_of_dicts = { "hyperparameters"    : hyperparameters, 
-                          "augmentation_params": aug_params,
-                        }
-        
-        model_dir   = os.path.dirname( model_path )
-        model_fname = os.path.basename( model_path ).split(".")[0]
-        json_path   = os.path.join( self.model_dir, model_fname, "params_"+model_fname+".json" )
-
-        # Creates model_dir if it doesnt already exist
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-
-        # Saves the JSON file
-        with open(json_path, "w") as json_file:
-            json.dump( dict_of_dicts, json_file, indent=4 )
-
-        return
-    
-    def check_step( self, model_id, ignore = False ):
-        # If the ignore flag is raised, the verification is ignored
-        # and a model with already used hyperparameters can be trained
-        if ignore:
-            return True
-
-        # Path to CSV file
-        csv_path = os.path.join( self.model_dir, "training_results.csv" )
-
-        # Returns True if the csv file does not exist yet
-        if not os.path.exists( csv_path ):
-            return True
-
-        # The csv fileis read and filtered for models with the same hash
-        result_df = pd.read_csv(csv_path, sep = ";")
-
-        # If there are any rows with the same hash, the step is skipped
-        if len( result_df[result_df["model_hash"] == model_id] ) > 0:
-            print("\tStep already executed: Skipping...")
-            return False
-        
-        # Otherwise returns True to execute the current step
-        return True
-
-class ModelTester(ModelEntity):
-    def __init__(self):
-        return

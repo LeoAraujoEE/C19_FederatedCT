@@ -72,7 +72,7 @@ dataset_list = [ "COVIDxCT",        # Whole COVIDxCT-3A dataset
 #   trainManager.doGridSearch( shuffle = False )
   
 trainManager = ModelManager( path_dict = PATH_DICT, 
-                            dataset_name = "COVID-CTSet", 
+                            dataset_name = "COVID-CT-MD", 
                             hyperparam_values = hyperparameter_dict, 
                             aug_params = augmentation_dict, 
                             keep_pneumonia = False )

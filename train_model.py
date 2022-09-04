@@ -21,7 +21,6 @@ for device in tf.config.list_physical_devices("GPU"):
 
 # Imports from other scripts
 from utils.dataset import Dataset
-from utils.custom_plots import CustomPlots
 from utils.custom_model_trainer import ModelTrainer
 
 # Decodes all the input args and creates a dict
@@ -39,7 +38,7 @@ os.environ["PYTHONHASHSEED"] = str(0)
 dataTrain = Dataset( arg_dict["data_path"], name = arg_dict["dataset"], 
                      keep_pneumonia = arg_dict["keep_pneumonia"] )
 
-trainer = ModelTrainer( dataTrain, dst_dir = arg_dict["output_dir"] )
+trainer = ModelTrainer(dst_dir = arg_dict["output_dir"], dataset = dataTrain)
 
 # Extract model's hash and model's filename from args_dict
 model_id = arg_dict["model_hash"]
@@ -57,9 +56,6 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
   # Generates model path
   model_path, model_fname = trainer.get_model_path( model_fname, model_id )
 
-  # Object responsible for plotting
-  trainer.plotter = CustomPlots(model_path)
-
   # Prints current hyperparameters
   trainer.print_dict( hyperparameters, round = True )
   
@@ -70,12 +66,8 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
                                        max_steps = arg_dict["max_train_steps"],
                                        load_from = arg_dict["load_from"] )
 
-  # Saves history_dict to CSV
+  # Saves history_dict as CSV
   trainer.history_to_csv(history_dict, model_path)
-
-  # Announces the end of the training process
-  print(f"\nTrained model '{model_fname}'. Plotting train results...")
-  trainer.plotter.plot_train_results( history_dict, trainer.dataset.name )
 
   #
   print("\nSaving training hyperparameters as JSON...")
