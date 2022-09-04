@@ -6,9 +6,9 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
             }
 
 train_dataset = "COVID-CT-MD"
-model_fname = "efficientnetv2_b0_d9ee118fbab542200f090c0da1429430"
+model_fname = "efficientnetv2_b0_94de7f456996e39af676173246d61888"
 
-json_path = os.path.join( ".", "output", "deterministic", "models", 
+json_path = os.path.join( ".", "output", "deterministic", "models", "COVID-CT-MD_dropped", 
                           model_fname, f"params_{model_fname}.json" )
 
   

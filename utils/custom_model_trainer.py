@@ -23,6 +23,7 @@ from sklearn.metrics import confusion_matrix
 from tensorflow_addons.metrics import F1Score
 
 # Custom models and DataGenerator
+from utils.dataset import Dataset
 from utils.custom_plots import CustomPlots
 from utils.custom_models import ModelBuilder
 from utils.custom_generator import CustomDataGenerator
@@ -40,32 +41,23 @@ class ModelEntity():
             print(f"\t{k.ljust(max_key_length)}: {v}")
         return
 
-    @staticmethod
-    def dict_hash( src_dict ) :
-        """ MD5 hash of a dictionary.
-        Based on: https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html
-        """
-        dhash = hashlib.md5()
-        encoded = json.dumps(src_dict, sort_keys=True).encode()
-        dhash.update(encoded)
-        return dhash.hexdigest()
-
 class ModelManager(ModelEntity):
     def __init__(self, path_dict, dataset_name, hyperparam_values = None, 
                  aug_params = None, fl_params = None, keep_pneumonia = False):
         
-        # Train dataset for regular training
-        # Validation dataset for Federated Learning simulations
-        self.dataset_name = dataset_name
+        # Wether to keep pneumonia sample or remove them
+        self.keep_pneumonia = keep_pneumonia
         
         # Directory for all available datasets
         self.data_path = path_dict["datasets"]
         
-        # Directory for the output trained models
-        self.dst_dir = path_dict["outputs"]
+        # Train dataset for regular training
+        # Validation dataset for Federated Learning simulations
+        self.dataset = Dataset( self.data_path, name = dataset_name, 
+                                keep_pneumonia = self.keep_pneumonia )
         
-        # Wether to keep pneumonia sample or remove them
-        self.keep_pneumonia = keep_pneumonia
+        # Directory for the output trained models
+        self.dst_dir = os.path.join(path_dict["outputs"], self.dataset.name)
         
         # Checks wether to simulate Federated Learning or not
         self.federated = isinstance(fl_params, dict)
@@ -219,54 +211,9 @@ class ModelManager(ModelEntity):
                               ignore_check = True )
 
         return
-    
-    def doJsonSearch(self, reference_dataset, reference_metrics, seed = None):
-        """ Uses results from experiments in different datasets to search for optimal hyperparameters.
-        The results CSV from 'reference_dataset' is loaded and sorted by 'reference_metrics'. Then, their
-        hyperparameters are loaded from the respective JSON and used to train similar models on another dataset.
-            Can also be used to retrain models from the same dataset, but with a different seed.
-
-        Args:
-            reference_dataset (str): name of the dataset whose results will be used as base.
-            reference_metrics (str): name of the metrics used to sort the results.
-            seed (int): seed to be used during the training process
-        """
-
-        csv_path = os.path.join( self.dst_dir, reference_dataset, "training_results.csv" )
-
-        # Returns if CSV file doesn't exist
-        if not os.path.exists(csv_path):
-            print(f"\nCouldn't find a CSV file for '{reference_dataset}' at '{csv_path}'...")
-            return
-        
-        # Type of sorting used. Sorts in ascending order for loss and descending for others.
-        if isinstance(reference_metrics, list):
-            sorting  = ["loss" in metric.lower() for metric in reference_metrics]
-        else:
-            sorting  = ("loss" in reference_metrics.lower())
-        
-        # Loads the old file
-        df = pd.read_csv( csv_path, sep = ";" )
-        df.sort_values(by = reference_metrics, ascending = sorting, inplace = True)
-        
-        # Iterates through the models
-        for idx, path in enumerate(df["model_path"].to_list()):
             
-            # Gets the path to the corresponding json file with hyperparameters
-            dirname, basename = os.path.split(path)
-            json_fname = f"params_{basename.replace('.h5', '.json')}"
-            json_path  = os.path.join(dirname, json_fname)
-
-            # Announces the start of the training process
-            print(f"\n\n#{str(idx+1).zfill(3)}/{str(len(df)).zfill(3)} Iteration of JSON Search:")
-            
-            # Trains model based on parameters from JSON
-            self.doTrainFromJSON( json_path, copy_augmentation = True, seed = seed )
-            
-        return
-        
     def run_process(self, script, hyperparams, ignore_check):
-        assert os.path.exists(f"{script}.py"), "Couldn't find '{script}' script..."
+        assert os.path.exists(f"{script}.py"), f"Couldn't find '{script}' script..."
         
         # Creates test command
         command = self.create_command( hyperparams, ignore_check, 
@@ -281,21 +228,21 @@ class ModelManager(ModelEntity):
         fname, model_id = self.get_model_name(hyperparams, self.aug_params)
         
         # Base args dict
-        args = { "dataset"          :   self.dataset_name, 
-                 "output_dir"       :        self.dst_dir, 
-                 "data_path"        :      self.data_path,
-                 "keep_pneumonia"   : self.keep_pneumonia,
-                 "ignore_check"     :        ignore_check,
-                 "model_hash"       :            model_id, 
-                 "model_filename"   :               fname,
-                 "load_from"        :                None,
-                 "max_train_steps"  :                None,
-                 "epochs_per_step"  :                None,
-                 "current_epoch_num":                   0,
-                 "eval_partition"   :              "test",
-                 "hyperparameters"  :         hyperparams,
-                 "data_augmentation":     self.aug_params,
-                 "seed"             : hyperparams["seed"],
+        args = { "dataset"          : self.dataset.orig_name, 
+                 "output_dir"       :           self.dst_dir, 
+                 "data_path"        :         self.data_path,
+                 "keep_pneumonia"   :    self.keep_pneumonia,
+                 "ignore_check"     :           ignore_check,
+                 "model_hash"       :               model_id, 
+                 "model_filename"   :                  fname,
+                 "load_from"        :                   None,
+                 "max_train_steps"  :                   None,
+                 "epochs_per_step"  :                   None,
+                 "current_epoch_num":                      0,
+                 "eval_partition"   :                 "test",
+                 "hyperparameters"  :            hyperparams,
+                 "data_augmentation":        self.aug_params,
+                 "seed"             :    hyperparams["seed"],
                }
         
         # Serializes args dict as JSON formatted string
@@ -375,6 +322,16 @@ class ModelManager(ModelEntity):
         augmentation_params = data["augmentation_params"]
 
         return hyperparameters, augmentation_params
+
+    @staticmethod
+    def dict_hash( src_dict ) :
+        """ MD5 hash of a dictionary.
+        Based on: https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html
+        """
+        dhash = hashlib.md5()
+        encoded = json.dumps(src_dict, sort_keys=True).encode()
+        dhash.update(encoded)
+        return dhash.hexdigest()
 
 class ModelHandler(ModelEntity):
     def __init__(self, dst_dir, mkdir = False):
@@ -707,16 +664,15 @@ class ModelTester(ModelHandler):
         # Sets the dataset used for training if available
         self.dataset = dataset
         if not self.dataset is None:
-            print(f"\nTesting w/ training dataset: '{self.dataset.name}'...")
+            print(f"\nLoading training dataset: '{self.dataset.name}'...")
             self.dataset.load_dataframes()
 
         # Sets the datasets used for cross-validation if available
         self.dataset_list = dataset_list
         if not self.dataset_list is None:
             # Prints the names of the datasets in dataset_list
-            print("\nUsing the following datasets for cross-validation:")
+            print("\nLoading datasets for cross-validation:")
             for i in range(len(self.dataset_list)):
-                print(f"\t{str(i+1).zfill(2)} - {self.dataset_list[i].name}")
                 self.dataset_list[i].load_dataframes()
         
         # Creates model_dir if needed

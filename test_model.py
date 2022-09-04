@@ -46,10 +46,10 @@ if tester.check_step( model_id, ignore = arg_dict["ignore_check"] ):
   cval_dataset_names = [ dset.name for dset in tester.dataset_list ]
 
   # Prints current hyperparameters
+  print(f"\nTesting model '{os.path.basename(model_path)}':")
   tester.print_dict( hyperparameters, round = True )
 
-  # Announces the start of the testing process
-  print(f"\nTesting model '{os.path.basename(model_path)}'...")
+  # Starts the testing process
   results_dict = tester.test_model(model_path, hyperparameters,
                          eval_part = arg_dict["eval_partition"])
 

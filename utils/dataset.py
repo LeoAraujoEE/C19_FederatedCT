@@ -41,6 +41,9 @@ class Dataset():
         # A different sufix is applied for each case
         sufix = self.set_class_remap(keep_pneumonia)
         
+        # Registers the original dataset name
+        self.orig_name = self.metadata["name"]
+        
         # Only datasets with pneumonia samples have the sufix added
         self.name = self.metadata["name"]
         if pneumonia_samples > 0:
