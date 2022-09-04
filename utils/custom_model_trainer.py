@@ -29,68 +29,6 @@ from utils.custom_generator import CustomDataGenerator
 class ModelEntity():
     def __init__(self):
         return
-    
-    @staticmethod
-    def update_dict_values(src_dict, dst_dict):
-        available_keys = [k for k in src_dict.keys()]
-        for key in dst_dict.keys():
-            if key in available_keys:
-                dst_dict[key] = src_dict[key]
-        return dst_dict
-    
-    @staticmethod
-    def get_default_fl_params():
-        # List of default values for federated learning
-        fedlearn_params = { "epochs_per_step":            3,  # N° epochs before aggregation
-                            "max_steps_frac" :         0.25,  # Regulates the max training steps in local trainings
-                            "client_frac"    :          1.0,  # Fraction of selected clientes for a step
-                            "aggregation"    :    "fed_avg",  # Method of aggregation used
-                          }
-        return fedlearn_params
-    
-    @staticmethod
-    def get_default_hyperparams():
-        # List of default values for each hyperparameter
-        hyperparams = { "num_epochs":                     1,  # Total N° of training epochs
-                        "batchsize":                     32,  # Minibatch size
-                        "early_stop":                    30,  # Early Stopping patience
-                        "input_height":                 224,  # Model's input height
-                        "input_width":                  224,  # Model's input width
-                        "input_channels":                 1,  # Model's input channels
-                        "start_lr":                    1e-1,  # Starting learning rate
-                        "lr_adjust_frac":               1.0,  # Fraction to adjust learning rate
-                        "lr_adjust_freq":               999,  # Frequency to adjust learning rate
-                        "optimizer":                 "adam",  # Chosen optimizer
-                        "monitor":                "val_acc",  # Monitored variable for callbacks
-                        "augmentation":               False,  # If data augmentation should be used
-                        "class_weights":              False,  # If class_weights should be used
-                        "apply_undersampling":        False,  # Wether to apply Random Undersampling
-                        "l1_reg":                      0.00,  # Amount of L1 regularization
-                        "l2_reg":                      0.00,  # Amount of L2 regularization
-                        "base_dropout":                0.00,  # SpatialDropout2d between blocks in convolutional base
-                        "top_dropout":                 0.00,  # Dropout between dense layers in model top
-                        "architecture":   "efficientnet_b0",  # Chosen architecture
-                        "seed":                           1,  # Seed for pseudorandom generators
-                        } 
-        return hyperparams
-    
-    @staticmethod
-    def get_default_augmentations():
-        # List of default values for data augmentation
-        daug_params = { "zoom_in":                     0.00,  # Max zoom in
-                        "zoom_out":                    0.00,  # Max zoom out
-                        "shear":                       00.0,  # Max random shear
-                        "rotation":                    00.0,  # Max random rotation
-                        "vertical_translation":        0.00,  # Max vertical translation
-                        "horizontal_translation":      0.00,  # Max horizontal translation
-                        "vertical_flip":              False,  # Allow vertical flips  
-                        "horizontal_flip":            False,  # Allow horizontal flips    
-                        "brightness":                  0.00,  # Brightness adjustment range
-                        "channel_shift":               00.0,  # Random adjustment to random channel
-                        "constant_val":                00.0,  # Constant value used to fill image
-                        "fill_mode":              "constant"  # Mode used to fill image
-                      }
-        return daug_params
 
     @staticmethod
     def print_dict(dict, round = False):
@@ -935,3 +873,7 @@ class ModelTrainer(ModelEntity):
         
         # Otherwise returns True to execute the current step
         return True
+
+class ModelTester(ModelEntity):
+    def __init__(self):
+        return
