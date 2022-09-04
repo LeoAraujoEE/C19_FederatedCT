@@ -205,7 +205,7 @@ class Dataset():
         
 
 
-def load_datasets( import_dir, train_dataset, keep_pneumonia ):
+def load_datasets( import_dir, train_dataset, eval_partition, keep_pneumonia ):
 
     # List of all available datasets
     available_datasets = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", 
@@ -229,6 +229,10 @@ def load_datasets( import_dir, train_dataset, keep_pneumonia ):
         # Builds object to handle the current dataset
         dataset_obj = Dataset( import_dir, name = dataset_name, 
                                keep_pneumonia = keep_pneumonia )
+        
+        #
+        if dataset_obj.get_num_samples(eval_partition) == 0:
+            continue
 
         if is_trainable:
             # Sets object as train dataset

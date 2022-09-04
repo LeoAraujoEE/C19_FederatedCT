@@ -23,6 +23,7 @@ os.environ["PYTHONHASHSEED"] = str(0)
 # Builds object to handle datasets for training and for external validation
 dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
                                          train_dataset = arg_dict["dataset"], 
+                                         eval_partition = arg_dict["eval_partition"], 
                                          keep_pneumonia = arg_dict["keep_pneumonia"] )
 
 tester = ModelTester( dst_dir = arg_dict["output_dir"], dataset = dataTrain, 

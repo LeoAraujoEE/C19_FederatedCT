@@ -89,7 +89,11 @@ class ModelManager(ModelEntity):
             # Prints the given data augmentation parameters
             print("\nUsing the current parameters for Data Augmentation:")
             self.print_dict(self.aug_params)
-
+        
+        # Sets the codes for each script as class variables
+        self.train_code = 0
+        self.test_code  = 1
+        self.fl_code    = 2
         return
     
     def check_trainability(self, list_values = True):
@@ -127,21 +131,19 @@ class ModelManager(ModelEntity):
             maximum_idx = str(n_permutations).zfill(3)
             print(f"\n\n{current_idx}/{maximum_idx} Iteration of GridSearch:")
             
-            # Runs "simulate_fl.py" if a Federated Learning simulation is 
-            # being performed
             if self.federated:
-                # Trains model
-                self.run_process( "simulate_fl", hyperparameters, 
+                # Trains model simulating Federated Learning
+                self.run_process( self.fl_code, hyperparameters, 
                                   ignore_check = False )
             
             else:
-                # Otherwise, runs "train_model.py" to train a model
-                self.run_process( "train_model", hyperparameters, 
-                                ignore_check = False )
+                # Trains model
+                self.run_process( self.train_code, hyperparameters, 
+                                  ignore_check = False )
                 
-                # Then "test_model.py" to evaluate the trained model
-                self.run_process( "test_model", hyperparameters, 
-                                ignore_check = False )
+                # Tests model
+                self.run_process( self.test_code, hyperparameters, 
+                                  ignore_check = False )
 
         return
 
@@ -160,22 +162,19 @@ class ModelManager(ModelEntity):
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
             
-            # Runs "simulate_fl.py" if a Federated Learning simulation is 
-            # being performed
             if self.federated:
-                # Trains model
-                self.run_process( "simulate_fl", hyperparameters, 
+                # Trains model simulating Federated Learning
+                self.run_process( self.fl_code, hyperparameters, 
                                   ignore_check = False )
-                continue
             
             else:
-                # Otherwise, runs "train_model.py" to train a model
-                self.run_process( "train_model", hyperparameters, 
-                                ignore_check = False )
+                # Trains model
+                self.run_process( self.train_code, hyperparameters, 
+                                  ignore_check = False )
                 
-                # Then "test_model.py" to evaluate the trained model
-                self.run_process( "test_model", hyperparameters, 
-                                ignore_check = False )
+                # Tests model
+                self.run_process( self.test_code, hyperparameters, 
+                                  ignore_check = False )
 
             # Increases the number of trained models
             idx_h += 1
@@ -194,60 +193,77 @@ class ModelManager(ModelEntity):
         if not seed is None:
             hyperparameters["seed"] = seed
             
-        # Runs "simulate_fl.py" if a Federated Learning simulation is 
-        # being performed
         if self.federated:
-            # Trains model
-            self.run_process( "simulate_fl", hyperparameters, 
+            # Trains model simulating Federated Learning
+            self.run_process( self.fl_code, hyperparameters, 
                               ignore_check = True )
         
         else:
-            # Otherwise, runs "train_model.py" to train a model
-            self.run_process( "train_model", hyperparameters, 
+            # Trains model
+            self.run_process( self.train_code, hyperparameters, 
                               ignore_check = True )
             
-            # Then "test_model.py" to evaluate the trained model
-            self.run_process( "test_model", hyperparameters, 
+            # Tests model
+            self.run_process( self.test_code, hyperparameters, 
                               ignore_check = True )
 
         return
             
-    def run_process(self, script, hyperparams, ignore_check):
-        assert os.path.exists(f"{script}.py"), f"Couldn't find '{script}' script..."
+    def run_process(self, script_code, hyperparams, ignore_check):
+        assert script_code in [0, 1, 2], f"Unknown script w/ code {script_code}..."
         
         # Creates test command
-        command = self.create_command( hyperparams, ignore_check, 
-                                       script )
+        command = self.create_command(hyperparams, ignore_check, script_code)
 
         # Runs script as subprocess
         subprocess.Popen.wait(subprocess.Popen( command ))
         return
 
-    def create_command(self, hyperparams, ignore_check, script):
+    def create_command(self, hyperparams, ignore_check, script_code):
         
-        fname, model_id = self.get_model_name(hyperparams, self.aug_params)
+        model_fname, model_id = self.get_model_name( hyperparams, 
+                                                     self.aug_params )
         
         # Base args dict
-        args = { "dataset"          : self.dataset.orig_name, 
-                 "output_dir"       :           self.dst_dir, 
+        args = { "output_dir"       :           self.dst_dir, 
                  "data_path"        :         self.data_path,
+                 "dataset"          : self.dataset.orig_name, 
                  "keep_pneumonia"   :    self.keep_pneumonia,
                  "ignore_check"     :           ignore_check,
                  "model_hash"       :               model_id, 
-                 "model_filename"   :                  fname,
-                 "load_from"        :                   None,
-                 "max_train_steps"  :                   None,
-                 "epochs_per_step"  :                   None,
-                 "current_epoch_num":                      0,
-                 "eval_partition"   :                 "test",
+                 "model_filename"   :            model_fname,
                  "hyperparameters"  :            hyperparams,
                  "data_augmentation":        self.aug_params,
                  "seed"             :    hyperparams["seed"],
                }
         
+        # Matches the recieved code with one of the flags
+        if script_code == self.train_code:
+            # Sets the command for training process
+            script = "run_model_training"
+            
+            # Updates args dict w/ training arguments
+            args["initial_weights"]   = None
+            args["max_train_steps"]   = None
+            args["epochs_per_step"]   = None
+            args["current_epoch_num"] =    0
+        
+        elif script_code == self.test_code:
+            # Sets the command for testing process
+            script = "run_model_testing"
+            
+            # Updates args dict w/ testing arguments
+            args["eval_partition"] = "test"
+        
+        elif script_code == self.fl_code:
+            # Sets the command for Federated Learning simulation
+            script = "run_fl_simulation"
+            
+        
         # Serializes args dict as JSON formatted string
         serialized_args = json.dumps(args)
         
+        # 
         command = ["python", "-m", script, serialized_args]
 
         return command
@@ -721,9 +737,6 @@ class ModelTester(ModelHandler):
         dataset_name = self.dataset.name
         print(f"\nValidating model '{os.path.basename(model_path)}' on '{dataset_name}' dataset...")
 
-        # Loads dataset's dataframes if needed
-        self.dataset.load_dataframes()
-
         # Creates a dictionary with ordered keys, but no values
         results = self.get_base_results_dict()
 
@@ -756,9 +769,6 @@ class ModelTester(ModelHandler):
                 
                 # Announces the dataset used for testing
                 print(f"\nCross-Validating model '{os.path.basename(model_path)}' on '{dset_name}' dataset...")
-
-                # Loads dataset's dataframes if needed
-                dset.load_dataframes()
 
                 # Evaluates dataset
                 acc, f1_score, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 

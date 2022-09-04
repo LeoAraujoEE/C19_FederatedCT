@@ -16,5 +16,4 @@ trainManager = ModelManager( path_dict = PATH_DICT,
                              dataset_name = train_dataset, 
                              keep_pneumonia = False )
 
-for i in range(2):
-    trainManager.doTrainFromJSON( json_path, copy_augmentation = True )
+trainManager.doTrainFromJSON( json_path, copy_augmentation = True )

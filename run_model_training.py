@@ -64,7 +64,7 @@ if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
                                        initial_epoch = arg_dict["current_epoch_num"], 
                                        epochs_per_step = arg_dict["epochs_per_step"], 
                                        max_steps = arg_dict["max_train_steps"],
-                                       load_from = arg_dict["load_from"] )
+                                       load_from = arg_dict["initial_weights"] )
 
   # Saves history_dict as CSV
   trainer.history_to_csv(history_dict, model_path)
