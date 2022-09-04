@@ -474,20 +474,6 @@ class ModelTrainer(ModelEntity):
 
         return
 
-    def get_dicts(self, args_dict):
-        # Generates hyperparameters through the default values,
-        # them updates the values with the ones available in args_dict
-        hyperparameters = self.get_default_hyperparams()
-        hyperparameters = self.update_dict_values(args_dict, hyperparameters)
-        
-        # Generates data_aug_params through the default values,
-        # them updates the values with the ones available in args_dict
-        data_aug_params = self.get_default_augmentations()
-        data_aug_params = self.update_dict_values(args_dict, data_aug_params)
-        
-        # Returns both dicts
-        return hyperparameters, data_aug_params
-
     def remove_unfinished(self):
 
         # Path to CSV file
