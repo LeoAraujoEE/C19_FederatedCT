@@ -17,48 +17,46 @@ from utils.custom_model_trainer import ModelTester
 # Decodes all the input args and creates a dict
 arg_dict = json.loads(sys.argv[1])
 
+# Extract info from from args_dict
+seed              = arg_dict.pop("seed")
+verbose           = arg_dict.pop("verbose")
+train_dataset     = arg_dict.pop("dataset")
+import_dir        = arg_dict.pop("data_path")
+dst_dir           = arg_dict.pop("output_dir")
+model_id          = arg_dict.pop("model_hash")
+model_fname       = arg_dict.pop("model_filename")
+ignore_check      = arg_dict.pop("ignore_check")
+keep_pneumonia    = arg_dict.pop("keep_pneumonia")
+hyperparameters   = arg_dict.pop("hyperparameters")
+data_aug_params   = arg_dict.pop("data_augmentation")
+eval_partition    = arg_dict.pop("eval_partition")
+
 # Setting seeds to enforce deterministic behaviour in hashing processes
 os.environ["PYTHONHASHSEED"] = str(0)
 
 # Builds object to handle datasets for training and for external validation
-dataTrain, dataVal_list = load_datasets( import_dir = arg_dict["data_path"], 
-                                         train_dataset = arg_dict["dataset"], 
-                                         eval_partition = arg_dict["eval_partition"], 
-                                         keep_pneumonia = arg_dict["keep_pneumonia"] )
+dataTrain, dataVal_list = load_datasets( import_dir, train_dataset, 
+                                         eval_partition, keep_pneumonia )
 
-tester = ModelTester( dst_dir = arg_dict["output_dir"], dataset = dataTrain, 
+tester = ModelTester( dst_dir, model_fname, model_id, dataset = dataTrain, 
                       dataset_list = dataVal_list )
 
-# Extract model's hash and model's filename from args_dict
-model_id = arg_dict["model_hash"]
-model_fname = arg_dict["model_filename"]
-
-# Extracts hyperparameters and parameters for data augmentation from args_dict
-hyperparameters = arg_dict["hyperparameters"]
-data_aug_params = arg_dict["data_augmentation"]
-
-if tester.check_step( model_id, ignore = arg_dict["ignore_check"] ):
-
-  # Generates model path
-  model_path, model_fname = tester.get_model_path( model_fname, model_id )
-
-  # Gets the names of the datasets used in training/testing the models
-  dataset_name = tester.dataset.name
-  cval_dataset_names = [ dset.name for dset in tester.dataset_list ]
+if tester.check_step( ignore_check ):
 
   # Prints current hyperparameters
-  print(f"\nTesting model '{os.path.basename(model_path)}':")
-  tester.print_dict( hyperparameters, round = True )
+  if verbose:
+    print(f"\nTesting model '{tester.model_fname}':")
+    tester.print_dict( hyperparameters, round = True )
 
   # Starts the testing process
-  results_dict = tester.test_model(model_path, hyperparameters,
-                         eval_part = arg_dict["eval_partition"])
+  results_dict = tester.test_model(hyperparameters, eval_partition)
 
   # Prints the results
-  print("\nTest Results:")
-  tester.print_dict( results_dict, round = True )
+  if verbose:
+    print(f"\n{eval_partition.title()} Results:")
+    tester.print_dict( results_dict, round = True )
 
   # Saves the results to a CSV file
-  print("\nSaving model hyperparameters and results as CSV...")
-  tester.append_to_csv(model_path, model_id, hyperparameters, 
-                       data_aug_params, results_dict)
+  if verbose:
+    print("\nSaving model hyperparameters and results as CSV...")
+  tester.append_to_csv(hyperparameters, data_aug_params, results_dict)

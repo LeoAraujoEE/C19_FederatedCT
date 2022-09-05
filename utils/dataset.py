@@ -126,12 +126,10 @@ class Dataset():
     def load_dataframes( self, reload = False ):
 
         if (self.is_loaded) and (not reload):
-            print("\nCSV file is already loaded as pd.Dataframe...")
             return
         
         df = pd.read_csv( self.csv_path, sep = ";" )
         df = self.multiclass2binary(df)
-        print(f"\tLoaded CSV file for '{self.name}'as pd.DataFrame...")
 
         # Dictionary to store each partition's DataFrame
         self.df_dict  = {}
@@ -202,10 +200,8 @@ class Dataset():
         
         return int(np.ceil(min_sample_count/float(batchsize/self.n_classes)))
         
-        
-
-
-def load_datasets( import_dir, train_dataset, eval_partition, keep_pneumonia ):
+def load_datasets( import_dir, train_dataset_name, eval_partition, 
+                   keep_pneumonia ):
 
     # List of all available datasets
     available_datasets = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", 
@@ -220,11 +216,12 @@ def load_datasets( import_dir, train_dataset, eval_partition, keep_pneumonia ):
     else:
         print("\tDropping all samples from class 'Pneumonia'...")
     
+    train_dataset = None
     val_dataset_list = []
     for dataset_name in available_datasets:
 
         # Check wether this dataset will be used for training or validation
-        is_trainable = (dataset_name == train_dataset)
+        is_trainable = (dataset_name == train_dataset_name)
         
         # Builds object to handle the current dataset
         dataset_obj = Dataset( import_dir, name = dataset_name, 
@@ -241,5 +238,8 @@ def load_datasets( import_dir, train_dataset, eval_partition, keep_pneumonia ):
         else:
             # Else, appends dataset to validation list
             val_dataset_list.append( dataset_obj )
+    
+    if len(val_dataset_list) == 0:
+        val_dataset_list = None
     
     return train_dataset, val_dataset_list

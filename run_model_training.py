@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 # Enabled deterministic mode/disables multiprocessing to enforce determinism
+os.environ["PYTHONHASHSEED"] = str(0)
 os.environ['TF_CUDNN_DETERMINISTIC'] = 'True'
 tf.config.experimental.enable_op_determinism()
 tf.config.threading.set_inter_op_parallelism_threads(1)
@@ -26,49 +27,56 @@ from utils.custom_model_trainer import ModelTrainer
 # Decodes all the input args and creates a dict
 arg_dict = json.loads(sys.argv[1])
 
+# Extract info from from args_dict
+seed              = arg_dict.pop("seed")
+verbose           = arg_dict.pop("verbose")
+train_dataset     = arg_dict.pop("dataset")
+import_dir        = arg_dict.pop("data_path")
+dst_dir           = arg_dict.pop("output_dir")
+model_id          = arg_dict.pop("model_hash")
+model_fname       = arg_dict.pop("model_filename")
+ignore_check      = arg_dict.pop("ignore_check")
+keep_pneumonia    = arg_dict.pop("keep_pneumonia")
+hyperparameters   = arg_dict.pop("hyperparameters")
+data_aug_params   = arg_dict.pop("data_augmentation")
+current_epoch_num = arg_dict.pop("current_epoch_num")
+epochs_per_step   = arg_dict.pop("epochs_per_step")
+max_train_steps   = arg_dict.pop("max_train_steps")
+initial_weights   = arg_dict.pop("initial_weights")
+
 # Setting seeds to enforce deterministic behaviour
-random.seed(arg_dict["seed"])
-np.random.seed(arg_dict["seed"])
-tf.random.set_seed(arg_dict["seed"])
-tf.keras.utils.set_random_seed(arg_dict["seed"])
-tf.experimental.numpy.random.seed(arg_dict["seed"])
-os.environ["PYTHONHASHSEED"] = str(0)
+random.seed(seed)
+np.random.seed(seed)
+tf.random.set_seed(seed)
+tf.keras.utils.set_random_seed(seed)
+tf.experimental.numpy.random.seed(seed)
         
 # Builds object to handle the training dataset
-dataTrain = Dataset( arg_dict["data_path"], name = arg_dict["dataset"], 
-                     keep_pneumonia = arg_dict["keep_pneumonia"] )
+dataTrain = Dataset( import_dir, train_dataset, keep_pneumonia )
 
-trainer = ModelTrainer(dst_dir = arg_dict["output_dir"], dataset = dataTrain)
+# Initializes trainer object
+trainer = ModelTrainer(dst_dir, dataTrain, model_fname, model_id)
 
-# Extract model's hash and model's filename from args_dict
-model_id = arg_dict["model_hash"]
-model_fname = arg_dict["model_filename"]
-
-# Extracts hyperparameters and parameters for data augmentation from args_dict
-hyperparameters = arg_dict["hyperparameters"]
-data_aug_params = arg_dict["data_augmentation"]
-
-if trainer.check_step( model_id, ignore = arg_dict["ignore_check"] ):
+if trainer.check_step( ignore_check ):
   
   # Removes models whose training process did not finish properly
-  trainer.remove_unfinished()
-
-  # Generates model path
-  model_path, model_fname = trainer.get_model_path( model_fname, model_id )
+  trainer.prepare_model_dir()
 
   # Prints current hyperparameters
-  trainer.print_dict( hyperparameters, round = True )
+  if verbose:
+    print(f"\nUsing dataset: '{trainer.dataset.name}' and:")
+    trainer.print_dict( hyperparameters, round = True )
   
   # Starts training
-  history_dict  = trainer.train_model( hyperparameters, data_aug_params, model_path, 
-                                       initial_epoch = arg_dict["current_epoch_num"], 
-                                       epochs_per_step = arg_dict["epochs_per_step"], 
-                                       max_steps = arg_dict["max_train_steps"],
-                                       load_from = arg_dict["initial_weights"] )
+  history_dict  = trainer.train_model( hyperparameters, data_aug_params, 
+                                       initial_epoch = current_epoch_num, 
+                                       epochs_per_step = epochs_per_step, 
+                                       max_steps = max_train_steps,
+                                       load_from = initial_weights )
 
   # Saves history_dict as CSV
-  trainer.history_to_csv(history_dict, model_path)
+  trainer.history_to_csv(history_dict)
 
   #
   print("\nSaving training hyperparameters as JSON...")
-  trainer.hyperparam_to_json(model_path, hyperparameters, data_aug_params)
+  trainer.hyperparam_to_json(hyperparameters, data_aug_params)

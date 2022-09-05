@@ -1,30 +1,46 @@
 import os
 import sys
-
+import json
 from utils.custom_models import ModelBuilder
 from utils.federated_utils import FederatedServer
 from utils.federated_utils import FederatedClient
 
 # Decodes all the input args and creates a dict
-arg_dict = FederatedServer.decode_args(sys.argv)
+arg_dict = json.loads(sys.argv[1])
 
 # 
-PATH_DICT = { "datasets": arg_dict["data_path"],
-              "outputs" : arg_dict["output_dir"],
+PATH_DICT = { "datasets": arg_dict.pop("data_path"),
+              "outputs" : arg_dict.pop("output_dir"),
             }
 
 # List of available datasets
-dataset_list = [ "Comp_CNCB_iCTCF", # 88k / 69k - Combination of CNCB non COVID samples + iCTCF
-                 "miniCNCB",        # 74k / 55k - Rest of CNCB dataset
-                 "COVID-CT-MD",     # 23k / 20k - COVID-CT-MD dataset
-                 "Comp_LIDC-SB",    # 18k / 18k - Combination of LIDC + Stone Brook
-                 "COVID-CTSet",     # 12k / 12k - COVID-CTSet dataset
-               ]
-  
-federatedServer = FederatedServer( PATH_DICT, arg_dict )
+DATASETS = [ "Comp_CNCB_iCTCF", # 88k / 69k - Combination of CNCB non COVID samples + iCTCF
+                    "miniCNCB", # 74k / 55k - Rest of CNCB dataset
+                 "COVID-CT-MD", # 23k / 20k - COVID-CT-MD dataset
+                "Comp_LIDC-SB", # 18k / 18k - Combination of LIDC + Stone Brook
+                 "COVID-CTSet", # 12k / 12k - COVID-CTSet dataset
+           ]
+
+# Extract info from from args_dict
+val_dset        = arg_dict.pop("dataset")
+model_id        = arg_dict.pop("model_hash")
+ignore_check    = arg_dict.pop("ignore_check")
+keep_pneumonia  = arg_dict.pop("keep_pneumonia")
+model_fname     = arg_dict.pop("model_filename")
+hyperparameters = arg_dict.pop("hyperparameters")
+data_aug_params = arg_dict.pop("data_augmentation")
+
+# Initializes federatedServer
+federatedServer = FederatedServer(PATH_DICT, model_fname, model_id, val_dset,
+                                  hyperparameters, data_aug_params, 
+                                  keep_pneumonia, ignore_check)
+
+# Removes models whose training process did not finish properly
+federatedServer.prepare_model_dir()
 
 # Initializes clients
-for i, dataset in enumerate(dataset_list):
+print("\nInitializing clients:")
+for i, dataset in enumerate(DATASETS):
     
     # A new client is initialized for each dataset
     client_id = i+1
@@ -44,12 +60,8 @@ for i, dataset in enumerate(dataset_list):
 # Creates and compiles the Model
 global_model_path = federatedServer.create_global_model()
 
-# Computes the number of aggregations
-num_aggregations = federatedServer.get_num_aggregations()
-
-for step in range(num_aggregations):
+for step in range(federatedServer.get_num_aggregations()):
     # Selects clients to the current round
-    print("\nStarting update round, selecting clients:")
     selected_ids = federatedServer.select_clients()
     
     # Computes the weight of each client's gradients for the aggregation
@@ -65,15 +77,14 @@ for step in range(num_aggregations):
     # Dict to register model paths and number of samples
     local_model_paths = {}
     for client_id in selected_ids:
-        
         # Trains a local model for the current selected client
         client = federatedServer.client_dict[client_id]
         local_model_path = client.run_train_process(global_model_path, 
-                                      step, epoch_idx = current_epoch,
-                                      num_epochs = step_num_epochs, 
-                                      max_train_steps = 10,
-                                      # max_train_steps = max_train_steps,
-                                      ignore_check = arg_dict["ignore_check"])
+                                  step, epoch_idx = current_epoch,
+                                  num_epochs = step_num_epochs, 
+                                  max_train_steps = 10,
+                                  # max_train_steps = max_train_steps,
+                                  ignore_check = federatedServer.ignore_check)
         
         # Appends the path and n° of samples to the dict
         local_model_paths[client_id] = local_model_path
@@ -83,7 +94,4 @@ for step in range(num_aggregations):
                                                          client_weights, step)
     
     # Evaluates updated global model on validation data
-    federatedServer.run_eval_process( step, test = False )
-    
-    # Updates current epoch number
-    current_epoch += federatedServer.fl_params["epochs_per_step"]
+    federatedServer.run_eval_process( step )

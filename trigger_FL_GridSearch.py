@@ -2,7 +2,7 @@ import os
 from utils.custom_model_trainer import ModelManager
 
 # 
-PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
+PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "classification" ),
               "outputs" : os.path.join( ".", "output", "federated_models" ) 
             }
 
