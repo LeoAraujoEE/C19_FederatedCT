@@ -570,7 +570,7 @@ class ModelTrainer(ModelHandler):
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
-            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            # val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
             train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
@@ -628,14 +628,6 @@ class ModelTrainer(ModelHandler):
         # Creates model_dir if it doesnt already exist
         if not os.path.exists(self.dst_dir):
             os.makedirs(self.dst_dir)
-        
-        # If the CSV file already exists
-        if os.path.exists(history_csv_path):
-            # Loads the old file
-            old_df = pd.read_csv( history_csv_path, sep = ";" )
-
-            # Appends the new dataframe as extra rows
-            model_df = pd.concat( [old_df, model_df], ignore_index = True )
         
         # Saves the dataframe as CSV
         model_df.to_csv( history_csv_path, index = False, sep = ";" )
@@ -764,7 +756,7 @@ class ModelTester(ModelHandler):
                 cval_dataset_names.append(dset_name)
                 
                 # Announces the dataset used for testing
-                print(f"\nCross-Validating model '{self.model_fname}' on '{dset_name}' dataset...")
+                print(f"\nCross-Validating model '{self.model_fname}' on '{dset_name}' dataset ({eval_part})...")
 
                 # Evaluates dataset
                 acc, f1, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 

@@ -82,9 +82,12 @@ for step in range(federatedServer.get_num_aggregations()):
         local_model_path = client.run_train_process(global_model_path, 
                                   step, epoch_idx = current_epoch,
                                   num_epochs = step_num_epochs, 
-                                  max_train_steps = 10,
-                                  # max_train_steps = max_train_steps,
+                                  # max_train_steps = 10,
+                                  max_train_steps = max_train_steps,
                                   ignore_check = federatedServer.ignore_check)
+        
+        # Updates the client's dict with training/validation metrics
+        client.update_history_dict(global_model_path, step)
         
         # Appends the path and n° of samples to the dict
         local_model_paths[client_id] = local_model_path
@@ -94,4 +97,10 @@ for step in range(federatedServer.get_num_aggregations()):
                                                          client_weights, step)
     
     # Evaluates updated global model on validation data
-    federatedServer.run_eval_process( step )
+    federatedServer.run_eval_process( step, test = False )
+    
+# Selects the final version of the global model
+global_model_path = federatedServer.get_final_model()
+    
+# Tests the final selected global model
+federatedServer.run_eval_process( step, test = True )

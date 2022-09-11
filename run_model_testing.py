@@ -52,9 +52,8 @@ if tester.check_step( ignore_check ):
   results_dict = tester.test_model(hyperparameters, eval_partition)
 
   # Prints the results
-  if verbose:
-    print(f"\n{eval_partition.title()} Results:")
-    tester.print_dict( results_dict, round = True )
+  print(f"\n{eval_partition.title()} Results:")
+  tester.print_dict( results_dict, round = True )
 
   # Saves the results to a CSV file
   if verbose:

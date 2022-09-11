@@ -208,7 +208,7 @@ def load_datasets( import_dir, train_dataset_name, eval_partition,
                            "radiopaedia.org", "COVID-CTset", "COVID-CT-MD", 
                            "Comp_LIDC-SB" ]
 
-    print("Checking datasets:")
+    print("\nChecking datasets:")
     if keep_pneumonia:
         print("\tRenaming 'COVID-19' labels to 'pos_COVID-19' for positive samples...")
         print("\tRemapping 'Normal' and 'Pneumonia' to 'neg_COVID-19' for negative samples...")
