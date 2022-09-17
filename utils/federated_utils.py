@@ -271,17 +271,16 @@ class FederatedServer(ModelHandler):
     
     def get_max_train_steps(self, selected_ids):
         # Extracts relevant hyperparameters from hyperparameters dict
+        sampling = self.hyperparameters["sampling"]
         batchsize = self.hyperparameters["batchsize"]
-        undersampling = self.hyperparameters["apply_undersampling"]
         
         # Lists the maximum number of training steps (batches) 
         # that each of the selected client can produce
         num_step_list = []
         for _id in selected_ids:
             client = self.client_dict[_id]
-            num_step = client.dataset.get_num_steps( "train", 
-                                                     batchsize, 
-                                                     undersampling )
+            num_step = client.dataset.get_num_steps( "train", batchsize, 
+                                                     sampling )
             
             num_step_list.append(num_step)
         

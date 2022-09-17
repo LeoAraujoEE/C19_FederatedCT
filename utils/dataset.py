@@ -186,19 +186,20 @@ class Dataset():
             partition = "val"
         return self.metadata["num_samples"][partition][class_label]
     
-    def get_num_steps( self, partition, batchsize, undersampling = False ):
+    def get_num_steps( self, partition, batchsize, sampling = None ):
         # If undersampling is not being applied
-        if not undersampling:
+        if sampling is None:
             # Returns the maximum amount of batches produceable
             return int(np.ceil(self.get_num_samples(partition)/float(batchsize)))
         
-        # Otherwise, computes how many batches are possible with undersampling
+        # Otherwise, computes how many batches are possible 
+        # for the chosen sampling method
         partition_info = self.metadata["num_samples"][partition]
+        max_samples = np.max(list( partition_info.values() ))
+        min_samples = np.min(list( partition_info.values() ))
+        ref_samples = max_samples if sampling == "oversampling" else min_samples
         
-        # Gets the max amount of samples for a class in the train partition
-        min_sample_count = np.min(list( partition_info.values() ))
-        
-        return int(np.ceil(min_sample_count/float(batchsize/self.n_classes)))
+        return int(np.ceil(ref_samples/float(batchsize/self.n_classes)))
         
 def load_datasets( import_dir, train_dataset_name, eval_partition, 
                    keep_pneumonia ):

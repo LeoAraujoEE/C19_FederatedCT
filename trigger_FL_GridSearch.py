@@ -8,7 +8,7 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
 
 # List of parameters for Federated Learning simulation
 fedlearn_params = { "epochs_per_step":                [3],
-                    "max_steps_frac" :             [0.50],
+                    "max_steps_frac" :             [1.00],
                     "client_frac"    :             [1.00], # TODO: adjust history_dict updates to change this
                     "aggregation"    : ["fed_avg", "avg"],
                   }
@@ -28,9 +28,9 @@ hyperparameters = { "num_epochs":                    [30],  # Total N° of train
                     "augmentation":                [True],  # If data augmentation should be used
                     "class_weights":              [False],  # If class_weights should be used
                     "sampling":          ["oversampling"],  # Chosen sampling method (None, over/under sampling)
-                    "l1_reg":                         [0],  # Amount of L1 regularization
-                    "l2_reg":                         [0],  # Amount of L2 regularization
-                    "base_dropout":                [0.30],  # SpatialDropout2d between blocks in convolutional base
+                    "l1_reg":                      [1e-5],  # Amount of L1 regularization
+                    "l2_reg":                      [1e-5],  # Amount of L2 regularization
+                    "base_dropout":                 [0.2],  # SpatialDropout2d between blocks in convolutional base
                     "top_dropout":                  [0.3],  # Dropout between dense layers in model top
                     "architecture":          ["resnet18"],  # Chosen architecture
                     "seed":                          [69],  # Seed for pseudorandom generators
