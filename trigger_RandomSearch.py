@@ -20,7 +20,7 @@ hyperparameter_ranges = { "num_epochs":                             (3,),  # Tot
                           "monitor":                         ("val_f1",),  # Monitored variable for callbacks
                           "augmentation":                        (True,),  # If data augmentation should be used
                           "class_weights":                      (False,),  # If class_weights should be used
-                          "apply_undersampling":                 (True,),  # Wether to apply Random Undersampling
+                          "sampling":                  ("oversampling",),  # Chosen sampling method (None, over/under sampling)
                           "l1_reg":                  (1e-4, 1e-2, "log"),  # Amount of L1 regularization
                           "l2_reg":                  (1e-4, 1e-2, "log"),  # Amount of L2 regularization
                           "base_dropout":                         (0.3,),  # Dropout for layers in skip connections

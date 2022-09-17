@@ -10,13 +10,13 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
 fedlearn_params = { "epochs_per_step":                [3],
                     "max_steps_frac" :             [0.50],
                     "client_frac"    :             [1.00], # TODO: adjust history_dict updates to change this
-                    "aggregation"    :        ["avg"],
+                    "aggregation"    : ["fed_avg", "avg"],
                   }
 
 # List of hyperparameter values
-hyperparameters = { "num_epochs":                     [9],  # Total N° of training epochs
-                    "batchsize":                     [48],  # Minibatch size
-                    "early_stop":                    [20],  # Early Stopping patience
+hyperparameters = { "num_epochs":                    [30],  # Total N° of training epochs
+                    "batchsize":                     [64],  # Minibatch size
+                    "early_stop":                    [10],  # Early Stopping patience
                     "input_height":                 [224],  # Model's input size
                     "input_width":                  [224],  # Model's input size
                     "input_channels":                 [1],  # Model's input size
@@ -27,12 +27,12 @@ hyperparameters = { "num_epochs":                     [9],  # Total N° of train
                     "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                     "augmentation":                [True],  # If data augmentation should be used
                     "class_weights":              [False],  # If class_weights should be used
-                    "apply_undersampling":         [True],  # Wether to apply Random Undersampling
+                    "sampling":          ["oversampling"],  # Chosen sampling method (None, over/under sampling)
                     "l1_reg":                         [0],  # Amount of L1 regularization
                     "l2_reg":                         [0],  # Amount of L2 regularization
-                    "base_dropout":                [0.10],  # SpatialDropout2d between blocks in convolutional base
-                    "top_dropout":                 [0.30],  # Dropout between dense layers in model top
-                    "architecture": ["efficientnetv2_b0"],  # Chosen architecture
+                    "base_dropout":                [0.30],  # SpatialDropout2d between blocks in convolutional base
+                    "top_dropout":                  [0.3],  # Dropout between dense layers in model top
+                    "architecture":          ["resnet18"],  # Chosen architecture
                     "seed":                          [69],  # Seed for pseudorandom generators
                   } 
 

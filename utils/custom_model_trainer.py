@@ -559,10 +559,10 @@ class ModelTrainer(ModelHandler):
 
         # Creates train data generator
         train_datagen = CustomDataGenerator( self.dataset, "train", hyperparameters, aug_dict = aug_params, shuffle = True, 
-                                             undersample = hyperparameters["apply_undersampling"], seed = hyperparameters["seed"] )
+                                             sampling = hyperparameters["sampling"], seed = hyperparameters["seed"] )
 
         # Creates validation data generator
-        val_datagen   = CustomDataGenerator( self.dataset, "val", hyperparameters, undersample = False, shuffle = False )
+        val_datagen   = CustomDataGenerator( self.dataset, "val", hyperparameters, shuffle = False )
 
         # Gets the number of samples and the number of batches using the current batchsize
         val_steps   = len(val_datagen)
@@ -690,7 +690,7 @@ class ModelTester(ModelHandler):
         num_steps = dataset.get_num_steps(partition, hyperparameters["batchsize"])
 
         # Creates data generator and gets all the labels as an array
-        datagen = CustomDataGenerator( dataset, partition, hyperparameters, shuffle = False, undersample = False )
+        datagen = CustomDataGenerator( dataset, partition, hyperparameters, shuffle = False )
 
         # Gets all labels in the dataframe as their corresponding class numbers to compute accuracy and f1-score
         y_true = datagen.get_labels()[:num_samples]

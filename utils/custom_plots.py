@@ -241,7 +241,7 @@ class CustomPlots:
         filenames = datagen.get_fnames()
         csv_classes = datagen.get_labels()
 
-        print("\nPlotting batch:")
+        print(f"\nPlotting batch: {batch}/{len(datagen)}")
         inputs, outputs = datagen.__getitem__(batch)
 
         batchsize = inputs.shape[0]
