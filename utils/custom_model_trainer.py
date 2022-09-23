@@ -453,13 +453,14 @@ class ModelHandler(ModelEntity):
         assert not self.model is None, "There's no model to prepare..."
 
         # Compiles the model
+        binary_crossentropy = tf.keras.losses.BinaryCrossentropy(from_logits = False)
         f1_metric = F1Score( num_classes = 1, threshold = .5, average = "micro", name = "f1" )
         if hyperparameters["optimizer"].lower() == "adam":
             self.model.compile(optimizer = tf.keras.optimizers.Adam(learning_rate = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
+                               loss = binary_crossentropy, metrics = ["acc", f1_metric])
         else:
             self.model.compile(optimizer = tf.keras.optimizers.RMSprop(learning_rate = hyperparameters["start_lr"]), 
-                               loss = "binary_crossentropy", metrics = ["acc", f1_metric])
+                               loss = binary_crossentropy, metrics = ["acc", f1_metric])
         return
 
     @staticmethod
@@ -570,7 +571,7 @@ class ModelTrainer(ModelHandler):
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
-            # val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
             train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
@@ -699,16 +700,22 @@ class ModelTester(ModelHandler):
         scores = self.model.predict( datagen, batch_size = hyperparameters["batchsize"], 
                                      steps = num_steps, workers = 4, verbose = 1 )
         y_pred  = (scores > 0.5).astype(np.float32)
-
-        # Computes all metrics using scikit-learn
-        mean_acc   = accuracy_score( y_true, y_pred )
-        mean_f1    = f1_score( y_true, y_pred )
-        mean_auroc = roc_auc_score( y_true, scores )
+        
+        # Gets loss function from model.evaluate
+        loss_val, _, _ = self.model.evaluate(datagen, batch_size = hyperparameters["batchsize"],
+                                             steps = num_steps, workers = 4, verbose = 1 )
+        
+        # Computes metrics using scikit-learn and keras.losses
+        metrics_dict = { "loss": loss_val,
+                         "acc" : accuracy_score( y_true, y_pred ),
+                         "f1"  : f1_score( y_true, y_pred ),
+                         "auc" : roc_auc_score( y_true, scores )
+                       }
 
         # Computes confusion matrix using scikit-learn
         conf_matrix  = confusion_matrix( y_true, y_pred )
 
-        return mean_acc, mean_f1, mean_auroc, conf_matrix, y_true, scores
+        return metrics_dict, conf_matrix, y_true, scores
 
     def test_model( self, hyperparameters, eval_part = "test" ):
 
@@ -731,9 +738,9 @@ class ModelTester(ModelHandler):
         
             for partition in ["train", "val", "test"]:
                 print(f"\n\n{partition.title()}:")
-                acc, f1, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( self.dataset, hyperparameters, partition )
+                metrics_dict, conf_matrix, y_true, y_preds = self.evaluate_model( self.dataset, hyperparameters, partition )
 
-                for metric, value in zip( ["acc", "f1", "auc"], [acc, f1, auroc] ):
+                for metric, value in metrics_dict.items():
                     # Adds the results to the result dict
                     key = f"{partition}_{metric}"
                     results[key] = f"{value:.4f}"
@@ -749,7 +756,7 @@ class ModelTester(ModelHandler):
         # If there are datasets for cross-validation
         cval_dataset_names = []
         if not self.dataset_list is None:
-            cval_acc_list, cval_f1_list, cval_auroc_list = [], [], []
+            cval_loss_list, cval_acc_list, cval_f1_list, cval_auroc_list = [], [], [], []
 
             for dset in self.dataset_list:
                 dset_name = dset.name
@@ -759,15 +766,16 @@ class ModelTester(ModelHandler):
                 print(f"\nCross-Validating model '{self.model_fname}' on '{dset_name}' dataset ({eval_part})...")
 
                 # Evaluates dataset
-                acc, f1, auroc, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 
+                metrics_dict, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 
                                                                                     eval_part )
 
                 # Adds to list
-                cval_acc_list.append(acc)
-                cval_f1_list.append(f1)
-                cval_auroc_list.append(auroc)
+                cval_loss_list.append(metrics_dict["loss"])
+                cval_acc_list.append(metrics_dict["acc"])
+                cval_f1_list.append(metrics_dict["f1"])
+                cval_auroc_list.append(metrics_dict["auc"])
 
-                for metric, value in zip( ["acc", "f1", "auc"], [acc, f1, auroc] ):
+                for metric, value in metrics_dict.items():
                     # Adds the results to the result dict
                     dname = dset_name.lower().replace(" ", "")
                     key = f"{dname}_{metric}"
@@ -782,6 +790,7 @@ class ModelTester(ModelHandler):
                     # Plots ROC curves
                     plotter.plot_roc_curve(y_true, y_preds, dset_name, eval_part)
                 
+            results["crossval_loss"] = f"{np.mean(cval_loss_list):.4f}"
             results["crossval_acc"] = f"{np.mean(cval_acc_list):.4f}"
             results["crossval_f1"] = f"{np.mean(cval_f1_list):.4f}"
             results["crossval_auc"] = f"{np.mean(cval_auroc_list):.4f}"
@@ -794,7 +803,7 @@ class ModelTester(ModelHandler):
     def get_base_results_dict( self ):
         # Generates keys and instantiates their value as None
         results = {}
-        for metric in ["acc", "f1", "auc"]:
+        for metric in ["loss", "acc", "f1", "auc"]:
             # If there's a train dataset to evaluate
             if not self.dataset is None:
                 # Generates 1 entry for each metric for each partition

@@ -7,9 +7,9 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
             }
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of training epochs
                         "batchsize":                     [64],  # Minibatch size
-                        "early_stop":                    [13],  # Early Stopping patience
+                        "early_stop":                    [11],  # Early Stopping patience
                         "input_height":                 [224],  # Model's input size
                         "input_width":                  [224],  # Model's input size
                         "input_channels":                 [1],  # Model's input size
@@ -20,12 +20,12 @@ hyperparameter_dict = { "num_epochs":                    [30],  # Total N° of t
                         "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                         "augmentation":                [True],  # If data augmentation should be used
                         "class_weights":              [False],  # If class_weights should be used
-                        "sampling":          ["oversampling"],  # Chosen sampling method (None, over/under sampling)
-                        "l1_reg":                      [1e-5],  # Amount of L1 regularization
-                        "l2_reg":                      [1e-5],  # Amount of L2 regularization
+                        "sampling":         ["undersampling"],  # Chosen sampling method (None, over/under sampling)
+                        "l1_reg":                         [0],  # Amount of L1 regularization
+                        "l2_reg":                         [0],  # Amount of L2 regularization
                         "base_dropout":                 [0.3],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                  [0.3],  # Dropout between dense layers in model top
-                        "architecture": ["efficientnetv2_b0"],  # Chosen architecture
+                        "architecture":          ["resnet18"],  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
                       } 
 
@@ -49,10 +49,10 @@ dataset_list = [ # "COVIDxCT",        # Whole COVIDxCT-3A dataset
                  #"miniCNCB",        # 74k / 55k - Rest of CNCB dataset
                  "COVID-CT-MD",     # 23k / 20k - 
                  "Comp_LIDC-SB",    # 18k / 18k - Combination of LIDC + Stone Brook
-                 #"COVID-CTset",     # 12k / 12k - 
+                 "COVID-CTset",     # 12k / 12k - 
                  # "radiopaedia.org", #  4k /  3k
                ]
-# dataset_list = [ dataset for dataset in reversed(dataset_list) ]
+dataset_list = [ dataset for dataset in reversed(dataset_list) ]
 
 for idx, dataset in enumerate(dataset_list):
   # if idx < 2:
