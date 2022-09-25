@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 from utils.custom_models import ModelBuilder
 from utils.federated_utils import FederatedServer
 from utils.federated_utils import FederatedClient
@@ -57,6 +58,9 @@ for i, dataset in enumerate(DATASETS):
     federatedServer.client_dict[client_id] = client
     federatedServer.num_samples_dict[client_id] = client_train_sample_count
 
+# Measures time at the start of the Federated Training process
+init_time = time.time()
+
 # Creates and compiles the Model
 global_model_path = federatedServer.create_global_model()
 
@@ -82,8 +86,8 @@ for step in range(federatedServer.get_num_aggregations()):
         local_model_path = client.run_train_process(global_model_path, 
                                   step, epoch_idx = current_epoch,
                                   num_epochs = step_num_epochs, 
-                                  # max_train_steps = 10,
-                                  max_train_steps = max_train_steps,
+                                  max_train_steps = 10,
+                                  # max_train_steps = max_train_steps,
                                   ignore_check = federatedServer.ignore_check)
         
         # Updates the client's dict with training/validation metrics
@@ -101,6 +105,14 @@ for step in range(federatedServer.get_num_aggregations()):
     
 # Selects the final version of the global model
 global_model_path = federatedServer.get_final_model()
+        
+# Measures total training time
+ellapsed_time = (time.time() - init_time)
+train_time = federatedServer.ellapsed_time_as_str(ellapsed_time)
+
+#
+print("\nSaving training hyperparameters as JSON...")
+federatedServer.hyperparam_to_json(hyperparameters, data_aug_params, train_time)
     
 # Tests the final selected global model
 federatedServer.run_eval_process( step, test = True )

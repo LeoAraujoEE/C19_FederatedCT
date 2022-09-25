@@ -42,22 +42,6 @@ class ModelEntity():
             print(f"\t{k.ljust(max_key_length)}: {v}")
         return
 
-    @staticmethod
-    def get_gpu_info():
-        command = "nvidia-smi --query-gpu=gpu_name,memory.total --format=csv"
-        gpus = subprocess.check_output( command.split() ).decode("ascii")
-        gpus = gpus.split("\n")[:-1][1:]
-
-        gpus_info = []
-        for info in gpus:
-            name, mem = info.split(",")
-            mem = int(mem.split()[0]) / 1024
-            
-            gpu_info = f"{name} ({mem:.1f} GB)"
-            gpus_info.append(gpu_info)
-            
-        return ", ".join(gpus_info)
-
 class ModelManager(ModelEntity):
     def __init__(self, path_dict, dataset_name, hyperparam_values = None, 
                  aug_params = None, fl_params = None, keep_pneumonia = False):
@@ -258,11 +242,12 @@ class ModelManager(ModelEntity):
             script = "run_model_training"
             
             # Updates args dict w/ training arguments
+            args["save_final_weights"] = False
+            args["remove_unfinished"]  =  True
             args["initial_weights"]    =  None
             args["max_train_steps"]    =  None
             args["epochs_per_step"]    =  None
             args["current_epoch_num"]  =     0
-            args["save_final_weights"] = False
         
         elif script_code == self.test_code:
             # Sets the command for testing process
@@ -380,36 +365,40 @@ class ModelHandler(ModelEntity):
         # Sets model_id and model_dir
         self.model_id = model_id
         self.model_dir = os.path.join( self.dst_dir, self.model_fname )
+        
+        params_json_name = f"params_{self.model_fname}.json"
+        self.params_path = os.path.join( self.model_dir, params_json_name )
             
         # Initializes other class variables
         self.model = None
             
         return
 
-    def prepare_model_dir(self):
+    def prepare_model_dir(self, remove_unfinished = True):
         print("\nPreparing model dir:")
 
-        # Returns True if the csv file does not exist yet
-        finished_models = []
-        if os.path.exists( self.csv_path ):
-            results_df = pd.read_csv(self.csv_path, sep = ";")
-            finished_models = results_df["model_path"].to_list()
+        if remove_unfinished:
+            # Returns True if the csv file does not exist yet
+            finished_models = []
+            if os.path.exists( self.csv_path ):
+                results_df = pd.read_csv(self.csv_path, sep = ";")
+                finished_models = results_df["model_path"].to_list()
 
-        # Lists all model subdirs in self.dst_dir
-        all_subdirs = glob.glob(os.path.join(self.dst_dir, "*"))
-        all_subdirs = sorted([p for p in all_subdirs if os.path.isdir(p)])
+            # Lists all model subdirs in self.dst_dir
+            all_subdirs = glob.glob(os.path.join(self.dst_dir, "*"))
+            all_subdirs = sorted([p for p in all_subdirs if os.path.isdir(p)])
 
-        # Iterates through those files to check .h5 path in the CSV
-        # Which indicates that train/test process finished correctly
-        for path2subdir in all_subdirs:
-            model_basename = os.path.split(path2subdir)[-1]
-            weights_path = os.path.join(path2subdir, f"{model_basename}.h5")
+            # Iterates through those files to check .h5 path in the CSV
+            # Which indicates that train/test process finished correctly
+            for path2subdir in all_subdirs:
+                model_basename = os.path.split(path2subdir)[-1]
+                weights_path = os.path.join(path2subdir, f"{model_basename}.h5")
 
-            if (weights_path in finished_models):
-                continue
+                if (weights_path in finished_models):
+                    continue
 
-            print(f"\tDeleting '{model_basename}' subdir as its training did not finish properly...")
-            shutil.rmtree(path2subdir, ignore_errors=False)
+                print(f"\tDeleting '{model_basename}' subdir as its training did not finish properly...")
+                shutil.rmtree(path2subdir, ignore_errors=False)
         
         # Creates model_dir if needed
         if not os.path.exists(self.model_dir):
@@ -492,6 +481,57 @@ class ModelHandler(ModelEntity):
         model = tf.keras.models.model_from_json(json_config)
         model.load_weights( model_path )
         return model
+    
+    def hyperparam_to_json( self, hyperparameters, aug_params, training_time ):
+
+        # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
+        dict_of_dicts = { "training_time"      : training_time,
+                          "available_GPU"      : self.get_gpu_info(),
+                          "hyperparameters"    : hyperparameters, 
+                          "augmentation_params": aug_params,
+                        }
+
+        # Saves the JSON file
+        with open(self.params_path, "w") as json_file:
+            json.dump( dict_of_dicts, json_file, indent=4 )
+
+        return
+    
+    def load_params_json( self ):
+        if not os.path.exists(self.params_path):
+            print(f"Can't find '{self.params_path}'...")
+            return {}
+        
+        # Opening JSON file
+        with open( self.params_path ) as json_file:
+            model_params = json.load(json_file)
+        
+        return model_params
+    
+    @staticmethod
+    def ellapsed_time_as_str( seconds ):
+        int_secs  = int(seconds)
+        str_hours = str(int_secs // 3600).zfill(2)
+        str_mins  = str((int_secs % 3600) // 60).zfill(2)
+        str_secs  = str(int_secs % 60).zfill(2)
+        time_str  = f"{str_hours}:{str_mins}:{str_secs}"
+        return time_str
+
+    @staticmethod
+    def get_gpu_info():
+        command = "nvidia-smi --query-gpu=gpu_name,memory.total --format=csv"
+        gpus = subprocess.check_output( command.split() ).decode("ascii")
+        gpus = gpus.split("\n")[:-1][1:]
+
+        gpus_info = []
+        for info in gpus:
+            name, mem = info.split(",")
+            mem = int(mem.split()[0]) / 1024
+            
+            gpu_info = f"{name} ({mem:.1f} GB)"
+            gpus_info.append(gpu_info)
+            
+        return ", ".join(gpus_info)
 
 class ModelTrainer(ModelHandler):
     def __init__(self, dst_dir, dataset, model_fname, model_id, 
@@ -680,33 +720,6 @@ class ModelTrainer(ModelHandler):
         model_df.to_csv( history_csv_path, index = False, sep = ";" )
         
         return
-    
-    def hyperparam_to_json( self, hyperparameters, aug_params, training_time ):
-
-        # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
-        dict_of_dicts = { "training_time"      : training_time,
-                          "available_GPU"      : self.get_gpu_info(),
-                          "hyperparameters"    : hyperparameters, 
-                          "augmentation_params": aug_params,
-                        }
-        
-        json_name = f"params_{self.model_fname}.json"
-        json_path = os.path.join( self.model_dir, json_name )
-
-        # Saves the JSON file
-        with open(json_path, "w") as json_file:
-            json.dump( dict_of_dicts, json_file, indent=4 )
-
-        return
-    
-    @staticmethod
-    def ellapsed_time_as_str( seconds ):
-        int_secs  = int(seconds)
-        str_hours = str(int_secs // 3600).zfill(2)
-        str_mins  = str((int_secs % 3600) // 60).zfill(2)
-        str_secs  = str(int_secs % 60).zfill(2)
-        time_str  = f"{str_hours}:{str_mins}:{str_secs}"
-        return time_str
 
 class ModelTester(ModelHandler):
     def __init__(self, dst_dir, model_fname, model_id, 
@@ -845,12 +858,18 @@ class ModelTester(ModelHandler):
 
         if (not self.dataset is None) and (eval_part == "test"):
             plotter.plot_test_results(results, dataset_name, cval_dataset_names)
+            
+            # Adds training time and available GPU to results dict
+            model_params = self.load_params_json()
+            results["training_time"] = model_params["training_time"]
+            results["available_GPU"] = model_params["available_GPU"]
 
         return results
     
     def get_base_results_dict( self ):
         # Generates keys and instantiates their value as None
-        results = {}
+        results = { "available_GPU": None, "training_time": None }
+        
         for metric in ["loss", "acc", "f1", "auc"]:
             # If there's a train dataset to evaluate
             if not self.dataset is None:

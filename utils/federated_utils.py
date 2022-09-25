@@ -145,6 +145,7 @@ class FederatedServer(ModelHandler):
         for local_path in local_model_paths.values():
             local_model = self.load_model(local_path)
             model_weights.append( local_model.get_weights() )
+            print(f"\tLoaded weights from '{local_path}'...")
         
         # Gets weights for each client based on their available samples
         client_weights = [w for w in client_weights.values()]
@@ -428,9 +429,10 @@ class FederatedClient(ModelManager):
                  "current_epoch_num" :                    epoch_idx,
                  "hyperparameters"   :         self.hyperparameters,
                  "data_augmentation" :              self.aug_params,
+                 "remove_unfinished" :                        False,
+                 "save_final_weights":                         True,
                  "verbose"           :                            0,
                  "seed"              : self.hyperparameters["seed"],
-                 "save_final_weights":                         True,
                }
         
         # Serializes args dict as JSON formatted string
