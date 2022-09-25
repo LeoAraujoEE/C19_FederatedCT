@@ -7,6 +7,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import glob
 import json
+import time
 import shutil
 import hashlib
 import itertools
@@ -40,6 +41,22 @@ class ModelEntity():
             v = np.round(v, 6) if round and isinstance(v, float) else v
             print(f"\t{k.ljust(max_key_length)}: {v}")
         return
+
+    @staticmethod
+    def get_gpu_info():
+        command = "nvidia-smi --query-gpu=gpu_name,memory.total --format=csv"
+        gpus = subprocess.check_output( command.split() ).decode("ascii")
+        gpus = gpus.split("\n")[:-1][1:]
+
+        gpus_info = []
+        for info in gpus:
+            name, mem = info.split(",")
+            mem = int(mem.split()[0]) / 1024
+            
+            gpu_info = f"{name} ({mem:.1f} GB)"
+            gpus_info.append(gpu_info)
+            
+        return ", ".join(gpus_info)
 
 class ModelManager(ModelEntity):
     def __init__(self, path_dict, dataset_name, hyperparam_values = None, 
@@ -241,10 +258,11 @@ class ModelManager(ModelEntity):
             script = "run_model_training"
             
             # Updates args dict w/ training arguments
-            args["initial_weights"]   = None
-            args["max_train_steps"]   = None
-            args["epochs_per_step"]   = None
-            args["current_epoch_num"] =    0
+            args["initial_weights"]    =  None
+            args["max_train_steps"]    =  None
+            args["epochs_per_step"]    =  None
+            args["current_epoch_num"]  =     0
+            args["save_final_weights"] = False
         
         elif script_code == self.test_code:
             # Sets the command for testing process
@@ -476,7 +494,8 @@ class ModelHandler(ModelEntity):
         return model
 
 class ModelTrainer(ModelHandler):
-    def __init__(self, dst_dir, dataset, model_fname, model_id):
+    def __init__(self, dst_dir, dataset, model_fname, model_id, 
+                 save_final_weights = False):
         
         # Inherits ModelHandler's init method
         ModelHandler.__init__( self, dst_dir, model_fname, model_id )
@@ -484,8 +503,75 @@ class ModelTrainer(ModelHandler):
         # Sets the dataset used for training
         self.dataset = dataset
         self.dataset.load_dataframes()
+        
+        # Wether to save the weights on last epoch or only the best weights
+        self.save_final_weights = save_final_weights
 
         return
+    
+    def get_callback_list(self, hyperparameters):
+        # List of used callbacks
+        callback_list = [] 
+
+        # Adds Model Checkpoint/Early Stopping if a monitor variable is passed
+        var_list = ["val_loss", "val_acc", "val_f1"]
+        if hyperparameters["monitor"] in var_list:
+            
+            # Sets callback_mode based on the selected monitored metric
+            if "loss" in hyperparameters["monitor"].lower():
+                callback_mode = "min"
+            else: 
+                callback_mode = "max"
+            
+            # Path to weights saved from model_checkpoint
+            ckpt_filepath = self.model_path
+            if self.save_final_weights:
+                mdl_dir, mdl_fname = os.path.split(self.model_path)
+                ckpt_filepath = os.path.join(mdl_dir, f"best_{mdl_fname}")
+            
+            # Model Checkpoint
+            model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
+                                      filepath = ckpt_filepath,
+                                      monitor = hyperparameters["monitor"],
+                                      mode = callback_mode, 
+                                      save_best_only = True,
+                                      save_weights_only = True, 
+                                      include_optimizer = False, verbose = 1)
+            callback_list.append(model_checkpoint)
+            
+            # Early Stopping
+            early_stopping = tf.keras.callbacks.EarlyStopping(
+                                    monitor = hyperparameters["monitor"],
+                                    patience = hyperparameters["early_stop"],
+                                    mode = callback_mode, verbose = 1 )
+            callback_list.append(early_stopping)
+        
+        # Learning Rate Scheduler
+        def scheduler(epoch, lr):
+                
+            # Number of completed steps
+            steps = (epoch + 1) // hyperparameters["lr_adjust_freq"]
+            
+            # Coeficient to multiply initial lr and get the new lr
+            new_coef = hyperparameters["lr_adjust_frac"] ** steps
+            
+            # Gets the new lr value and prints the change
+            new_lr = hyperparameters["start_lr"] * new_coef
+            
+            # Gets old LR value
+            old_coef = hyperparameters["lr_adjust_frac"] ** (steps-1)
+            old_lr = hyperparameters["start_lr"] * old_coef
+            
+            # Prints only in the epochs where the lr is changed
+            if (epoch + 1) % hyperparameters["lr_adjust_freq"] == 0:
+                print(f"Updating LR from '{old_lr:.3E}'to '{new_lr:.3E}'...")
+                
+            return new_lr
+        
+        lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, 
+                                                                verbose = 0)
+        callback_list.append(lr_scheduler)
+        return callback_list
 
     def train_model( self, hyperparameters, aug_params, initial_epoch = 0, 
                      epochs_per_step = None, max_steps = None, 
@@ -508,55 +594,8 @@ class ModelTrainer(ModelHandler):
         # Compiles the model
         self.prepare_model( hyperparameters )
 
-        # Callbacks --------------------------------------------------------------------------------------------------
-        # List of used callbacks
-        callback_list = [] 
-
-        # Adds Model Checkpoint/Early Stopping if a monitor variable is passed
-        var_list = ["val_loss", "val_acc", "val_f1"]
-        if hyperparameters["monitor"] in var_list:
-            
-            # Sets callback_mode based on the selected monitored metric
-            callback_mode = "min" if "loss" in hyperparameters["monitor"].lower() else "max"
-            
-            # Model Checkpoint
-            model_checkpoint = tf.keras.callbacks.ModelCheckpoint(self.model_path,
-                                      monitor = hyperparameters["monitor"],
-                                      mode = callback_mode, 
-                                      save_best_only = True,
-                                      save_weights_only = True, 
-                                      include_optimizer = False, verbose = 1)
-            callback_list.append(model_checkpoint)
-            
-            # Early Stopping
-            early_stopping = tf.keras.callbacks.EarlyStopping(
-                                    monitor = hyperparameters["monitor"],
-                                    patience = hyperparameters["early_stop"],
-                                    mode = callback_mode, verbose = 1 )
-            callback_list.append(early_stopping)
-        
-        # Learning Rate Scheduler
-        def scheduler(epoch, lr):
-                
-            # Number of completed steps
-            steps = (epoch + 1) // hyperparameters["lr_adjust_freq"]
-            
-            # Coeficient to multiply initial lr and get the new lr
-            coef = hyperparameters["lr_adjust_frac"] ** steps
-            
-            # Gets the new lr value and prints the change
-            new_lr = hyperparameters["start_lr"] * coef
-            
-            # Prints only in the epochs where the lr is changed
-            if (epoch + 1) % hyperparameters["lr_adjust_freq"] == 0:
-                print(f"[LR Scheduler] Updating LearningRate from '{lr:.3E}' to '{new_lr:.3E}'...")
-                
-            return new_lr
-        
-        lr_scheduler = tf.keras.callbacks.LearningRateScheduler(scheduler, 
-                                                                verbose = 0)
-        callback_list.append(lr_scheduler)
-        # Callbacks --------------------------------------------------------------------------------------------------
+        # Gets the list of Callbacks
+        callback_list = self.get_callback_list(hyperparameters)
 
         # Creates train data generator
         train_datagen = CustomDataGenerator( self.dataset, "train", hyperparameters, aug_dict = aug_params, shuffle = True, 
@@ -581,9 +620,11 @@ class ModelTrainer(ModelHandler):
             # For regular training, each step performs all epochs at once
             num_epochs = hyperparameters["num_epochs"]
         else:
-            # For Federated Learning simulations, each step performs only a 
-            # few epochs. 
+            # For Federated Learning, each step performs only a few epochs.
             num_epochs = initial_epoch + epochs_per_step
+
+        # Measures time at the start of the training process
+        init_time = time.time()
 
         # Fits the model
         history = self.model.fit( x = train_datagen, steps_per_epoch = train_steps, 
@@ -592,6 +633,10 @@ class ModelTrainer(ModelHandler):
                                   callbacks = callback_list, class_weight = class_weights, 
                                   verbose = 1
                                 )
+        
+        # Measures total training time
+        ellapsed_time = (time.time() - init_time)
+        train_time = self.ellapsed_time_as_str(ellapsed_time)
 
         # Saves model configs
         json_config = self.model.to_json()
@@ -600,8 +645,9 @@ class ModelTrainer(ModelHandler):
         with open(config_path, "w") as json_file:
             json.dump( json_config, json_file, indent=4 )
         
-        # Saves weights if model_checkpoint is disabled
-        if not hyperparameters["monitor"] in var_list:
+        # Saves last epoch's weights if model_checkpoint is disabled
+        # or if training object is set to save the last epoch's weights
+        if not os.path.exists(self.model_path):
             self.model.save_weights( self.model_path )
 
         # Extracts the dict with the training and validation values for loss and IoU during training
@@ -612,7 +658,7 @@ class ModelTrainer(ModelHandler):
         plotter = CustomPlots(self.model_path)
         plotter.plot_train_results( history_dict, self.dataset.name )
 
-        return history_dict
+        return history_dict, train_time
     
     def history_to_csv(self, history_dict):
 
@@ -635,10 +681,12 @@ class ModelTrainer(ModelHandler):
         
         return
     
-    def hyperparam_to_json( self, hyperparameters, aug_params ):
+    def hyperparam_to_json( self, hyperparameters, aug_params, training_time ):
 
         # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
-        dict_of_dicts = { "hyperparameters"    : hyperparameters, 
+        dict_of_dicts = { "training_time"      : training_time,
+                          "available_GPU"      : self.get_gpu_info(),
+                          "hyperparameters"    : hyperparameters, 
                           "augmentation_params": aug_params,
                         }
         

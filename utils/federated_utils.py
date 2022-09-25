@@ -415,21 +415,22 @@ class FederatedClient(ModelManager):
         model_fname = f"local_model_{model_id}"
         
         # Base args dict
-        args = { "output_dir"       :                 self.dst_dir, 
-                 "data_path"        :               self.data_path,
-                 "dataset"          :       self.dataset.orig_name, 
-                 "keep_pneumonia"   :          self.keep_pneumonia,
-                 "ignore_check"     :                 ignore_check,
-                 "model_hash"       :                     model_id, 
-                 "model_filename"   :                  model_fname,
-                 "initial_weights"  :            global_model_path,
-                 "max_train_steps"  :              max_train_steps,
-                 "epochs_per_step"  :                   num_epochs,
-                 "current_epoch_num":                    epoch_idx,
-                 "hyperparameters"  :         self.hyperparameters,
-                 "data_augmentation":              self.aug_params,
-                 "verbose"          :                            0,
-                 "seed"             : self.hyperparameters["seed"],
+        args = { "output_dir"        :                 self.dst_dir, 
+                 "data_path"         :               self.data_path,
+                 "dataset"           :       self.dataset.orig_name, 
+                 "keep_pneumonia"    :          self.keep_pneumonia,
+                 "ignore_check"      :                 ignore_check,
+                 "model_hash"        :                     model_id, 
+                 "model_filename"    :                  model_fname,
+                 "initial_weights"   :            global_model_path,
+                 "max_train_steps"   :              max_train_steps,
+                 "epochs_per_step"   :                   num_epochs,
+                 "current_epoch_num" :                    epoch_idx,
+                 "hyperparameters"   :         self.hyperparameters,
+                 "data_augmentation" :              self.aug_params,
+                 "verbose"           :                            0,
+                 "seed"              : self.hyperparameters["seed"],
+                 "save_final_weights":                         True,
                }
         
         # Serializes args dict as JSON formatted string

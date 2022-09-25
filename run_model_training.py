@@ -28,21 +28,22 @@ from utils.custom_model_trainer import ModelTrainer
 arg_dict = json.loads(sys.argv[1])
 
 # Extract info from from args_dict
-seed              = arg_dict.pop("seed")
-verbose           = arg_dict.pop("verbose")
-train_dataset     = arg_dict.pop("dataset")
-import_dir        = arg_dict.pop("data_path")
-dst_dir           = arg_dict.pop("output_dir")
-model_id          = arg_dict.pop("model_hash")
-model_fname       = arg_dict.pop("model_filename")
-ignore_check      = arg_dict.pop("ignore_check")
-keep_pneumonia    = arg_dict.pop("keep_pneumonia")
-hyperparameters   = arg_dict.pop("hyperparameters")
-data_aug_params   = arg_dict.pop("data_augmentation")
-current_epoch_num = arg_dict.pop("current_epoch_num")
-epochs_per_step   = arg_dict.pop("epochs_per_step")
-max_train_steps   = arg_dict.pop("max_train_steps")
-initial_weights   = arg_dict.pop("initial_weights")
+seed               = arg_dict.pop("seed")
+verbose            = arg_dict.pop("verbose")
+train_dataset      = arg_dict.pop("dataset")
+import_dir         = arg_dict.pop("data_path")
+dst_dir            = arg_dict.pop("output_dir")
+model_id           = arg_dict.pop("model_hash")
+model_fname        = arg_dict.pop("model_filename")
+ignore_check       = arg_dict.pop("ignore_check")
+keep_pneumonia     = arg_dict.pop("keep_pneumonia")
+hyperparameters    = arg_dict.pop("hyperparameters")
+data_aug_params    = arg_dict.pop("data_augmentation")
+save_final_weights = arg_dict.pop("save_final_weights")
+current_epoch_num  = arg_dict.pop("current_epoch_num")
+epochs_per_step    = arg_dict.pop("epochs_per_step")
+max_train_steps    = arg_dict.pop("max_train_steps")
+initial_weights    = arg_dict.pop("initial_weights")
 
 # Setting seeds to enforce deterministic behaviour
 random.seed(seed)
@@ -55,7 +56,8 @@ tf.experimental.numpy.random.seed(seed)
 dataTrain = Dataset( import_dir, train_dataset, keep_pneumonia )
 
 # Initializes trainer object
-trainer = ModelTrainer(dst_dir, dataTrain, model_fname, model_id)
+trainer = ModelTrainer(dst_dir, dataTrain, model_fname, 
+                       model_id, save_final_weights)
 
 if trainer.check_step( ignore_check ):
   
@@ -68,15 +70,15 @@ if trainer.check_step( ignore_check ):
     trainer.print_dict( hyperparameters, round = True )
   
   # Starts training
-  history_dict  = trainer.train_model( hyperparameters, data_aug_params, 
-                                       initial_epoch = current_epoch_num, 
-                                       epochs_per_step = epochs_per_step, 
-                                       max_steps = max_train_steps,
-                                       load_from = initial_weights )
+  history, train_time = trainer.train_model(hyperparameters, data_aug_params,
+                                            initial_epoch = current_epoch_num, 
+                                            epochs_per_step = epochs_per_step, 
+                                            max_steps = max_train_steps,
+                                            load_from = initial_weights)
 
   # Saves history_dict as CSV
-  trainer.history_to_csv(history_dict)
+  trainer.history_to_csv(history)
 
   #
   print("\nSaving training hyperparameters as JSON...")
-  trainer.hyperparam_to_json(hyperparameters, data_aug_params)
+  trainer.hyperparam_to_json(hyperparameters, data_aug_params, train_time)
