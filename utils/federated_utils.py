@@ -20,7 +20,8 @@ from utils.custom_model_trainer import ModelManager
 
 class FederatedServer(ModelHandler):
     def __init__(self, path_dict, model_fname, model_id, val_dataset, 
-                 hyperparams, aug_params, keep_pneumonia, ignore_check):
+                 fl_params, hyperparams, aug_params, keep_pneumonia, 
+                 ignore_check):
         
         # Inherits ModelHandler's init method
         ModelHandler.__init__( self, path_dict["outputs"], model_fname, 
@@ -28,6 +29,11 @@ class FederatedServer(ModelHandler):
         
         # Prints the selected hyperparameters
         print("\nUsing the current hyperparameters for Federated Learning:")
+        self.fl_params = fl_params
+        self.print_dict(self.fl_params)
+        
+        # Prints the selected hyperparameters
+        print("\nUsing the current hyperparameters for Model Training:")
         self.hyperparameters = hyperparams
         self.print_dict(self.hyperparameters)
         
@@ -66,7 +72,7 @@ class FederatedServer(ModelHandler):
         assert total_clients > 1, "Insuficient number of clients..."
         
         # Computes the number of clients to be selected
-        client_frac = self.hyperparameters["client_frac"]
+        client_frac = self.fl_params["client_frac"]
         num_selected = np.round( client_frac * total_clients, decimals = 0 )
         
         # The selected number is increased to 2 if it's smaller than 2
@@ -108,7 +114,7 @@ class FederatedServer(ModelHandler):
     def get_epoch_info( self, step_idx ):
         
         # Retrieves total n° of epochs / n° of epochs between aggregations
-        epochs_per_step = self.hyperparameters["epochs_per_step"]
+        epochs_per_step = self.fl_params["epochs_per_step"]
         total_epoch_num = self.hyperparameters["num_epochs"]
         
         # Gets the number of epochs were executed so far
@@ -179,7 +185,7 @@ class FederatedServer(ModelHandler):
         old_path  = os.path.join(self.model_dir, "global", old_fname, 
                                  f"{old_fname}.h5")
         
-        if self.hyperparameters['aggregation'].lower() == "fed_avg":
+        if self.fl_params['aggregation'].lower() == "fed_avg":
             global_model_weights = self.federated_average( local_model_paths,
                                                            client_weights )
         
@@ -292,7 +298,7 @@ class FederatedServer(ModelHandler):
         # Computes the 'max_train_steps' as a value between min_steps and
         # max_steps that's closer to min_steps as 'max_steps_frac' is closer
         # to 0 and is closer to max_steps as 'max_steps_frac' is closer to 1
-        steps_frac = self.hyperparameters["max_steps_frac"]
+        steps_frac = self.fl_params["max_steps_frac"]
         xtra_steps = (max_steps - min_steps) * steps_frac
         max_train_steps = int(min_steps + xtra_steps)
         
@@ -300,7 +306,7 @@ class FederatedServer(ModelHandler):
     
     def get_num_aggregations(self):
         # Retrieves n° of epochs / n° of epochs per aggregation
-        epochs_per_step = self.hyperparameters["epochs_per_step"]
+        epochs_per_step = self.fl_params["epochs_per_step"]
         total_epoch_num = self.hyperparameters["num_epochs"]
         
         # Returns the number of aggregations

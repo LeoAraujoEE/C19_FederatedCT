@@ -52,22 +52,14 @@ class ModelManager(ModelEntity):
             # Prints possible values for Federated Learning parameters
             print("\nSimulating Federated Learning w/ the following values:")
             self.print_dict(fl_params)
+            self.fl_params = fl_params
         
         # Checks wether hyperparameter values were provided
         if isinstance(hyperparam_values, dict):
             # Prints possible values for training hyperparameters
             print("\nList of possible hyperparameter values:")
             self.print_dict(hyperparam_values)
-            
-            # If running a Federated Learning Simulation
-            if self.federated:
-                # Combines fl_params and hyperparam_values into a single dict
-                fl_params.update(hyperparam_values)
-                self.hyperparam_values = fl_params
-                
-            else:
-                # Else, uses hyperparam_values as training hyperparameters
-                self.hyperparam_values = hyperparam_values
+            self.hyperparam_values = hyperparam_values
         
         # Wether to keep pneumonia sample or remove them
         self.keep_pneumonia = keep_pneumonia
@@ -102,24 +94,25 @@ class ModelManager(ModelEntity):
         self.fl_code    = 2
         return
     
-    def check_trainability(self, list_values = True):
-        assert not (self.hyperparam_values is None), "\nHyperparameter values were not provided..."
-        assert not (self.aug_params is None), "\nData augmentation parameters were not provided..."
+    def check_trainability(self, hyperparams, list_values = True):
+        assert not (hyperparams is None), "\nHyperparameters not provided..."
+        assert not (self.aug_params is None), "\nAugmentation not provided..."
         if list_values:
-            txt = "All hyperparameter values should be lists..."
-            assert all([isinstance(v, list) for v in self.hyperparam_values.values()]), txt
+            assert all([isinstance(v, list) for v in hyperparams.values()]),\
+                "All hyperparameter values should be lists..."
         else:
-            txt = "All hyperparameter values should be tuples..."
-            assert all([isinstance(v, tuple) for v in self.hyperparam_values.values()]), txt
+            assert all([isinstance(v, tuple) for v in hyperparams.values()]),\
+                "All hyperparameter values should be tuples..."
         return True
 
     def doGridSearch( self, shuffle = False ):
-        self.check_trainability(list_values = True)
+        hyperparam_dict = self.get_complete_hyperparam_dict()
+        self.check_trainability(hyperparam_dict, list_values = True)
         print("\nStarting GridSearch:")
 
         # Checks all possible permutations from the given values
-        hyperparam_permutations = list(self.product_dict(**self.hyperparam_values))
-        print(f"\nA total of {len(hyperparam_permutations)} hyperparameter permutations were found.")
+        hyperparam_permutations = list(self.product_dict(**hyperparam_dict))
+        print(f"\nFound {len(hyperparam_permutations)} permutations...")
         
         if shuffle:
             np.random.shuffle(hyperparam_permutations)
@@ -132,46 +125,51 @@ class ModelManager(ModelEntity):
             current_idx = str(idx_h+1).zfill(3)
             maximum_idx = str(n_permutations).zfill(3)
             print(f"\n\n{current_idx}/{maximum_idx} Iteration of GridSearch:")
+        
+            fl_params, hyperparameters = self.split_hyperparameters(hyperparameters)
             
             if self.federated:
                 # Trains model simulating Federated Learning
-                self.run_process( self.fl_code, hyperparameters, 
+                self.run_process( self.fl_code, fl_params, hyperparameters, 
                                   ignore_check = False )
             
             else:
                 # Trains model
-                self.run_process( self.train_code, hyperparameters, 
+                self.run_process( self.train_code, fl_params, hyperparameters, 
                                   ignore_check = False )
                 
                 # Tests model
-                self.run_process( self.test_code, hyperparameters, 
+                self.run_process( self.test_code, fl_params, hyperparameters, 
                                   ignore_check = False )
 
         return
 
     def doRandomSearch( self, n_models ):
-        self.check_trainability(list_values = False)
+        hyperparam_dict = self.get_complete_hyperparam_dict()
+        self.check_trainability(hyperparam_dict, list_values = False)
         print("\nStarting RandomSearch:")
 
         idx_h = 0
         while idx_h < n_models:
-            hyperparameters = self.gen_random_hyperparameters(self.hyperparam_values)
+            hyperparameters = self.gen_random_hyperparameters(hyperparam_dict)
 
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
+        
+            fl_params, hyperparameters = self.split_hyperparameters(hyperparameters)
             
             if self.federated:
                 # Trains model simulating Federated Learning
-                self.run_process( self.fl_code, hyperparameters, 
+                self.run_process( self.fl_code, fl_params, hyperparameters, 
                                   ignore_check = False )
             
             else:
                 # Trains model
-                self.run_process( self.train_code, hyperparameters, 
+                self.run_process( self.train_code, fl_params, hyperparameters, 
                                   ignore_check = False )
                 
                 # Tests model
-                self.run_process( self.test_code, hyperparameters, 
+                self.run_process( self.test_code, fl_params, hyperparameters, 
                                   ignore_check = False )
 
             # Increases the number of trained models
@@ -181,7 +179,10 @@ class ModelManager(ModelEntity):
 
     def doTrainFromJSON(self, json_path, copy_augmentation = True, seed = None):
         # Reads JSON file to extract hyperparameters and augmentation parameters used
-        hyperparameters, aug_params = self.json_to_hyperparam( json_path )
+        fl_params, hyperparameters, aug_params = self.json_to_hyperparam( json_path )
+        
+        if not fl_params is None:
+            self.federated = True
 
         # Copies the augmentation dict used if specified
         if copy_augmentation:
@@ -193,31 +194,33 @@ class ModelManager(ModelEntity):
             
         if self.federated:
             # Trains model simulating Federated Learning
-            self.run_process( self.fl_code, hyperparameters, 
+            self.run_process( self.fl_code, fl_params, hyperparameters, 
                               ignore_check = True )
         
         else:
             # Trains model
-            self.run_process( self.train_code, hyperparameters, 
+            self.run_process( self.train_code, fl_params, hyperparameters, 
                               ignore_check = True )
             
             # Tests model
-            self.run_process( self.test_code, hyperparameters, 
+            self.run_process( self.test_code, fl_params, hyperparameters, 
                               ignore_check = True )
 
         return
             
-    def run_process(self, script_code, hyperparams, ignore_check):
-        assert script_code in [0, 1, 2], f"Unknown script w/ code {script_code}..."
+    def run_process(self, script_code, fl_params, hyperparams, ignore_check):
+        assert script_code in [0, 1, 2], f"Unknown script code {script_code}"
         
         # Creates test command
-        command = self.create_command(hyperparams, ignore_check, script_code)
+        command = self.create_command(hyperparams, fl_params, ignore_check, 
+                                      script_code)
 
         # Runs script as subprocess
         subprocess.Popen.wait(subprocess.Popen( command ))
         return
 
-    def create_command(self, hyperparams, ignore_check, script_code):
+    def create_command(self, hyperparams, fl_params, ignore_check, 
+                       script_code):
         
         model_fname, model_id = self.get_model_name( hyperparams, 
                                                      self.aug_params )
@@ -259,6 +262,9 @@ class ModelManager(ModelEntity):
         elif script_code == self.fl_code:
             # Sets the command for Federated Learning simulation
             script = "run_fl_simulation"
+            
+            # Updates args dict w/ Federated Learning arguments
+            args["fl_params"] = fl_params
         
         # Serializes args dict as JSON formatted string
         serialized_args = json.dumps(args)
@@ -290,6 +296,31 @@ class ModelManager(ModelEntity):
             model_fname = "fl_" + model_fname
 
         return model_fname, model_id
+    
+    def get_complete_hyperparam_dict(self):
+        # Returns None if no hyperparameters are available
+        if not isinstance(self.hyperparam_values, dict):
+            return None
+        
+        # If not running a Federated Learning Simulation
+        if not self.federated:
+            # Returns regular hyperparameters
+            return self.hyperparam_values
+        
+        # Otherwise, combines fl_params and hyperparameters
+        complete_hyperparam_dict = self.fl_params.copy()
+        complete_hyperparam_dict.update(self.hyperparam_values)
+        return complete_hyperparam_dict
+    
+    def split_hyperparameters(self, selected_hyperparams):
+        if not self.federated:
+            return None, selected_hyperparams
+        
+        # Splits hyperparameters into fl_params & hyperparams
+        selected_fl_params = {}
+        for key in self.fl_params.keys():
+            selected_fl_params[key] = selected_hyperparams.pop(key)
+        return selected_fl_params, selected_hyperparams
     
     @staticmethod
     def product_dict(**kwargs):
@@ -334,10 +365,11 @@ class ModelManager(ModelEntity):
             data = json.load(json_file)
 
         # Recovers model hyperparameters from JSON file
+        fl_params = data["fl_params"]
         hyperparameters = data["hyperparameters"]
         augmentation_params = data["augmentation_params"]
 
-        return hyperparameters, augmentation_params
+        return fl_params, hyperparameters, augmentation_params
 
     @staticmethod
     def dict_hash( src_dict ) :
@@ -482,11 +514,13 @@ class ModelHandler(ModelEntity):
         model.load_weights( model_path )
         return model
     
-    def hyperparam_to_json( self, hyperparameters, aug_params, training_time ):
+    def hyperparam_to_json( self, hyperparameters, aug_params, training_time, 
+                            fl_params = None ):
 
         # Builds a dict of dicts w/ hyperparameters needed to reproduce a model
         dict_of_dicts = { "training_time"      : training_time,
                           "available_GPU"      : self.get_gpu_info(),
+                          "fl_params"          : fl_params, 
                           "hyperparameters"    : hyperparameters, 
                           "augmentation_params": aug_params,
                         }

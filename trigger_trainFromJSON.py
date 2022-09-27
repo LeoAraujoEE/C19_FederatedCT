@@ -2,13 +2,13 @@ import os
 from utils.custom_model_trainer import ModelManager
 
 PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( ".", "output", "deterministic", "models" ) 
+              "outputs" : os.path.join( ".", "output", "federated_models" ) 
             }
 
-train_dataset = "COVID-CT-MD"
-model_fname = "efficientnetv2_b0_94de7f456996e39af676173246d61888"
+train_dataset = "miniCOVIDxCT"
+model_fname = "fl_resnet18_6b11d9834590cb2dcbc8686d0ac496a3"
 
-json_path = os.path.join( ".", "output", "deterministic", "models", "COVID-CT-MD_dropped", 
+json_path = os.path.join( ".", "output", "federated_models", #"models", "COVID-CTset", 
                           model_fname, f"params_{model_fname}.json" )
 
   
