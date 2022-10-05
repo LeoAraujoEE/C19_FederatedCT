@@ -40,6 +40,12 @@ federatedServer = FederatedServer(PATH_DICT, model_fname, model_id, val_dset,
 # Removes models whose training process did not finish properly
 federatedServer.prepare_model_dir()
 
+# Measures time at the start of the Federated Training process
+fl_init_time = time.time()
+
+# Creates and compiles the Model
+global_model_path = federatedServer.create_global_model()
+
 # Initializes clients
 print("\nInitializing clients:")
 for i, dataset in enumerate(DATASETS):
@@ -50,22 +56,21 @@ for i, dataset in enumerate(DATASETS):
                              federatedServer.get_client_path_dict(), dataset, 
                              hyperparameters = federatedServer.hyperparameters,
                              aug_params = federatedServer.aug_params, 
-                             keep_pneumonia = federatedServer.keep_pneumonia)
+                             keep_pneumonia = federatedServer.keep_pneumonia,
+                             ignore_check = federatedServer.ignore_check)
     
-    # Gets the n° of train samples (used in model aggregation)
+    # Gets the n° of train samples (used for model aggregation)
     client_train_sample_count = client.dataset.get_num_samples("train")
     
     # Creates a dict to store clients and another to store their sample count
     federatedServer.client_dict[client_id] = client
     federatedServer.num_samples_dict[client_id] = client_train_sample_count
 
-# Measures time at the start of the Federated Training process
-fl_init_time = time.time()
-
-# Creates and compiles the Model
-global_model_path = federatedServer.create_global_model()
-
+# Federated Learning loop
 for step in range(federatedServer.get_num_aggregations()):
+    # Passes global model to all clients and gets their train/val metrics
+    federatedServer.validate_global_model(global_model_path, step)
+    
     # Selects clients to the current round
     selected_ids = federatedServer.select_clients()
     
@@ -84,15 +89,12 @@ for step in range(federatedServer.get_num_aggregations()):
     for client_id in selected_ids:
         # Trains a local model for the current selected client
         client = federatedServer.client_dict[client_id]
-        local_model_path = client.run_train_process(global_model_path, 
-                                  step, epoch_idx = current_epoch,
+        local_model_path = client.run_train_process(step, 
+                                  epoch_idx = current_epoch,
                                   num_epochs = step_num_epochs, 
                                   max_train_steps = 10,
                                   # max_train_steps = max_train_steps,
-                                  ignore_check = federatedServer.ignore_check)
-        
-        # Updates the client's dict with training/validation metrics
-        client.update_history_dict(global_model_path, step)
+                                  )
         
         # Appends the path and n° of samples to the dict
         local_model_paths[client_id] = local_model_path
@@ -101,8 +103,11 @@ for step in range(federatedServer.get_num_aggregations()):
     global_model_path = federatedServer.update_global_model(local_model_paths,
                                                          client_weights, step)
     
-    # Evaluates updated global model on validation data
-    federatedServer.run_eval_process( step, test = False )
+# Evaluates the last global model's performance on train/validation data
+federatedServer.validate_global_model(global_model_path, step)
+
+# 
+federatedServer.plot_train_results()
     
 # Selects the final version of the global model
 global_model_path = federatedServer.get_final_model()

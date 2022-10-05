@@ -247,7 +247,7 @@ class ModelManager(ModelEntity):
             script = "run_model_testing"
             
             # Updates args dict w/ testing arguments
-            args["eval_partition"] = "test"
+            args["use_validation_data"] = False
         
         elif script_code == self.fl_code:
             # Sets the command for Federated Learning simulation
@@ -738,6 +738,10 @@ class ModelTrainer(ModelHandler):
         return history_dict, train_time
     
     def history_to_csv(self, history_dict):
+        
+        # Removes 'lr' from history_dict
+        if "lr" in history_dict.keys():
+            history_dict.pop("lr")
 
         # Converts that history_dict to a DataFrame
         model_df = pd.DataFrame.from_dict( history_dict )
@@ -759,8 +763,8 @@ class ModelTrainer(ModelHandler):
         return
 
 class ModelTester(ModelHandler):
-    def __init__(self, dst_dir, model_fname, model_id, 
-                 dataset, dataset_list = None):
+    def __init__(self, dst_dir, model_fname, model_id, dataset, 
+                 dataset_list = None, use_val_data = False):
         
         # Inherits ModelHandler's init method
         ModelHandler.__init__( self, dst_dir, model_fname, model_id )
@@ -768,10 +772,19 @@ class ModelTester(ModelHandler):
         # Sets the dataset used for training if available
         self.dataset = dataset
         self.dataset.load_dataframes()
+        
+        # If set for validation, only evaluates train/val partitions
+        self.use_val_data = use_val_data
+        
+        if self.use_val_data:
+            self.partitions = ["train", "val"]
+            self.csv_path = os.path.join(self.model_dir, "val_results.csv")
+        else:
+            self.partitions = ["train", "val", "test"]
 
         # Sets the datasets used for cross-validation if available
         self.dataset_list = dataset_list
-        if not self.dataset_list is None:
+        if not ((self.dataset_list is None) or (self.use_val_data)):
             # Loads dataframes for the datasets in dataset_list
             for i in range(len(self.dataset_list)):
                 self.dataset_list[i].load_dataframes()
@@ -814,7 +827,7 @@ class ModelTester(ModelHandler):
 
         return metrics_dict, conf_matrix, y_true, scores
 
-    def test_model( self, hyperparameters, eval_part = "test" ):
+    def test_model( self, hyperparameters ):
 
         # Object responsible for plotting ROC curves and Confusion Matrixes
         plotter = CustomPlots(self.model_path)
@@ -831,7 +844,7 @@ class ModelTester(ModelHandler):
         print(f"\nValidating model '{self.model_fname}' on '{self.dataset.name}' dataset...")
     
         # Evaluates each partition to fill results dict
-        for partition in ["train", "val", "test"]:
+        for partition in self.partitions:
             print(f"\n\n{partition.title()}:")
             metrics_dict, conf_matrix, y_true, y_preds = self.evaluate_model(self.dataset, hyperparameters, partition )
 
@@ -840,18 +853,19 @@ class ModelTester(ModelHandler):
                 key = f"{partition}_{metric}"
                 results[key] = f"{value:.4f}"
 
-            # Plots confusion matrix
-            class_labels = self.dataset.classes
-            plotter.plot_confusion_matrix(conf_matrix, self.dataset.name, 
-                                          partition, class_labels)
+            if not self.use_val_data:
+                # Plots confusion matrix
+                class_labels = self.dataset.classes
+                plotter.plot_confusion_matrix(conf_matrix, self.dataset.name, 
+                                              partition, class_labels)
 
-            # Plots ROC curves
-            plotter.plot_roc_curve(y_true, y_preds, self.dataset.name, 
-                                   partition)
+                # Plots ROC curves
+                plotter.plot_roc_curve(y_true, y_preds, self.dataset.name, 
+                                       partition)
 
         # If there are datasets for cross-validation
         cval_dataset_names = []
-        if not self.dataset_list is None:
+        if not ((self.dataset_list is None) or (self.use_val_data)):
             cval_loss_list, cval_acc_list, cval_f1_list, cval_auroc_list = [], [], [], []
 
             for dset in self.dataset_list:
@@ -859,11 +873,11 @@ class ModelTester(ModelHandler):
                 cval_dataset_names.append(dset_name)
                 
                 # Announces the dataset used for testing
-                print(f"\nCross-Validating model '{self.model_fname}' on '{dset_name}' dataset ({eval_part})...")
+                print(f"\nCross-Validating model '{self.model_fname}' on '{dset_name}' dataset...")
 
                 # Evaluates dataset
                 metrics_dict, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 
-                                                                                  eval_part )
+                                                                                  "test" )
 
                 # Adds to list
                 cval_loss_list.append(metrics_dict["loss"])
@@ -877,22 +891,21 @@ class ModelTester(ModelHandler):
                     key = f"{dname}_{metric}"
                     results[key] = f"{value:.4f}"
                     
-                if eval_part == "test":
-                    # Plots confusion matrix
-                    class_labels = dset.classes
-                    plotter.plot_confusion_matrix(conf_matrix, dset_name, 
-                                                  eval_part, class_labels)
+                # Plots confusion matrix
+                class_labels = dset.classes
+                plotter.plot_confusion_matrix(conf_matrix, dset_name, 
+                                                "test", class_labels)
 
-                    # Plots ROC curves
-                    plotter.plot_roc_curve(y_true, y_preds, dset_name, 
-                                           eval_part)
+                # Plots ROC curves
+                plotter.plot_roc_curve(y_true, y_preds, dset_name, 
+                                        "test")
                 
             results["crossval_loss"] = f"{np.mean(cval_loss_list):.4f}"
-            results["crossval_acc"] = f"{np.mean(cval_acc_list):.4f}"
-            results["crossval_f1"] = f"{np.mean(cval_f1_list):.4f}"
-            results["crossval_auc"] = f"{np.mean(cval_auroc_list):.4f}"
+            results["crossval_acc"]  = f"{np.mean(cval_acc_list):.4f}"
+            results["crossval_f1"]   = f"{np.mean(cval_f1_list):.4f}"
+            results["crossval_auc"]  = f"{np.mean(cval_auroc_list):.4f}"
 
-        if eval_part == "test":
+        if not self.use_val_data:
             plotter.plot_test_results(results, self.dataset.name, 
                                       cval_dataset_names)
 
@@ -903,15 +916,13 @@ class ModelTester(ModelHandler):
         results = {}
         
         for metric in ["loss", "acc", "f1", "auc"]:
-            # If there's a train dataset to evaluate
-            if not self.dataset is None:
-                # Generates 1 entry for each metric for each partition
-                for partition in ["train", "val", "test"]:
-                    key = f"{partition}_{metric}"
-                    results[key] = None
+            # Generates 1 entry for each metric for each partition
+            for partition in self.partitions:
+                key = f"{partition}_{metric}"
+                results[key] = None
 
             # If there are datasets for cross-validation
-            if not self.dataset_list is None:
+            if not ((self.dataset_list is None) or (self.use_val_data)):
                 # Adds an entry for the average value across datasets
                 key = f"crossval_{metric}"
                 results[key] = None
@@ -925,16 +936,20 @@ class ModelTester(ModelHandler):
         return results
 
     def append_to_csv( self, hyperparameters, aug_params, results ):
-            
-        # Gets training parameters from JSON file
-        model_params = self.load_params_json()
         
         # Combines all available information about the model in a single dict
-        combined_dict = { "model_path"   :               self.model_path, 
-                          "model_hash"   :                 self.model_id,
-                          "available_GPU": model_params["available_GPU"], 
-                          "training_time": model_params["training_time"],
+        combined_dict = { "model_path"   : self.model_path, 
+                          "model_hash"   :   self.model_id,
                         }
+        
+        # If testing a model, recovers training info from params.json
+        if not self.use_val_data:            
+            # Gets training parameters from JSON file
+            model_params = self.load_params_json()
+            combined_dict["available_GPU"] = model_params["available_GPU"]
+            combined_dict["training_time"] = model_params["training_time"]
+        
+        # Updates dict with results and all relevant hyperparameters
         combined_dict.update( results )
         combined_dict.update( hyperparameters )
         combined_dict.update( aug_params )

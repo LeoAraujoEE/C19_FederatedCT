@@ -30,7 +30,7 @@ hyperparameters = { "num_epochs":                     [4],  # Total N° of train
                     "sampling":          ["oversampling"],  # Chosen sampling method (None, over/under sampling)
                     "l1_reg":                      [1e-5],  # Amount of L1 regularization
                     "l2_reg":                      [1e-5],  # Amount of L2 regularization
-                    "base_dropout":                 [0.2],  # SpatialDropout2d between blocks in convolutional base
+                    "base_dropout":                 [0.3],  # SpatialDropout2d between blocks in convolutional base
                     "top_dropout":                  [0.3],  # Dropout between dense layers in model top
                     "architecture":          ["resnet18"],  # Chosen architecture
                     "seed":                          [69],  # Seed for pseudorandom generators
