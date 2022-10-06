@@ -15,8 +15,8 @@ class DenseNet:
     def __init__(self):
         return
     
-    def __call__( self, num_block_list: list[int], growth_rate: int, reduction_factor: float,
-                  input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+    def __call__( self, num_block_list: list, growth_rate: int, reduction_factor: float,
+                  input_shape: tuple, num_outputs: int, output_activation: str, pool: bool, 
                   base_dropout: float, top_dropout: float, l1_val: float, l2_val: float ) -> Model:
 
         # Model's input layer
@@ -62,7 +62,7 @@ class DenseNet:
 
         return tf.keras.models.Model( input_layer, output_layer )
     
-    def get_DenseNet121( self, input_shape: tuple[int], num_outputs: int, 
+    def get_DenseNet121( self, input_shape: tuple, num_outputs: int, 
                          output_activation: str, pool: bool, base_dropout: float, 
                          top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -83,7 +83,7 @@ class DenseNet:
         
         return model
     
-    def get_DenseNet169( self, input_shape: tuple[int], num_outputs: int, 
+    def get_DenseNet169( self, input_shape: tuple, num_outputs: int, 
                          output_activation: str, pool: bool, base_dropout: float, 
                          top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -104,7 +104,7 @@ class DenseNet:
         
         return model
     
-    def get_DenseNet201( self, input_shape: tuple[int], num_outputs: int, 
+    def get_DenseNet201( self, input_shape: tuple, num_outputs: int, 
                          output_activation: str, pool: bool, base_dropout: float, 
                          top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -125,7 +125,7 @@ class DenseNet:
         
         return model
     
-    def get_DenseNet264( self, input_shape: tuple[int], num_outputs: int, 
+    def get_DenseNet264( self, input_shape: tuple, num_outputs: int, 
                          output_activation: str, pool: bool, base_dropout: float, 
                          top_dropout: float, l1_val: float, l2_val: float) -> Model:
         

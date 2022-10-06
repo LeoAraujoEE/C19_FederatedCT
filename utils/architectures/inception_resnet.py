@@ -20,7 +20,7 @@ class InceptionResNet(Inception):
     def __init__(self):
         return
     
-    def __call__( self, num_block_list: list[int], input_shape: tuple[int], num_outputs: int, 
+    def __call__( self, num_block_list: list, input_shape: tuple, num_outputs: int, 
                   output_activation: str, pool: bool, bn_scaling: bool, base_dropout: float, 
                   top_dropout: float, l1_val: float, l2_val: float ) -> Model:
 
@@ -87,7 +87,7 @@ class InceptionResNet(Inception):
 
         return tf.keras.models.Model( input_layer, output_layer )
     
-    def get_InceptionResNetV2( self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool,
+    def get_InceptionResNetV2( self, input_shape: tuple, num_outputs: int, output_activation: str, pool: bool,
                                base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
         """ InceptionResNetV2 has 3 stages with: 10 blocks in the 1st stage
@@ -108,7 +108,7 @@ class InceptionResNet(Inception):
         return model
     
     @staticmethod
-    def conv_bn_relu( l_input: tf.Tensor, num_filters: int, kernel_size: tuple[int], strides: int, padding: str, 
+    def conv_bn_relu( l_input: tf.Tensor, num_filters: int, kernel_size: tuple, strides: int, padding: str, 
                       bn_scaling: bool, block: int, num: int, dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
         if dropchance > 0:
             x = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num{num}")(l_input)

@@ -14,7 +14,7 @@ class ResNet:
     def __init__(self):
         return
     
-    def __call__( self, num_block_list: list[int], input_shape: tuple[int], 
+    def __call__( self, num_block_list: list, input_shape: tuple, 
                   num_outputs: int, output_activation: str, pool: bool, 
                   base_dropout: float, top_dropout: float, l1_val: float, 
                   l2_val: float, use_bottleneck: bool ) -> Model:
@@ -71,7 +71,7 @@ class ResNet:
 
         return tf.keras.models.Model( input_layer, output_layer )
     
-    def get_ResNet18( self, input_shape: tuple[int], num_outputs: int, 
+    def get_ResNet18( self, input_shape: tuple, num_outputs: int, 
                       output_activation: str, pool: bool, base_dropout: float, 
                       top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -89,7 +89,7 @@ class ResNet:
         
         return model
     
-    def get_ResNet34( self, input_shape: tuple[int], num_outputs: int, 
+    def get_ResNet34( self, input_shape: tuple, num_outputs: int, 
                       output_activation: str, pool: bool, base_dropout: float, 
                       top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -107,7 +107,7 @@ class ResNet:
         
         return model
     
-    def get_ResNet50( self, input_shape: tuple[int], num_outputs: int, 
+    def get_ResNet50( self, input_shape: tuple, num_outputs: int, 
                       output_activation: str, pool: bool, base_dropout: float, 
                       top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -128,7 +128,7 @@ class ResNet:
         
         return model
     
-    def get_ResNet101( self, input_shape: tuple[int], num_outputs: int, 
+    def get_ResNet101( self, input_shape: tuple, num_outputs: int, 
                       output_activation: str, pool: bool, base_dropout: float, 
                       top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -149,7 +149,7 @@ class ResNet:
         
         return model
     
-    def get_ResNet152( self, input_shape: tuple[int], num_outputs: int, 
+    def get_ResNet152( self, input_shape: tuple, num_outputs: int, 
                       output_activation: str, pool: bool, base_dropout: float, 
                       top_dropout: float, l1_val: float, l2_val: float) -> Model:
         

@@ -122,4 +122,4 @@ federatedServer.hyperparam_to_json(hyperparameters, data_aug_params,
                                    fl_train_time, fl_params)
     
 # Tests the final selected global model
-federatedServer.run_eval_process( step, test = True )
+federatedServer.run_eval_process()

@@ -20,7 +20,7 @@ class MobileNet:
     def __init__(self):
         return
     
-    def __call__( self, input_shape: tuple[int], alpha: float, expansion: int, num_outputs: int, 
+    def __call__( self, input_shape: tuple, alpha: float, expansion: int, num_outputs: int, 
                   output_activation: str, pool: bool, base_dropout: float, top_dropout: float, 
                   l1_val: float, l2_val: float, v3: bool=False, small: bool=False ) -> Model:
 
@@ -53,7 +53,7 @@ class MobileNet:
 
         return tf.keras.models.Model( input_layer, output_layer )
     
-    def get_MobileNetV2(self, input_shape: tuple[int], alpha: float, expansion: int, num_outputs: int, 
+    def get_MobileNetV2(self, input_shape: tuple, alpha: float, expansion: int, num_outputs: int, 
                         output_activation: str, pool: bool, base_dropout: float, 
                         top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
@@ -73,7 +73,7 @@ class MobileNet:
         
         return model
     
-    def get_MobileNetV3_Small(self, input_shape: tuple[int], alpha: float, expansion: int, 
+    def get_MobileNetV3_Small(self, input_shape: tuple, alpha: float, expansion: int, 
                               num_outputs: int, output_activation: str, pool: bool, 
                               base_dropout: float, top_dropout: float, 
                               l1_val: float, l2_val: float) -> Model:
@@ -86,7 +86,7 @@ class MobileNet:
         
         return model
     
-    def get_MobileNetV3_Large(self, input_shape: tuple[int], alpha: float, expansion: int, 
+    def get_MobileNetV3_Large(self, input_shape: tuple, alpha: float, expansion: int, 
                               num_outputs: int, output_activation: str, pool: bool, 
                               base_dropout: float, top_dropout: float, 
                               l1_val: float, l2_val: float) -> Model:
@@ -349,8 +349,8 @@ class MobileNet:
         return x
     
     @staticmethod
-    def middle_flow_v3( x: tf.Tensor, alpha: float, expansion: int, stack_dict: dict, stride_idx: list[int], 
-                        se_idx: list[int], kernel_idx: list[int], relu_idx: list[int], dropchance: float, 
+    def middle_flow_v3( x: tf.Tensor, alpha: float, expansion: int, stack_dict: dict, stride_idx: list, 
+                        se_idx: list, kernel_idx: list, relu_idx: list, dropchance: float, 
                         l1_val: float, l2_val: float ) -> tf.Tensor:
         
         block = 2

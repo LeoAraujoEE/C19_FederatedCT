@@ -16,7 +16,7 @@ class Xception:
     def __init__(self):
         return
     
-    def __call__( self, num_middle_blocks: int, input_shape: tuple[int], num_outputs: int, 
+    def __call__( self, num_middle_blocks: int, input_shape: tuple, num_outputs: int, 
                   output_activation: str, pool: bool, base_dropout: float, top_dropout: float, 
                   l1_val: float, l2_val: float ) -> Model:
 
@@ -50,7 +50,7 @@ class Xception:
 
         return tf.keras.models.Model( input_layer, output_layer )
     
-    def get_Xception( self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool,
+    def get_Xception( self, input_shape: tuple, num_outputs: int, output_activation: str, pool: bool,
                       base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         
         """ Xception repeats the middle block 8 times to build the Middle flow
@@ -64,7 +64,7 @@ class Xception:
         return model
     
     @staticmethod
-    def conv_bn_relu( x: tf.Tensor, num_filters: int, kernel_size: tuple[int], strides: int, padding: str, 
+    def conv_bn_relu( x: tf.Tensor, num_filters: int, kernel_size: tuple, strides: int, padding: str, 
                       block: int, num: int, dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
         if dropchance > 0:
             x = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num{num}")(x)
@@ -79,7 +79,7 @@ class Xception:
         return x
     
     @staticmethod
-    def sepconv_bn( x: tf.Tensor, num_filters: int, kernel_size: tuple[int], block: int, num: int, 
+    def sepconv_bn( x: tf.Tensor, num_filters: int, kernel_size: tuple, block: int, num: int, 
                     dropchance: float, l1_val: float, l2_val: float ) -> tf.Tensor:
         if dropchance > 0:
             x = SpatialDropout2D(dropchance, name = f"block{block}_SDropout_num{num}")(x)

@@ -144,7 +144,7 @@ class EfficientNet:
         
         return
     
-    def __call__( self, input_shape: tuple[int], w_coef: float, d_coef: float, model_args: dict, 
+    def __call__( self, input_shape: tuple, w_coef: float, d_coef: float, model_args: dict, 
                   v2: bool, num_outputs: int, output_activation: str, pool: bool, base_dropout: float, 
                   top_dropout: float, l1_val: float, l2_val: float ) -> Model:
 
@@ -210,7 +210,7 @@ class EfficientNet:
 
         return tf.keras.models.Model( input_layer, output_layer )
     
-    def get_EfficientNetB(self, input_shape: tuple[int], num_outputs: int, 
+    def get_EfficientNetB(self, input_shape: tuple, num_outputs: int, 
                           output_activation: str, pool: bool, v2: bool, 
                           b: int, base_dropout: float, top_dropout: float, 
                           l1_val: float, l2_val: float) -> Model:
@@ -239,7 +239,7 @@ class EfficientNet:
         
         return model
     
-    def get_EfficientNetV2_S(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+    def get_EfficientNetV2_S(self, input_shape: tuple, num_outputs: int, output_activation: str, pool: bool, 
                              base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 384 x 384 x 3 (but other input resolutions can be used)
         
@@ -266,7 +266,7 @@ class EfficientNet:
         
         return model
     
-    def get_EfficientNetV2_M(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+    def get_EfficientNetV2_M(self, input_shape: tuple, num_outputs: int, output_activation: str, pool: bool, 
                              base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 480 x 480 x 3 (but other input resolutions can be used)
         
@@ -305,7 +305,7 @@ class EfficientNet:
         
         return model
     
-    def get_EfficientNetV2_L(self, input_shape: tuple[int], num_outputs: int, output_activation: str, pool: bool, 
+    def get_EfficientNetV2_L(self, input_shape: tuple, num_outputs: int, output_activation: str, pool: bool, 
                              base_dropout: float, top_dropout: float, l1_val: float, l2_val: float) -> Model:
         # Designed for 480 x 480 x 3 (but other input resolutions can be used)
         

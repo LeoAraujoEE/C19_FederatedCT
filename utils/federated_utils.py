@@ -81,6 +81,11 @@ class FederatedServer(ModelHandler):
         # Averages the values for each metric for each dataframe
         cross_val_df = sum(val_df_list) / len(val_df_list)
         
+        # Formats average results as dict, and prints its values
+        print("\nAverage validation Results:")
+        cval_dict = {c: cross_val_df.iloc[0][c] for c in cross_val_df.columns}
+        self.print_dict(cval_dict, round = True)
+        
         self.update_global_history(cross_val_df, step_idx)
         
         return
@@ -360,18 +365,19 @@ class FederatedServer(ModelHandler):
     def run_eval_process( self ):
         
         # Base args dict
-        args = { "output_dir"       :                 self.dst_dir, 
-                 "data_path"        :               self.data_path,
-                 "dataset"          :       self.dataset.orig_name, 
-                 "keep_pneumonia"   :          self.keep_pneumonia,
-                 "ignore_check"     :            self.ignore_check,
-                 "model_hash"       :                self.model_id, 
-                 "model_filename"   :             self.model_fname,
-                 "eval_partition"   :                       "test",
-                 "hyperparameters"  :         self.hyperparameters,
-                 "data_augmentation":              self.aug_params,
-                 "verbose"          :                            0,
-                 "seed"             : self.hyperparameters["seed"],
+        args = { "output_dir"         :                 self.dst_dir, 
+                 "data_path"          :               self.data_path,
+                 "dataset"            :       self.dataset.orig_name, 
+                 "keep_pneumonia"     :          self.keep_pneumonia,
+                 "ignore_check"       :            self.ignore_check,
+                 "model_hash"         :                self.model_id, 
+                 "model_filename"     :             self.model_fname,
+                 "eval_partition"     :                       "test",
+                 "hyperparameters"    :         self.hyperparameters,
+                 "data_augmentation"  :              self.aug_params,
+                 "use_validation_data":                        False,
+                 "verbose"            :                            0,
+                 "seed"               : self.hyperparameters["seed"],
                }
         
         # Serializes args dict as JSON formatted string

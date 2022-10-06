@@ -15,7 +15,7 @@ fedlearn_params = { "epochs_per_step":                [2],
 
 # List of hyperparameter values
 hyperparameters = { "num_epochs":                     [4],  # Total N° of training epochs
-                    "batchsize":                     [64],  # Minibatch size
+                    "batchsize":                    [128],  # Minibatch size
                     "early_stop":                    [10],  # Early Stopping patience
                     "input_height":                 [224],  # Model's input size
                     "input_width":                  [224],  # Model's input size
