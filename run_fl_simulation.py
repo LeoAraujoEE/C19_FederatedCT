@@ -66,48 +66,23 @@ for i, dataset in enumerate(DATASETS):
     federatedServer.client_dict[client_id] = client
     federatedServer.num_samples_dict[client_id] = client_train_sample_count
 
+# Number of steps in the Federated Learning process
+total_steps = federatedServer.get_num_aggregations()
+
 # Federated Learning loop
-for step in range(federatedServer.get_num_aggregations()):
-    # Passes global model to all clients and gets their train/val metrics
-    federatedServer.validate_global_model(global_model_path, step)
+for step in range(total_steps):
+    # Passes the global model to all clients & gets their train/val metrics
+    federatedServer.validate_global_model(global_model_path, step, total_steps)
     
-    # Selects clients to the current round
-    selected_ids = federatedServer.select_clients()
-    
-    # Computes the weight of each client's gradients for the aggregation
-    client_weights = federatedServer.get_client_weights(selected_ids)
-    
-    # Computes the maximum amount of training steps allowed
-    max_train_steps = federatedServer.get_max_train_steps(selected_ids)
-    
-    # Gets the index of the current epoch and the number of epochs to
-    # be performed by each local model
-    current_epoch, step_num_epochs = federatedServer.get_epoch_info(step)
-    
-    # Dict to register model paths and number of samples
-    local_model_paths = {}
-    for client_id in selected_ids:
-        # Trains a local model for the current selected client
-        client = federatedServer.client_dict[client_id]
-        local_model_path = client.run_train_process(step, 
-                                  epoch_idx = current_epoch,
-                                  num_epochs = step_num_epochs, 
-                                  max_train_steps = 10,
-                                  # max_train_steps = max_train_steps,
-                                  )
-        
-        # Appends the path and n° of samples to the dict
-        local_model_paths[client_id] = local_model_path
+    client_weights, local_paths = federatedServer.train_local_models(step, 
+                                                              total_steps)
     
     # Updates global model
-    global_model_path = federatedServer.update_global_model(local_model_paths,
-                                                         client_weights, step)
+    global_model_path = federatedServer.update_global_model(local_paths,
+                                                    client_weights, step)
     
 # Evaluates the last global model's performance on train/validation data
-federatedServer.validate_global_model(global_model_path, step)
-
-# 
-federatedServer.plot_train_results()
+federatedServer.validate_global_model(global_model_path, step+1, total_steps)
     
 # Selects the final version of the global model
 global_model_path = federatedServer.get_final_model()
@@ -115,6 +90,9 @@ global_model_path = federatedServer.get_final_model()
 # Measures total training time
 fl_ellapsed_time = (time.time() - fl_init_time)
 fl_train_time = federatedServer.ellapsed_time_as_str(fl_ellapsed_time)
+
+# 
+# federatedServer.plot_train_results()
 
 #
 print("\nSaving training hyperparameters as JSON...")

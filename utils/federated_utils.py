@@ -27,6 +27,9 @@ class FederatedServer(ModelHandler):
         ModelHandler.__init__( self, path_dict["outputs"], model_fname, 
                                model_id )
         
+        # Path to CSV file w/ val metrics for all versions of the global model
+        self.history_path = os.path.join(self.model_dir, "history_dict.csv")
+        
         # Prints the selected hyperparameters
         print("\nUsing the current hyperparameters for Federated Learning:")
         self.fl_params = fl_params
@@ -66,9 +69,67 @@ class FederatedServer(ModelHandler):
 
         return
     
-    def validate_global_model(self, model_path, step_idx):
-        val_df_list = []
-        for client in self.client_dict.values():
+    def create_global_model(self):
+        
+        # Gets the Filename/Folder for the current version of the global model
+        current_path, current_dst_dir = self.get_global_model_path()
+        
+        # Creates directory if needed
+        if not os.path.exists(current_dst_dir):
+            os.makedirs(current_dst_dir)
+            
+        # Creates the model
+        model_builder = ModelBuilder( model_path = current_path )
+        model = model_builder( self.hyperparameters, 
+                               seed = self.hyperparameters["seed"] )
+        
+        # Saves model config & model weights
+        print(f"\nSaving global model to '{current_path}'...")
+        self.save_model(model, current_path)
+        
+        return current_path
+    
+    def combine_local_results( self, df_dict ):
+        dfs = []
+        for client_id, client_df in df_dict.items():
+            # Copies the local client's results dataframe
+            df = client_df.copy(deep = True)
+            
+            # Changes it's column's names to add client_ids
+            col_prefix = f"client_{client_id}"
+            new_col_names = {col: f"{col_prefix}_{col}" for col in df.columns}
+            df.rename(columns = new_col_names, inplace=True)
+            
+            # Appends to df list in order to combine
+            dfs.append(df)
+        
+        # Concatenates dataframes to make an updated client history_dict
+        combined_df = pd.concat( dfs, axis = 1 )
+        
+        # Updates combined_df with min/avg/max values for each computed metric
+        col_order = []
+        for metric in ["loss", "val_loss", "acc", "val_acc", "f1", "val_f1"]:
+            sel_cols = [f"client_{c_id}_{metric}" for c_id in df_dict.keys()]
+            
+            # Computes min/avg/max values for each metric
+            sub_df = combined_df[sel_cols].copy(deep=True)
+            combined_df[f"min_{metric}"] = sub_df.min(axis = 1)
+            combined_df[f"avg_{metric}"] = sub_df.mean(axis = 1)
+            combined_df[f"max_{metric}"] = sub_df.max(axis = 1)
+            
+            # Updates the list of columns to set its order
+            metric_cols = [f"{op}_{metric}" for op in ["min", "avg", "max"]]
+            col_order.extend(metric_cols)
+            col_order.extend(sel_cols)
+        
+        # Finally, sets the order of the columns in the dataframe
+        combined_df = combined_df[col_order]
+            
+        return combined_df
+    
+    def validate_global_model(self, model_path, step_idx, num_steps):
+        val_df_dict = {}
+        for client_id, client in self.client_dict.items():
             # Passes global model to current client
             client.get_global_model(model_path)
             
@@ -76,34 +137,56 @@ class FederatedServer(ModelHandler):
             val_results_df = client.run_validation_process(step_idx)
             
             # Appends dataframe to list
-            val_df_list.append(val_results_df)
+            val_df_dict[client_id] = val_results_df
         
-        # Averages the values for each metric for each dataframe
-        cross_val_df = sum(val_df_list) / len(val_df_list)
+        # Combines all obtained metrics into a single DataFrame with each
+        # individual value and their min/max/average values for each step
+        cross_val_df = self.combine_local_results(val_df_dict)
         
         # Formats average results as dict, and prints its values
-        print("\nAverage validation Results:")
-        cval_dict = {c: cross_val_df.iloc[0][c] for c in cross_val_df.columns}
+        print(f"\n{step_idx}/{num_steps} Average Global Model Results:")
+        sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
+        cval_dict = {c: cross_val_df.iloc[0][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)
-        
-        self.update_global_history(cross_val_df, step_idx)
-        
+
+        # Adds a new column for the current Aggregation step
+        cross_val_df.insert(0, "Step.Epoch", [f"{step_idx+1}.0"])
+    
+        # Updates the server's CSV file with all computed metrics
+        self.update_global_history(cross_val_df)
         return
     
-    def update_global_history(self, model_history_df, step_idx):
-        # Path to CSV file w/ val metrics for all versions of the global model
-        server_history_path = os.path.join(self.model_dir, "history_dict.csv")
+    def load_history(self, mode = "full"):
+        if os.path.exists(self.history_path):
+            df = pd.read_csv( self.history_path, sep = ";" )
+            
+            if mode.lower() == "full":
+                return df
+            
+            idxs = df["Step.Epoch"].to_list()
+            global_idxs = [idx for idx in idxs if ".0" in str(idx)]
+            
+            if mode.lower() == "global":
+                dst_df = df.loc[df["Step.Epoch"].isin(global_idxs)]
+                
+            else:
+                dst_df = df.loc[~df["Step.Epoch"].isin(global_idxs)]
+    
+            # Resets Index
+            dst_df = dst_df.reset_index(drop=True)
+            return dst_df
+            
+        return
+    
+    def update_global_history(self, model_history_df):
         
         # List of history dicts
         df_list = []
         
         # Appends client's history_dict if it already exists
-        if os.path.exists(server_history_path):
-            server_history_df = pd.read_csv( server_history_path, sep = ";" )
+        if os.path.exists(self.history_path):
+            server_history_df = self.load_history(mode = "full")
             df_list.append( server_history_df )
-
-        # Adds a new column for the current Aggregation step
-        model_history_df.insert(0, "Aggregation", [step_idx])
         
         # Appends current local model's to df_list
         df_list.append(model_history_df)
@@ -111,8 +194,12 @@ class FederatedServer(ModelHandler):
         # Concatenates dataframes to make an updated client history_dict
         updated_df = pd.concat( df_list, ignore_index = True )
         
+        # Fills empty values from unselected clients by repeating their latest
+        # recorded value. The local model doesn't change, nor do its metrics
+        updated_df = updated_df.ffill()
+        
         # Saves the dataframe as CSV
-        updated_df.to_csv( server_history_path, index = False, sep = ";" )
+        updated_df.to_csv( self.history_path, index = False, sep = ";" )
         
         return
     
@@ -134,25 +221,42 @@ class FederatedServer(ModelHandler):
                                         replace = False, shuffle = False )
         return selected_ids
     
-    def create_global_model(self):
+    def get_client_weights(self, selected_ids):
+    
+        samples = { _id: self.num_samples_dict[_id] for _id in selected_ids }
+        total_samples = np.sum(list(samples.values()))
         
-        # Gets the Filename/Folder for the current version of the global model
-        current_path, current_dst_dir = self.get_global_model_path()
+        weights = { _id: s / total_samples  for _id, s in samples.items() }
         
-        # Creates directory if needed
-        if not os.path.exists(current_dst_dir):
-            os.makedirs(current_dst_dir)
+        return weights
+    
+    def get_max_train_steps(self, selected_ids):
+        # Extracts relevant hyperparameters from hyperparameters dict
+        sampling = self.hyperparameters["sampling"]
+        batchsize = self.hyperparameters["batchsize"]
+        
+        # Lists the maximum number of training steps (batches) 
+        # that each of the selected client can produce
+        num_step_list = []
+        for _id in selected_ids:
+            client = self.client_dict[_id]
+            num_step = client.dataset.get_num_steps( "train", batchsize, 
+                                                     sampling )
             
-        # Creates the model
-        model_builder = ModelBuilder( model_path = current_path )
-        model = model_builder( self.hyperparameters, 
-                               seed = self.hyperparameters["seed"] )
+            num_step_list.append(num_step)
         
-        # Saves model config & model weights
-        print(f"\nSaving global model to '{current_path}'...")
-        self.save_model(model, current_path)
+        # Extracts the minimum and the maximum values from that list
+        min_steps = np.min(num_step_list)
+        max_steps = np.max(num_step_list)
         
-        return current_path
+        # Computes the 'max_train_steps' as a value between min_steps and
+        # max_steps that's closer to min_steps as 'max_steps_frac' is closer
+        # to 0 and is closer to max_steps as 'max_steps_frac' is closer to 1
+        steps_frac = self.fl_params["max_steps_frac"]
+        xtra_steps = (max_steps - min_steps) * steps_frac
+        max_train_steps = int(min_steps + xtra_steps)
+        
+        return max_train_steps
     
     def get_epoch_info( self, step_idx ):
         
@@ -172,20 +276,56 @@ class FederatedServer(ModelHandler):
         
         return epoch_idx, step_epochs
     
-    @staticmethod
-    def save_model(model, model_path):
-
-        # Saves model configs
-        json_config = model.to_json()
-        config_path = model_path.replace(".h5", ".json")
-
-        with open(config_path, "w") as json_file:
-            json.dump( json_config, json_file, indent=4 )
+    def train_local_models(self, step_idx, num_steps):
+    
+        # Selects clients to the current round
+        selected_ids = self.select_clients()
         
-        # Saves model weights
-        model.save_weights( model_path )
+        # Computes the weight of each client's gradients for the aggregation
+        client_weights = self.get_client_weights(selected_ids)
         
-        return
+        # Computes the maximum amount of training steps allowed
+        max_train_steps = self.get_max_train_steps(selected_ids)
+        
+        # Gets the index of the current epoch and the number of epochs to
+        # be performed by each local model
+        current_epoch, step_num_epochs = self.get_epoch_info(step_idx)
+        
+        # Dict to register model paths and number of samples
+        local_model_paths = {}
+        local_model_results = {}
+        for client_id in selected_ids:
+            # Trains a local model for the current selected client
+            client = self.client_dict[client_id]
+            local_return_dict = client.run_train_process(step_idx, 
+                                    epoch_idx = current_epoch,
+                                    num_epochs = step_num_epochs, 
+                                    max_train_steps = 10,
+                                    # max_train_steps = max_train_steps,
+                                    )
+            
+            # Appends the path and results to corresponding the dicts
+            local_model_paths[client_id] = local_return_dict["path"]
+            local_model_results[client_id] = local_return_dict["results"]
+        
+        # Combines all obtained metrics into a single DataFrame with each
+        # individual value and their min/max/average values for each step
+        cross_val_df = self.combine_local_results(local_model_results)
+        
+        # Formats average results as dict, and prints its values
+        print(f"\n{step_idx+1}/{num_steps} Average Local Model Results:")
+        sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
+        cval_dict = {c: cross_val_df.iloc[-1][c] for c in sel_cols}
+        self.print_dict(cval_dict, round = True)
+
+        # Adds a new column for the current Aggregation step
+        step_ticks = [f"{step_idx+1}.{i+1}" for i in range(len(cross_val_df))]
+        cross_val_df.insert(0, "Step.Epoch", step_ticks)
+    
+        # Updates the server's CSV file with all computed metrics
+        self.update_global_history(cross_val_df)
+            
+        return client_weights, local_model_paths
     
     def federated_average(self, local_model_paths, client_weights):
         
@@ -265,13 +405,10 @@ class FederatedServer(ModelHandler):
         return new_model_path
     
     def get_final_model(self):
-        # Path to CSV file w/ val metrics for all versions of the global model
-        tmp_csv_path = os.path.join(self.model_dir, "history_dict.csv")
 
-        # If the CSV file already exists
-        if os.path.exists(tmp_csv_path):
-            # Loads the old file
-            tmp_df = pd.read_csv(tmp_csv_path, sep = ";")
+        # Checks if the history CSV file already exists
+        assert os.path.exists(self.history_path), f"Can't find '{self.history_path}'..."
+        history_df = self.load_history(mode = "global")
         
         # Gets the best performing version of global model 
         # based on the values for the monitored variable
@@ -279,17 +416,17 @@ class FederatedServer(ModelHandler):
         if self.hyperparameters["monitor"] in var_list:
             # Gets the column name for the monitored variable in tmp_df
             # (this name differs based on the validation dataset used)
-            monitor_var  = self.hyperparameters["monitor"]
+            monitor_var  = f"avg_{self.hyperparameters['monitor']}"
             
             # Locates the row w/ best value from dataframe
             if "loss" in monitor_var:
                 # Which is the min value for Loss
-                row_idx = tmp_df[monitor_var].idxmin()
-                row_bst = tmp_df[monitor_var].min()
+                row_idx = history_df[monitor_var].idxmin()
+                row_bst = history_df[monitor_var].min()
             else:
                 # And max value for Acc/F1
-                row_idx = tmp_df[monitor_var].idxmax()
-                row_bst = tmp_df[monitor_var].max()
+                row_idx = history_df[monitor_var].idxmax()
+                row_bst = history_df[monitor_var].max()
                 
             sufix = f"has the best '{monitor_var}' of {row_bst:.4f}..."
             
@@ -310,43 +447,6 @@ class FederatedServer(ModelHandler):
         shutil.copy2(src_model_configs_path, dst_model_cofigs_path)
         
         return self.model_path
-    
-    def get_client_weights(self, selected_ids):
-    
-        samples = { _id: self.num_samples_dict[_id] for _id in selected_ids }
-        total_samples = np.sum(list(samples.values()))
-        
-        weights = { _id: s / total_samples  for _id, s in samples.items() }
-        
-        return weights
-    
-    def get_max_train_steps(self, selected_ids):
-        # Extracts relevant hyperparameters from hyperparameters dict
-        sampling = self.hyperparameters["sampling"]
-        batchsize = self.hyperparameters["batchsize"]
-        
-        # Lists the maximum number of training steps (batches) 
-        # that each of the selected client can produce
-        num_step_list = []
-        for _id in selected_ids:
-            client = self.client_dict[_id]
-            num_step = client.dataset.get_num_steps( "train", batchsize, 
-                                                     sampling )
-            
-            num_step_list.append(num_step)
-        
-        # Extracts the minimum and the maximum values from that list
-        min_steps = np.min(num_step_list)
-        max_steps = np.max(num_step_list)
-        
-        # Computes the 'max_train_steps' as a value between min_steps and
-        # max_steps that's closer to min_steps as 'max_steps_frac' is closer
-        # to 0 and is closer to max_steps as 'max_steps_frac' is closer to 1
-        steps_frac = self.fl_params["max_steps_frac"]
-        xtra_steps = (max_steps - min_steps) * steps_frac
-        max_train_steps = int(min_steps + xtra_steps)
-        
-        return max_train_steps
     
     def get_num_aggregations(self):
         # Retrieves n° of epochs / n° of epochs per aggregation
@@ -392,17 +492,42 @@ class FederatedServer(ModelHandler):
     
     def plot_train_results(self):
         # Path to CSV file w/ val metrics for all versions of the global model
-        history_path = os.path.join(self.model_dir, "history_dict.csv")
-        assert os.path.exists(history_path), f"Can't find '{history_path}'..."
+        assert os.path.exists(self.history_path), f"Can't find '{self.history_path}'..."
 
         # Converts Dataframe to Dict
-        history_df = pd.read_csv(history_path, sep = ";")
+        history_df = pd.read_csv(self.history_path, sep = ";")
         history_dict = history_df.to_dict("list")
   
         # Object responsible for plotting
         print(f"\nTrained model '{self.model_fname}'...")
         plotter = CustomPlots(self.model_path)
         plotter.plot_train_results( history_dict, self.dataset.name )
+        
+        return
+    
+    def plot_fl_results(self):
+        # Path to CSV file w/ val metrics for all versions of the global model
+        global_history_path = os.path.join(self.model_dir, "history_dict.csv")
+        
+        client_history_paths = {}
+        for client_id, client in self.client_dict.items():
+            client_history_paths[client_id] = os.path.join( client.dst_dir, 
+                                                           "history_dict.csv")
+        
+        return
+    
+    @staticmethod
+    def save_model(model, model_path):
+
+        # Saves model configs
+        json_config = model.to_json()
+        config_path = model_path.replace(".h5", ".json")
+
+        with open(config_path, "w") as json_file:
+            json.dump( json_config, json_file, indent=4 )
+        
+        # Saves model weights
+        model.save_weights( model_path )
         
         return
 
@@ -501,7 +626,7 @@ class FederatedClient(ModelManager):
         subprocess.Popen.wait(subprocess.Popen( command ))
         
         # Updates the client's dict with training/validation metrics
-        global_history_df = self.load_global_history(model_fname, step_idx)
+        global_history_df = self.load_global_history(model_fname)
         
         # Updates the client's dict with training/validation metrics
         self.update_client_history_dict(global_history_df.copy(deep = True), 
@@ -510,7 +635,7 @@ class FederatedClient(ModelManager):
         # Returns the path to the trained model and n° of train samples
         return global_history_df
     
-    def load_global_history(self, model_fname, step_idx):
+    def load_global_history(self, model_fname):
         
         # Path to current global model's validation dict, 
         # which records model's metrics for this client's train/val data
@@ -588,8 +713,12 @@ class FederatedClient(ModelManager):
         self.update_client_history_dict(local_history_df.copy(deep = True), 
                                         step_idx, from_local = True)
         
+        return_dict = { "path":    local_model_path,
+                        "results": local_history_df,
+                      }
+        
         # Returns the path to the trained model and n° of train samples
-        return local_model_path
+        return return_dict
     
     def load_local_history(self, step_idx):
             

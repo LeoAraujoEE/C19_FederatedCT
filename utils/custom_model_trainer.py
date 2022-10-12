@@ -806,14 +806,21 @@ class ModelTester(ModelHandler):
         # Gets all labels in the dataframe as their corresponding class numbers to compute accuracy and f1-score
         y_true = datagen.get_labels()[:num_samples]
 
-        # Computes the average loss for the current partition
-        scores = self.model.predict( datagen, batch_size = hyperparameters["batchsize"], 
-                                     steps = num_steps, workers = 4, verbose = 1 )
-        y_pred  = (scores > 0.5).astype(np.float32)
-        
-        # Gets loss function from model.evaluate
-        loss_val, _, _ = self.model.evaluate(datagen, batch_size = hyperparameters["batchsize"],
-                                             steps = num_steps, workers = 4, verbose = 1 )
+        # Remove mock_test -------------------------
+        mock_test = True
+        if mock_test:
+            scores = np.random.random( (num_samples, 1) ).astype(np.float32)
+            y_pred = (scores > 0.5).astype(np.float32)
+            loss_val = np.random.rand()
+        else:
+            # Computes the average loss for the current partition
+            scores = self.model.predict( datagen, batch_size = hyperparameters["batchsize"], 
+                                        steps = num_steps, workers = 4, verbose = 1 )
+            y_pred = (scores > 0.5).astype(np.float32)
+            
+            # Gets loss function from model.evaluate
+            loss_val, _, _ = self.model.evaluate(datagen, batch_size = hyperparameters["batchsize"],
+                                                steps = num_steps, workers = 4, verbose = 1 )
         
         # Computes metrics using scikit-learn and keras.losses
         metrics_dict = { "loss": loss_val,
