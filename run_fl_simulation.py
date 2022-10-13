@@ -83,9 +83,6 @@ for step in range(total_steps):
     
 # Evaluates the last global model's performance on train/validation data
 federatedServer.validate_global_model(global_model_path, step+1, total_steps)
-    
-# Selects the final version of the global model
-global_model_path = federatedServer.get_final_model()
         
 # Measures total training time
 fl_ellapsed_time = (time.time() - fl_init_time)
@@ -100,4 +97,4 @@ federatedServer.hyperparam_to_json(hyperparameters, data_aug_params,
                                    fl_train_time, fl_params)
     
 # Tests the final selected global model
-federatedServer.run_eval_process()
+federatedServer.run_test_process()

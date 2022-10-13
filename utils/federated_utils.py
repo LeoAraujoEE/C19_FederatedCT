@@ -57,6 +57,11 @@ class FederatedServer(ModelHandler):
         #
         self.ignore_check = ignore_check
         
+        # Defines the metric used to monitor model performance
+        self.monitor_var = f"avg_{self.hyperparameters['monitor']}"
+        self.monitor_mode = "max" if not "loss" in self.monitor_var else "min"
+        self.monitor_best = -np.inf if self.monitor_mode == "max" else np.inf
+        
         # Dataset used to validate models
         self.dataset = Dataset( self.data_path, name = val_dataset, 
                                 keep_pneumonia = self.keep_pneumonia )
@@ -88,6 +93,11 @@ class FederatedServer(ModelHandler):
         self.save_model(model, current_path)
         
         return current_path
+    
+    def check_for_improvement(self, val):
+        if self.monitor_mode == "max":
+            return (val > self.monitor_best)
+        return (val < self.monitor_best)
     
     def combine_local_results( self, df_dict ):
         dfs = []
@@ -148,6 +158,16 @@ class FederatedServer(ModelHandler):
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[0][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)
+        
+        # Checks wether the new global model has the best results so far
+        # If so, updates the main weights file with the current weights
+        monitored_val = cross_val_df.iloc[0][self.monitor_var]
+        if self.check_for_improvement(monitored_val):
+            print(f"\nGlobal model's '{self.monitor_var}' improved from",
+                  f"{self.monitor_best:.4f} to {monitored_val:.4f}.",
+                  f"Saving model to {self.model_path}...")
+            self.monitor_best = monitored_val
+            self.copy_weights(model_path, self.model_path)
 
         # Adds a new column for the current Aggregation step
         cross_val_df.insert(0, "Step.Epoch", [f"{step_idx+1}.0"])
@@ -404,50 +424,6 @@ class FederatedServer(ModelHandler):
         
         return new_model_path
     
-    def get_final_model(self):
-
-        # Checks if the history CSV file already exists
-        assert os.path.exists(self.history_path), f"Can't find '{self.history_path}'..."
-        history_df = self.load_history(mode = "global")
-        
-        # Gets the best performing version of global model 
-        # based on the values for the monitored variable
-        var_list = ["val_loss", "val_acc", "val_f1"]
-        if self.hyperparameters["monitor"] in var_list:
-            # Gets the column name for the monitored variable in tmp_df
-            # (this name differs based on the validation dataset used)
-            monitor_var  = f"avg_{self.hyperparameters['monitor']}"
-            
-            # Locates the row w/ best value from dataframe
-            if "loss" in monitor_var:
-                # Which is the min value for Loss
-                row_idx = history_df[monitor_var].idxmin()
-                row_bst = history_df[monitor_var].min()
-            else:
-                # And max value for Acc/F1
-                row_idx = history_df[monitor_var].idxmax()
-                row_bst = history_df[monitor_var].max()
-                
-            sufix = f"has the best '{monitor_var}' of {row_bst:.4f}..."
-            
-        # If not monitoring a variable, gets the most recent version
-        else:
-            sufix = "is the most recent..."
-            
-        # Gets the path to the selected global model's weights
-        src_model_weights_path, _ = self.get_global_model_path(step = row_idx)
-        print(f"\nSelected '{os.path.basename(src_model_weights_path)}', which {sufix}")
-        
-        # Gets the src/dst path to the selected model's config
-        dst_model_cofigs_path = self.model_path.replace(".h5",".json")
-        src_model_configs_path = src_model_weights_path.replace(".h5",".json")
-        
-        # Copies the selected model's weights and configs
-        shutil.copy2(src_model_weights_path, self.model_path)
-        shutil.copy2(src_model_configs_path, dst_model_cofigs_path)
-        
-        return self.model_path
-    
     def get_num_aggregations(self):
         # Retrieves n° of epochs / n° of epochs per aggregation
         epochs_per_step = self.fl_params["epochs_per_step"]
@@ -462,7 +438,7 @@ class FederatedServer(ModelHandler):
                     }
         return path_dict
     
-    def run_eval_process( self ):
+    def run_test_process( self ):
         
         # Base args dict
         args = { "output_dir"         :                 self.dst_dir, 
@@ -495,7 +471,7 @@ class FederatedServer(ModelHandler):
         assert os.path.exists(self.history_path), f"Can't find '{self.history_path}'..."
 
         # Converts Dataframe to Dict
-        history_df = pd.read_csv(self.history_path, sep = ";")
+        history_df = self.load_history(mode = "global")
         history_dict = history_df.to_dict("list")
   
         # Object responsible for plotting
@@ -514,6 +490,21 @@ class FederatedServer(ModelHandler):
             client_history_paths[client_id] = os.path.join( client.dst_dir, 
                                                            "history_dict.csv")
         
+        return
+    
+    @staticmethod
+    def copy_weights(src_weights_path, dst_weights_path):
+        # Gets the path for the model's configs file
+        src_configs_path = src_weights_path.replace(".h5", ".json")
+        dst_configs_path = dst_weights_path.replace(".h5", ".json")
+        
+        # Copies the selected model's weights and configs
+        dst_path_list = [dst_weights_path, dst_configs_path]
+        src_path_list = [src_weights_path, src_configs_path]
+        for src_path, dst_path in zip(src_path_list, dst_path_list):
+            if os.path.exists(dst_path):
+                os.remove(dst_path)
+            shutil.copy2(src_path, dst_path)
         return
     
     @staticmethod
