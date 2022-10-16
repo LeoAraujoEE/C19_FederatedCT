@@ -44,27 +44,216 @@ class CustomPlots:
             # Epochs
             epochs = range(1, len(train_values) + 1)
 
+            if metric != "loss":
+                leg_loc = "lower right"
+                best_x = np.argmax(val_values)
+                y_lims = (np.min( [0.7, .95 * np.min( all_values )] ), 1.0)
+                
+            else:
+                leg_loc = "upper right"
+                best_x = np.argmin(val_values)
+                y_lims = (0, np.min( [1.5, np.max( all_values )] ))
+
             # Plots the results
             plt.ioff()
             fig = plt.figure( figsize = figsize )
             plt.plot( epochs, train_values, "r", label = "Training" )
+            plt.plot([epochs[best_x]], [train_values[best_x]], 
+                      color = "r", marker = "o")
             plt.plot( epochs, val_values, "b", label = "Validation" )
+            plt.plot([epochs[best_x]], [val_values[best_x]], 
+                      color = "b", marker = "o")
             plt.title( metric.title()+" per Epoch", fontsize = 24 )
             plt.xlabel( "Epochs", fontsize = 20 )
             plt.xticks( fontsize = 16 )
             plt.ylabel( metric.title(), fontsize = 20 )
-
-            if metric != "loss":
-                plt.legend( loc = "lower right", fontsize = 20 )
-                plt.ylim( (np.min( [0.7, .95*np.min( all_values )] ), 1.0) )
-            else:
-                plt.legend( loc = "upper right", fontsize = 20 )
-                plt.ylim( (0, np.min( [1.5, np.max( all_values )] )) )
+            plt.legend( loc = leg_loc, fontsize = 20 )
+            plt.ylim( y_lims )
 
 
             # Saves & closes figure
             fig.savefig( plot_path, dpi = 100, bbox_inches = "tight" )
             plt.close( fig )
+
+        return
+    
+    def plot_fl_global_results( self, history_df, figsize = (16, 12), prefix = "full" ):
+        # Converts dataframe to dict
+        history = history_df.to_dict("list")
+
+        # Defines the path to the plot directory inside the model's directory
+        dst_dir = os.path.join( self.plot_dir, "1.Training Results", "global" )
+        
+        # Creates the plot directory if needed
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
+
+        for metric in ["loss", "acc", "f1"]:
+
+            # Defines the plot name
+            plot_name = f"{prefix}_global_{metric}.png"
+            plot_path = os.path.join( dst_dir, plot_name )
+            
+            # Extracts train values from history dict
+            min_train_values = history[f"min_{metric}"]
+            avg_train_values = history[f"avg_{metric}"]
+            max_train_values = history[f"max_{metric}"]
+            
+            # Extracts validation values from history dict
+            min_val_values = history[f"min_val_{metric}"]
+            avg_val_values = history[f"avg_val_{metric}"]
+            max_val_values = history[f"max_val_{metric}"]
+
+            # Steps.Epochs
+            xticks_labels = [str(i) for i in history["Step.Epoch"]]
+            vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v]
+            steps_epochs = range(len(xticks_labels))
+
+            # Min/Max values to set plot's ylim
+            min_value = np.min(list(min_val_values) + list(min_train_values))
+            max_value = np.max(list(max_val_values) + list(max_train_values))
+
+            if metric != "loss":
+                # Label for min/max curves and ylims for both plots
+                min_label, max_label = "Worst Client", "Best Client"
+                y_lims = (np.min( [0.7, .95 * min_value] ), 1.0)
+                
+                # Coordinates for point of best val performance
+                best_x = np.argmax(avg_val_values)
+                
+            else:
+                # Label for min/max curves and ylims for both plots
+                min_label, max_label = "Best Client", "Worst Client"
+                y_lims = (0, np.min( [1.5, max_value] ))
+                
+                # Coordinates for point of best val performance
+                best_x = np.argmin(avg_val_values)
+            
+            # Sets the colors for min/max curves
+            min_color = "r" if metric != "loss" else "g"
+            max_color = "r" if metric == "loss" else "g"
+
+            # Plots the results
+            plt.ioff()
+            fig, axes = plt.subplots(1, 2, squeeze = False, figsize = figsize)
+            
+            # Plots min/avg/max curves for training metrics
+            plt.sca(axes.flat[0])
+            plt.plot(steps_epochs, min_train_values, color = min_color, 
+                     linewidth = 1, linestyle = "--", label = min_label)
+            plt.plot(steps_epochs, avg_train_values, color = "b", 
+                     label = "Average Client")
+            plt.plot(steps_epochs, max_train_values, color = max_color, 
+                     linewidth = 1, linestyle = "--", label = max_label)
+            plt.plot([steps_epochs[best_x]], [avg_train_values[best_x]], 
+                      color = "blue", marker = "o")
+            plt.title(f"Training {metric.title()} x Step.Epoch", fontsize=24)
+            plt.xlabel("Steps.Epochs", fontsize=20 )
+            plt.xticks( steps_epochs, xticks_labels, fontsize=16 )
+            plt.ylabel( metric.title(), fontsize=20 )
+            plt.ylim(y_lims)
+            plt.vlines(x=vline_idxs, ymin = y_lims[0], ymax=y_lims[1],
+                       color = "k", linestyles="--", linewidth = 1, 
+                       label = "Aggregation")
+            # plt.legend(loc = leg_loc, fontsize=20)
+            
+            # Plots min/avg/max curves for training metrics
+            plt.sca(axes.flat[1])
+            plt.plot(steps_epochs, min_val_values, color = min_color, 
+                     linewidth = 1, linestyle = "--", label = min_label)
+            plt.plot(steps_epochs, avg_val_values, color = "b", 
+                     label = "Average Client")
+            plt.plot(steps_epochs, max_val_values, color = max_color, 
+                     linewidth = 1, linestyle = "--", label = max_label)
+            plt.plot([steps_epochs[best_x]], [avg_val_values[best_x]], 
+                     color = "blue", marker = "o")
+            plt.title(f"Validation {metric.title()} x Step.Epoch",fontsize=24)
+            plt.xlabel("Steps.Epochs", fontsize=20 )
+            plt.xticks(steps_epochs, xticks_labels, fontsize=16 )
+            plt.ylabel(metric.title(), fontsize=20 )
+            plt.ylim(y_lims)
+            plt.vlines(x = vline_idxs, ymin = y_lims[0], ymax=y_lims[1],
+                       color = "k", linestyles="--", linewidth = 1, 
+                       label = "Aggregation")
+            # plt.legend(loc = leg_loc, fontsize=20)
+            
+            handles, labels = axes.flat[1].get_legend_handles_labels()
+            fig.legend( handles, labels, ncol = len(labels), 
+                        loc = "lower center", fontsize = 18 )
+
+            # Saves & closes figure
+            fig.savefig( plot_path, dpi = 100, bbox_inches = "tight" )
+            plt.close( fig )
+
+        return
+    
+    def plot_fl_local_results( self, history_df, client_datasets, figsize = (16, 12), prefix = "full" ):
+        # Converts dataframe to dict
+        history = history_df.to_dict("list")
+
+        # Defines the path to the plot directory inside the model's directory
+        dst_dir = os.path.join( self.plot_dir, "1.Training Results", "local" )
+        
+        # Creates the plot directory if needed
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
+            
+        for client_id, dset_name in client_datasets.items():
+            client_name = f"client_{client_id}"
+
+            for metric in ["loss", "acc", "f1"]:
+
+                # Defines the plot name
+                plot_name = f"{prefix}_{client_name}_local_{metric}.png"
+                plot_path = os.path.join( dst_dir, plot_name )
+                
+                # Extracts train and val values from history dict
+                train_values = history[f"{client_name}_{metric}"]
+                val_values = history[f"{client_name}_val_{metric}"]
+
+                # Steps.Epochs
+                xticks_labels = [str(i) for i in history["Step.Epoch"]]
+                vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v]
+                steps_epochs = range(len(xticks_labels))
+
+                # Min/Max values to set plot's ylim
+                min_value = np.min(list(val_values) + list(train_values))
+                max_value = np.max(list(val_values) + list(train_values))
+
+                if metric != "loss":
+                    leg_loc = "lower right"
+                    best_x = np.argmax(val_values)
+                    y_lims = (np.min( [0.7, .95 * min_value] ), 1.0)
+                else:
+                    leg_loc = "upper right"
+                    best_x = np.argmin(val_values)
+                    y_lims = (0, np.min( [1.5, max_value] ))
+
+                # Plots the results
+                plt.ioff()
+                fig = plt.figure( figsize = figsize )
+                
+                # Plots min/avg/max curves for training metrics
+                plt.plot(steps_epochs, train_values, "r", label = "Training")
+                plt.plot([steps_epochs[best_x]], [train_values[best_x]], 
+                          color = "r", marker = "o")
+                plt.plot(steps_epochs, val_values, "b", label = "Validation")
+                plt.plot([steps_epochs[best_x]], [val_values[best_x]], 
+                          color = "b", marker = "o")
+                plt.title(f"{metric.title()} x Step.Epoch - Client_" +
+                          f"{client_id} ({dset_name.title()})", fontsize=24)
+                plt.xlabel("Steps.Epochs", fontsize=20 )
+                plt.xticks( steps_epochs, xticks_labels, fontsize=16 )
+                plt.ylabel( metric.title(), fontsize=20 )
+                plt.ylim(y_lims)
+                plt.vlines(x=vline_idxs, ymin = y_lims[0], ymax=y_lims[1],
+                        color = "k", linestyles="--", linewidth = 1, 
+                        label = "Aggregation")
+                plt.legend(loc = leg_loc, fontsize=20)
+
+                # Saves & closes figure
+                fig.savefig( plot_path, dpi = 100, bbox_inches = "tight" )
+                plt.close( fig )
 
         return
 
@@ -85,7 +274,6 @@ class CustomPlots:
             plot_name = "{}_{}.png".format( metric, dataset_name )
             plot_path = os.path.join( dst_dir, plot_name )
 
-            #fig, axes = plt.subplots(1, 2, squeeze=False, figsize=figsize)
             fig, axes = plt.subplots(2, 1, squeeze=False, figsize=figsize)
 
             # Plot 1 - Final values for Train, Validation and Test

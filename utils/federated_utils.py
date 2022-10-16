@@ -320,8 +320,8 @@ class FederatedServer(ModelHandler):
             local_return_dict = client.run_train_process(step_idx, 
                                     epoch_idx = current_epoch,
                                     num_epochs = step_num_epochs, 
-                                    max_train_steps = 10,
-                                    # max_train_steps = max_train_steps,
+                                    # max_train_steps = 10,
+                                    max_train_steps = max_train_steps,
                                     )
             
             # Appends the path and results to corresponding the dicts
@@ -469,26 +469,29 @@ class FederatedServer(ModelHandler):
     def plot_train_results(self):
         # Path to CSV file w/ val metrics for all versions of the global model
         assert os.path.exists(self.history_path), f"Can't find '{self.history_path}'..."
-
-        # Converts Dataframe to Dict
-        history_df = self.load_history(mode = "global")
-        history_dict = history_df.to_dict("list")
   
         # Object responsible for plotting
-        print(f"\nTrained model '{self.model_fname}'...")
         plotter = CustomPlots(self.model_path)
-        plotter.plot_train_results( history_dict, self.dataset.name )
         
-        return
-    
-    def plot_fl_results(self):
-        # Path to CSV file w/ val metrics for all versions of the global model
-        global_history_path = os.path.join(self.model_dir, "history_dict.csv")
+        # Plots complete training results
+        plotter.plot_fl_global_results( self.load_history(mode = "full"), 
+                                        prefix = "full" )
+
+        # Plots only results realted to Global models
+        plotter.plot_fl_global_results( self.load_history(mode = "global"), 
+                                        prefix = "partial" )
         
-        client_history_paths = {}
-        for client_id, client in self.client_dict.items():
-            client_history_paths[client_id] = os.path.join( client.dst_dir, 
-                                                           "history_dict.csv")
+        # Dict associating client_ids its client's dataset's name
+        client_dset_dict = { _id: client.dataset.name for _id, client in\
+                                                 self.client_dict.items() }
+
+        # Plots results realted to each client's model
+        plotter.plot_fl_local_results( self.load_history(mode = "full"),
+                                       client_dset_dict, prefix = "full")
+
+        # Plots results realted to each client's model
+        plotter.plot_fl_local_results( self.load_history(mode = "global"),
+                                       client_dset_dict, prefix = "partial")
         
         return
     

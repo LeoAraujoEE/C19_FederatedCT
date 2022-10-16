@@ -807,7 +807,7 @@ class ModelTester(ModelHandler):
         y_true = datagen.get_labels()[:num_samples]
 
         # Remove mock_test -------------------------
-        mock_test = True
+        mock_test = False
         if mock_test:
             scores = np.random.random( (num_samples, 1) ).astype(np.float32)
             y_pred = (scores > 0.5).astype(np.float32)

@@ -89,7 +89,7 @@ fl_ellapsed_time = (time.time() - fl_init_time)
 fl_train_time = federatedServer.ellapsed_time_as_str(fl_ellapsed_time)
 
 # 
-# federatedServer.plot_train_results()
+federatedServer.plot_train_results()
 
 #
 print("\nSaving training hyperparameters as JSON...")
