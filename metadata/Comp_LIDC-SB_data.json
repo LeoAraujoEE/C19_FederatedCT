@@ -1,0 +1,36 @@
+{
+    "name": "Comp_LIDC-SB",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 2,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1
+    },
+    "num_samples": {
+        "total": {
+            "Total": 18460,
+            "Normal": 3999,
+            "COVID-19": 14461,
+            "Pneumonia": 0
+        },
+        "train": {
+            "Total": 11071,
+            "Normal": 2380,
+            "COVID-19": 8691,
+            "Pneumonia": 0
+        },
+        "val": {
+            "Total": 3658,
+            "Normal": 778,
+            "COVID-19": 2880,
+            "Pneumonia": 0
+        },
+        "test": {
+            "Total": 3731,
+            "Normal": 841,
+            "COVID-19": 2890,
+            "Pneumonia": 0
+        }
+    }
+}

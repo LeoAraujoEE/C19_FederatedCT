@@ -47,7 +47,7 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         # If the targeted size is unavailable,
         # samples are resized from 512x512 images
         if not os.path.exists(self.import_dir):
-            self.import_dir = os.path.join(data_path, "512x512")    
+            self.import_dir = os.path.join(data_path, "original")    
 
         # Gets the names of the input and output columns in the dataf ame
         self.X_col = dataset.input_col
@@ -74,8 +74,11 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
     @staticmethod
     def custom_preprocess_input(model_input):
         model_input = model_input.astype(np.float32)
+        
+        # Maps images from [0 ~ 255] to [-1, 1]
         model_input /= 127.5
         model_input -= 1
+        
         return model_input
 
     def get_sampled_df(self, sub_df, ref_samples):
@@ -121,8 +124,7 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         if (augmentation_dict is None) or (not hyperparameters["augmentation"]):
             # Transformations for ImageDataGenerator
             self.datagen = tf.keras.preprocessing.image.ImageDataGenerator( rescale = 1.,
-                                                                      preprocessing_function = CustomDataGenerator.custom_preprocess_input 
-                                                                      )
+                              preprocessing_function = CustomDataGenerator.custom_preprocess_input )
         
         else:
             # Zoom range for data augmentation

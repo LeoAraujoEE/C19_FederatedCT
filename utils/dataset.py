@@ -1,5 +1,6 @@
 import os
 import json
+import glob
 import numpy as np
 import pandas as pd
 
@@ -14,14 +15,14 @@ class Dataset():
         # States that the dataset's csv files were not loaded yet
         self.is_loaded = False
 
-        # Builds dataset_path from import_dir and folder
+        # Path to dataset's images
         self.import_dir   = import_dir
-        self.dataset_path = os.path.join( import_dir, name )
         
         # Gets the path to this dataset's CSV file 
         # and the JSON containing its metadata
-        self.csv_path  = os.path.join( import_dir, f"{name}_data.csv" )
-        self.json_path = os.path.join( import_dir, f"{name}_data.json" )
+        self.meta_dir  = os.path.join( ".", "metadata" )
+        self.csv_path  = os.path.join( self.meta_dir, f"{name}_data.csv" )
+        self.json_path = os.path.join( self.meta_dir, f"{name}_data.json" )
 
         # Verifies if the dataset's CSV/JSON files exist
         self.check_dataset()
@@ -205,9 +206,8 @@ def load_datasets( import_dir, train_dataset_name, use_val_data,
                    keep_pneumonia ):
 
     # List of all available datasets
-    available_datasets = [ "miniCOVIDxCT", "Comp_CNCB_iCTCF", "miniCNCB", 
-                           "radiopaedia.org", "COVID-CTset", "COVID-CT-MD", 
-                           "Comp_LIDC-SB" ]
+    csv_paths = glob.glob(os.path.join("metadata", "*_data.csv"))
+    dataset_list = [os.path.basename(p).split("_data")[0] for p in csv_paths]
 
     print("\nChecking datasets:")
     if keep_pneumonia:
@@ -219,7 +219,7 @@ def load_datasets( import_dir, train_dataset_name, use_val_data,
     
     train_dataset = None
     val_dataset_list = []
-    for dataset_name in available_datasets:
+    for dataset_name in dataset_list:
         
         # Builds object to handle the current dataset
         dataset_obj = Dataset( import_dir, name = dataset_name, 
@@ -236,5 +236,10 @@ def load_datasets( import_dir, train_dataset_name, use_val_data,
     
     if len(val_dataset_list) == 0:
         val_dataset_list = None
+        
+    else:
+        # Sorts validation data from largest dataset to smallest
+        val_dataset_list = sorted(val_dataset_list, reverse = True, 
+                             key = lambda dset: dset.get_num_samples("total"))
     
     return train_dataset, val_dataset_list

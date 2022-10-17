@@ -1,0 +1,37 @@
+{
+    "name": "miniCOVIDxCT",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 3,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1,
+        "Pneumonia": 2
+    },
+    "num_samples": {
+        "total": {
+            "Total": 219121,
+            "Normal": 71488,
+            "COVID-19": 104690,
+            "Pneumonia": 42943
+        },
+        "train": {
+            "Total": 130750,
+            "Normal": 42730,
+            "COVID-19": 62928,
+            "Pneumonia": 25092
+        },
+        "val": {
+            "Total": 42281,
+            "Normal": 14058,
+            "COVID-19": 19936,
+            "Pneumonia": 8287
+        },
+        "test": {
+            "Total": 46090,
+            "Normal": 14700,
+            "COVID-19": 21826,
+            "Pneumonia": 9564
+        }
+    }
+}

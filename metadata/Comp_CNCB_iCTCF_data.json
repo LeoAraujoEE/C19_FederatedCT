@@ -1,0 +1,37 @@
+{
+    "name": "Comp_CNCB_iCTCF",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 3,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1,
+        "Pneumonia": 2
+    },
+    "num_samples": {
+        "total": {
+            "Total": 88198,
+            "Normal": 22849,
+            "COVID-19": 45912,
+            "Pneumonia": 19437
+        },
+        "train": {
+            "Total": 53520,
+            "Normal": 13741,
+            "COVID-19": 28116,
+            "Pneumonia": 11663
+        },
+        "val": {
+            "Total": 17298,
+            "Normal": 4564,
+            "COVID-19": 8847,
+            "Pneumonia": 3887
+        },
+        "test": {
+            "Total": 17380,
+            "Normal": 4544,
+            "COVID-19": 8949,
+            "Pneumonia": 3887
+        }
+    }
+}

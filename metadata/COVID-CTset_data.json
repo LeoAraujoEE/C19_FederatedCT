@@ -1,0 +1,36 @@
+{
+    "name": "COVID-CTset",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 2,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1
+    },
+    "num_samples": {
+        "total": {
+            "Total": 12058,
+            "Normal": 9776,
+            "COVID-19": 2282,
+            "Pneumonia": 0
+        },
+        "train": {
+            "Total": 7234,
+            "Normal": 5865,
+            "COVID-19": 1369,
+            "Pneumonia": 0
+        },
+        "val": {
+            "Total": 2413,
+            "Normal": 1957,
+            "COVID-19": 456,
+            "Pneumonia": 0
+        },
+        "test": {
+            "Total": 2411,
+            "Normal": 1954,
+            "COVID-19": 457,
+            "Pneumonia": 0
+        }
+    }
+}

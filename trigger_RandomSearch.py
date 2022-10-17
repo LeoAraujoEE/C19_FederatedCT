@@ -9,7 +9,8 @@ PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "cl
 # List of hyperparameter values
 hyperparameter_ranges = { "num_epochs":                             (3,),  # Total N° of training epochs
                           "batchsize":                             (32,),  # Minibatch size
-                          "early_stop":                            (11,),  # Early Stopping patience
+                          "early_stop_patience":                   (11,),  # Early Stopping patience
+                          "early_stop_delta":                   (0.001,),  # Minimum improvement for early stopping
                           "input_height":                         (224,),  # Model's input size
                           "input_width":                          (224,),  # Model's input size
                           "input_channels":                         (1,),  # Model's input size

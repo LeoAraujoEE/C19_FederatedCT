@@ -7,16 +7,17 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
             }
 
 # List of parameters for Federated Learning simulation
-fedlearn_params = { "epochs_per_step":                [3],
-                    "max_steps_frac" :             [1.00],
-                    "client_frac"    :             [1.00], # TODO: adjust history_dict updates to change this
-                    "aggregation"    :        ["fed_avg"],
+fedlearn_params = { "epochs_per_step":                [8],
+                    "max_steps_frac" :             [0.00],
+                    "client_frac"    :             [1.00],
+                    "aggregation"    :            ["avg"],
                   }
 
 # List of hyperparameter values
-hyperparameters = { "num_epochs":                     [7],  # Total N° of training epochs
-                    "batchsize":                     [32],  # Minibatch size
-                    "early_stop":                    [10],  # Early Stopping patience
+hyperparameters = { "num_epochs":                    [24],  # Total N° of training epochs
+                    "batchsize":                    [128],  # Minibatch size
+                    "early_stop_patience":           [10],  # Early Stopping patience
+                    "early_stop_delta":           [0.001],  # Minimum improvement for early stopping
                     "input_height":                 [224],  # Model's input size
                     "input_width":                  [224],  # Model's input size
                     "input_channels":                 [1],  # Model's input size

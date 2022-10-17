@@ -1,0 +1,37 @@
+{
+    "name": "miniCNCB",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 3,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1,
+        "Pneumonia": 2
+    },
+    "num_samples": {
+        "total": {
+            "Total": 73551,
+            "Normal": 22909,
+            "COVID-19": 31070,
+            "Pneumonia": 19572
+        },
+        "train": {
+            "Total": 44738,
+            "Normal": 13744,
+            "COVID-19": 19198,
+            "Pneumonia": 11796
+        },
+        "val": {
+            "Total": 14382,
+            "Normal": 4575,
+            "COVID-19": 5919,
+            "Pneumonia": 3888
+        },
+        "test": {
+            "Total": 14431,
+            "Normal": 4590,
+            "COVID-19": 5953,
+            "Pneumonia": 3888
+        }
+    }
+}

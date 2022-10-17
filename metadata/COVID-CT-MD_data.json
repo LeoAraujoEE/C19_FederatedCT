@@ -1,0 +1,37 @@
+{
+    "name": "COVID-CT-MD",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 3,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1,
+        "Pneumonia": 2
+    },
+    "num_samples": {
+        "total": {
+            "Total": 23280,
+            "Normal": 11405,
+            "COVID-19": 9223,
+            "Pneumonia": 2652
+        },
+        "train": {
+            "Total": 14187,
+            "Normal": 7000,
+            "COVID-19": 5554,
+            "Pneumonia": 1633
+        },
+        "val": {
+            "Total": 4530,
+            "Normal": 2184,
+            "COVID-19": 1834,
+            "Pneumonia": 512
+        },
+        "test": {
+            "Total": 4563,
+            "Normal": 2221,
+            "COVID-19": 1835,
+            "Pneumonia": 507
+        }
+    }
+}

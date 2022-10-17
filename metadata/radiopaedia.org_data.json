@@ -1,0 +1,37 @@
+{
+    "name": "radiopaedia",
+    "input_col": "path",
+    "output_col": "class",
+    "num_classes": 3,
+    "classes": {
+        "Normal": 0,
+        "COVID-19": 1,
+        "Pneumonia": 2
+    },
+    "num_samples": {
+        "total": {
+            "Total": 3574,
+            "Normal": 550,
+            "COVID-19": 1742,
+            "Pneumonia": 1282
+        },
+        "train": {
+            "Total": 0,
+            "Normal": 0,
+            "COVID-19": 0,
+            "Pneumonia": 0
+        },
+        "val": {
+            "Total": 0,
+            "Normal": 0,
+            "COVID-19": 0,
+            "Pneumonia": 0
+        },
+        "test": {
+            "Total": 3574,
+            "Normal": 550,
+            "COVID-19": 1742,
+            "Pneumonia": 1282
+        }
+    }
+}

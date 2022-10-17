@@ -618,9 +618,10 @@ class ModelTrainer(ModelHandler):
             
             # Early Stopping
             early_stopping = tf.keras.callbacks.EarlyStopping(
-                                    monitor = hyperparameters["monitor"],
-                                    patience = hyperparameters["early_stop"],
-                                    mode = callback_mode, verbose = 1 )
+                            monitor = hyperparameters["monitor"],
+                            min_delta = hyperparameters["early_stop_delta"],
+                            patience = hyperparameters["early_stop_patience"],
+                            mode = callback_mode, verbose = 1 )
             callback_list.append(early_stopping)
         
         # Learning Rate Scheduler
