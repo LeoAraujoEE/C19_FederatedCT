@@ -32,7 +32,7 @@ data_aug_params     = arg_dict.pop("data_augmentation")
 use_validation_data = arg_dict.pop("use_validation_data")
 
 # Setting seeds to enforce deterministic behaviour in hashing processes
-os.environ["PYTHONHASHSEED"] = str(0)
+os.environ["PYTHONHASHSEED"] = str(seed)
 
 # Builds object to handle datasets for training and for external validation
 dataTrain, dataVal_list = load_datasets( import_dir, train_dataset, 

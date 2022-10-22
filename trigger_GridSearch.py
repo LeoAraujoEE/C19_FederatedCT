@@ -11,7 +11,7 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
             }
 
 # List of hyperparameter values
-hyperparameter_dict = { "num_epochs":                    [10],  # Total N° of training epochs
+hyperparameter_dict = { "num_epochs":                     [3],  # Total N° of training epochs
                         "batchsize":                    [128],  # Minibatch size
                         "early_stop_patience":            [5],  # Early Stopping patience
                         "early_stop_delta":            [0.10],  # Minimum improvement for early stopping

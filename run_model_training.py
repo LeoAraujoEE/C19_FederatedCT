@@ -7,8 +7,8 @@ import numpy as np
 import tensorflow as tf
 
 # Enabled deterministic mode/disables multiprocessing to enforce determinism
-os.environ["PYTHONHASHSEED"] = str(0)
-os.environ['TF_CUDNN_DETERMINISTIC'] = 'True'
+os.environ["TF_DETERMINISTIC_OPS"] = "True"
+os.environ["TF_CUDNN_DETERMINISTIC"] = "True"
 tf.config.experimental.enable_op_determinism()
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.threading.set_intra_op_parallelism_threads(1)
@@ -47,11 +47,13 @@ max_train_steps    = arg_dict.pop("max_train_steps")
 initial_weights    = arg_dict.pop("initial_weights")
 
 # Setting seeds to enforce deterministic behaviour
+os.environ["PYTHONHASHSEED"] = str(seed)
 random.seed(seed)
 np.random.seed(seed)
 tf.random.set_seed(seed)
 tf.keras.utils.set_random_seed(seed)
 tf.experimental.numpy.random.seed(seed)
+tf.random.set_global_generator(tf.random.Generator.from_seed(seed))
         
 # Builds object to handle the training dataset
 dataTrain = Dataset( import_dir, train_dataset, keep_pneumonia )

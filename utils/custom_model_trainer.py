@@ -709,7 +709,8 @@ class ModelTrainer(ModelHandler):
                                   epochs = num_epochs, initial_epoch = initial_epoch, 
                                   validation_data = val_datagen, validation_steps = val_steps, 
                                   callbacks = callback_list, class_weight = class_weights, 
-                                  verbose = 1
+                                  verbose = 1, max_queue_size = 20, workers = 1, 
+                                  use_multiprocessing = False
                                 )
         
         # Measures total training time
