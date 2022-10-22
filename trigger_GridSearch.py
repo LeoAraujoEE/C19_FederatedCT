@@ -1,9 +1,13 @@
 import os
 from utils.custom_model_trainer import ModelManager
 
+KEEP_PNEUMONIA = True
+SUBDIR = "Remapped" if KEEP_PNEUMONIA else "Dropped"
+
 # 
 PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( ".", "output", "deterministic", "mock" ) 
+              "outputs" : os.path.join( ".", "output", SUBDIR, "mock" ),
+              # "outputs" : os.path.join( ".", "output", SUBDIR, "models" ) 
             }
 
 # List of hyperparameter values
@@ -61,6 +65,6 @@ for idx, dataset in enumerate(dataset_list):
                               dataset_name = dataset, 
                               hyperparam_values = hyperparameter_dict, 
                               aug_params = augmentation_dict, 
-                              keep_pneumonia = True )
+                              keep_pneumonia = KEEP_PNEUMONIA )
 
   trainManager.doGridSearch( shuffle = False )
