@@ -75,7 +75,8 @@ if trainer.check_step( ignore_check ):
   history, train_time = trainer.train_model(hyperparameters, data_aug_params,
                                             initial_epoch = current_epoch_num, 
                                             epochs_per_step = epochs_per_step, 
-                                            max_steps = max_train_steps,
+                                            # max_steps = max_train_steps,
+                                            max_steps = 3,
                                             load_from = initial_weights)
 
   # Saves history_dict as CSV

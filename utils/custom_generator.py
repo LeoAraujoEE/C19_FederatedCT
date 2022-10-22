@@ -6,7 +6,8 @@ import tensorflow as tf
 
 class CustomDataGenerator(tf.keras.utils.Sequence):
     
-    def __init__(self, dataset, partition, hyperparameters, aug_dict = None, sampling = None, shuffle = True, seed = None):
+    def __init__(self, dataset, partition, hyperparameters, aug_dict = None, 
+                 sampling = None, shuffle = True, seed = None):
 
         # Generates random seed if not provided
         if seed is None:

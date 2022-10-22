@@ -8,7 +8,7 @@ PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "cl
 
 # List of hyperparameter values
 hyperparameter_dict = { "num_epochs":                     [1],  # Total N° of training epochs
-                        "batchsize":                    [128],  # Minibatch size
+                        "batchsize":                     [48],  # Minibatch size
                         "early_stop_patience":            [5],  # Early Stopping patience
                         "early_stop_delta":            [0.10],  # Minimum improvement for early stopping
                         "input_height":                 [224],  # Model's input size
@@ -21,12 +21,12 @@ hyperparameter_dict = { "num_epochs":                     [1],  # Total N° of t
                         "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                         "augmentation":                [True],  # If data augmentation should be used
                         "class_weights":              [False],  # If class_weights should be used
-                        "sampling":          ["undersampling"],  # Chosen sampling method (None, over/under sampling)
+                        "sampling":          ["oversampling"],  # Chosen sampling method (None, over/under sampling)
                         "l1_reg":                      [1e-5],  # Amount of L1 regularization
                         "l2_reg":                      [1e-5],  # Amount of L2 regularization
                         "base_dropout":                 [0.3],  # SpatialDropout2d between blocks in convolutional base
                         "top_dropout":                  [0.3],  # Dropout between dense layers in model top
-                        "architecture":          ["resnet18"],  # Chosen architecture
+                        "architecture":          ["resnet50"],  # Chosen architecture
                         "seed":                          [69],  # Seed for pseudorandom generators
                       } 
 
@@ -46,9 +46,9 @@ augmentation_dict = { "zoom_in":                         0.00,  # Max zoom in
 
 dataset_list = [ # "COVIDxCT",        # Whole COVIDxCT-3A dataset
                  # "miniCOVIDxCT",    # Reduced COVIDxCT-3A, has only samples from used datasets
-                 # "Comp_CNCB_iCTCF", # 88k / 69k - Combination of CNCB non COVID samples + iCTCF
+                 "Comp_CNCB_iCTCF", # 88k / 69k - Combination of CNCB non COVID samples + iCTCF
                  # "miniCNCB",        # 74k / 55k - Rest of CNCB dataset
-                 "COVID-CT-MD",     # 23k / 20k - 
+                 # "COVID-CT-MD",     # 23k / 20k - 
                  # "Comp_LIDC-SB",    # 18k / 18k - Combination of LIDC + Stone Brook
                  # "COVID-CTset",     # 12k / 12k - 
                  # "radiopaedia.org", #  4k /  3k
@@ -61,6 +61,6 @@ for idx, dataset in enumerate(dataset_list):
                               dataset_name = dataset, 
                               hyperparam_values = hyperparameter_dict, 
                               aug_params = augmentation_dict, 
-                              keep_pneumonia = False )
+                              keep_pneumonia = True )
 
   trainManager.doGridSearch( shuffle = False )

@@ -124,6 +124,31 @@ class Dataset():
         
         return df
     
+    def is_df_matched_to_metadata(self):
+        if not self.is_loaded:
+            print("\nDataframes were not loaded yet...")
+            return False
+        
+        # Lists partitions and classes
+        partitions = ["train", "val", "test"]
+        classes = [k for k in self.classes.keys()]
+        
+        # Checks if the number of samples in each partition from the CSV file
+        # matches the values from the metadata's JSON file
+        for part in partitions:
+            # Loads a remapped dataframe
+            df = self.get_dataframe(part)
+            for clss in classes:
+                json_val = self.metadata["num_samples"][part][clss]
+                csv_val  = len(df[df[self.output_col] == clss])
+                
+                if json_val != csv_val:
+                    print(f"\t'{self.name}': mismatch ({json_val}!={csv_val})",
+                          f"for partition '{part}' and class '{clss}'")
+                    return False
+                
+        return True
+    
     def load_dataframes( self, reload = False ):
 
         if (self.is_loaded) and (not reload):
@@ -147,6 +172,11 @@ class Dataset():
         
         # Updates 'is_loaded' status
         self.is_loaded = True
+        
+        # Compares CSV data to JSON metadata to make sure the values match
+        assert self.is_df_matched_to_metadata(), "".join(["Unable to match",
+                  f" sample count from CSV and JSON files for '{self.name}'"])
+           
         
         return
 
@@ -179,11 +209,11 @@ class Dataset():
         return self.import_dir
 
     def get_dataframe( self, partition ):
-        return self.df_dict[partition]
+        return self.df_dict[partition].copy(deep = True)
     
     def get_num_samples( self, partition, class_label = "Total" ):
         partition = partition.lower()
-        if partition.lower() == "validation": 
+        if partition == "validation": 
             partition = "val"
         return self.metadata["num_samples"][partition][class_label]
     
