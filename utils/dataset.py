@@ -16,7 +16,7 @@ class Dataset():
         self.is_loaded = False
 
         # Path to dataset's images
-        self.import_dir   = import_dir
+        self.import_dir = import_dir
         
         # Gets the path to this dataset's CSV file 
         # and the JSON containing its metadata
@@ -154,8 +154,13 @@ class Dataset():
         if (self.is_loaded) and (not reload):
             return
         
+        # Reads CSV file and adjusts labels as needed
         df = pd.read_csv( self.csv_path, sep = ";" )
         df = self.multiclass2binary(df)
+        
+        # Adjusts filepaths to use the current OS's separator as separator
+        col = self.input_col
+        df[col] = df.apply(lambda r: r[col].replace("\\", os.sep), axis = 1)
 
         # Dictionary to store each partition's DataFrame
         self.df_dict  = {}

@@ -688,7 +688,7 @@ class ModelTrainer(ModelHandler):
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
-            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            # val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
             train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
