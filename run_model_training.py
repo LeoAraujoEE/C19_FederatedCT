@@ -8,6 +8,7 @@ import tensorflow as tf
 
 # Enabled deterministic mode/disables multiprocessing to enforce determinism
 os.environ["TF_DETERMINISTIC_OPS"] = "True"
+os.environ["TF_CUDNN_USE_FRONTEND"] = "True"
 os.environ["TF_CUDNN_DETERMINISTIC"] = "True"
 tf.config.experimental.enable_op_determinism()
 tf.config.threading.set_inter_op_parallelism_threads(1)
