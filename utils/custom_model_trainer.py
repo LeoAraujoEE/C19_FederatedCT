@@ -688,7 +688,7 @@ class ModelTrainer(ModelHandler):
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
-            # val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
             train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
@@ -810,18 +810,18 @@ class ModelTester(ModelHandler):
         # Gets all labels in the dataframe as their corresponding class numbers to compute accuracy and f1-score
         y_true = datagen.get_labels()[:num_samples]
 
-        # Remove mock_test -------------------------
-        mock_test = False
+        # TODO: Remove mock_test -------------------------
+        mock_test = True
         if mock_test:
-            scores = np.random.random( (num_samples, 1) ).astype(np.float32)
-            y_pred = (scores > 0.5).astype(np.float32)
+            y_hat = np.random.random( (num_samples, 1) ).astype(np.float32)
+            y_pred = (y_hat > 0.5).astype(np.float32)
             loss_val = np.random.rand()
         else:
             # Computes the average loss for the current partition
-            scores = self.model.predict( datagen, 
+            y_hat = self.model.predict( datagen, 
                                 batch_size = hyperparameters["batchsize"], 
                                 steps = num_steps, workers = 4, verbose = 1 )
-            y_pred = (scores > 0.5).astype(np.float32)
+            y_pred = (y_hat > 0.5).astype(np.float32)
             
             # Gets loss function from model.evaluate
             loss_val, _, _ = self.model.evaluate(datagen, 
@@ -829,16 +829,16 @@ class ModelTester(ModelHandler):
                                 steps = num_steps, workers = 4, verbose = 1 )
         
         # Computes metrics using scikit-learn and keras.losses
-        metrics_dict = { "loss": loss_val,
-                         "acc" : accuracy_score( y_true, y_pred ),
-                         "f1"  : f1_score( y_true, y_pred ),
-                         "auc" : roc_auc_score( y_true, scores )
+        metrics_dict = { "loss"       : loss_val,
+                         "acc"        : accuracy_score( y_true, y_pred ),
+                         "f1"         : f1_score( y_true, y_pred ),
+                         "auc"        : roc_auc_score( y_true, y_hat ),
+                         "y_true"     : y_true,
+                         "y_hat"      : y_hat,
+                         "y_pred"     : y_pred
                        }
-
-        # Computes confusion matrix using scikit-learn
-        conf_matrix  = confusion_matrix( y_true, y_pred )
-
-        return metrics_dict, conf_matrix, y_true, scores
+        
+        return metrics_dict
 
     def test_model( self, hyperparameters ):
 
@@ -859,7 +859,13 @@ class ModelTester(ModelHandler):
         # Evaluates each partition to fill results dict
         for partition in self.partitions:
             print(f"\n\n{partition.title()}:")
-            metrics_dict, conf_matrix, y_true, y_preds = self.evaluate_model(self.dataset, hyperparameters, partition )
+            metrics_dict = self.evaluate_model( self.dataset, hyperparameters,
+                                                partition )
+            
+            # Extracts Class Activations, True Labels and Predicted Labels
+            y_hat = metrics_dict.pop("y_hat")
+            y_true = metrics_dict.pop("y_true")
+            y_pred = metrics_dict.pop("y_pred")
 
             for metric, value in metrics_dict.items():
                 # Adds the results to the result dict
@@ -867,19 +873,22 @@ class ModelTester(ModelHandler):
                 results[key] = f"{value:.4f}"
 
             if not self.use_val_data:
+                # Computes confusion matrix using scikit-learn
+                conf_matrix  = confusion_matrix( y_true, y_pred )
+            
                 # Plots confusion matrix
                 class_labels = self.dataset.classes
                 plotter.plot_confusion_matrix(conf_matrix, self.dataset.name, 
                                               partition, class_labels)
 
                 # Plots ROC curves
-                plotter.plot_roc_curve(y_true, y_preds, self.dataset.name, 
+                plotter.plot_roc_curve(y_true, y_hat, self.dataset.name, 
                                        partition)
 
         # If there are datasets for cross-validation
         cval_dataset_names = []
         if not ((self.dataset_list is None) or (self.use_val_data)):
-            cval_loss_list, cval_acc_list, cval_f1_list, cval_auroc_list = [], [], [], []
+            cval_losses, cval_accs, cval_f1s, cval_aurocs = [], [], [], []
 
             for dset in self.dataset_list:
                 dset_name = dset.name
@@ -889,14 +898,18 @@ class ModelTester(ModelHandler):
                 print(f"\nCross-Validating model '{self.model_fname}' on '{dset_name}' dataset...")
 
                 # Evaluates dataset
-                metrics_dict, conf_matrix, y_true, y_preds = self.evaluate_model( dset, hyperparameters, 
-                                                                                  "test" )
+                metrics_dict = self.evaluate_model( dset, hyperparameters, "test" )
+            
+                # Extracts Class Activations, True Labels and Predicted Labels
+                y_hat = metrics_dict.pop("y_hat")
+                y_true = metrics_dict.pop("y_true")
+                y_pred = metrics_dict.pop("y_pred")
 
                 # Adds to list
-                cval_loss_list.append(metrics_dict["loss"])
-                cval_acc_list.append(metrics_dict["acc"])
-                cval_f1_list.append(metrics_dict["f1"])
-                cval_auroc_list.append(metrics_dict["auc"])
+                cval_losses.append(metrics_dict["loss"])
+                cval_accs.append(metrics_dict["acc"])
+                cval_f1s.append(metrics_dict["f1"])
+                cval_aurocs.append(metrics_dict["auc"])
 
                 for metric, value in metrics_dict.items():
                     # Adds the results to the result dict
@@ -910,13 +923,13 @@ class ModelTester(ModelHandler):
                                                 "test", class_labels)
 
                 # Plots ROC curves
-                plotter.plot_roc_curve(y_true, y_preds, dset_name, 
+                plotter.plot_roc_curve(y_true, y_hat, dset_name, 
                                         "test")
                 
-            results["crossval_loss"] = f"{np.mean(cval_loss_list):.4f}"
-            results["crossval_acc"]  = f"{np.mean(cval_acc_list):.4f}"
-            results["crossval_f1"]   = f"{np.mean(cval_f1_list):.4f}"
-            results["crossval_auc"]  = f"{np.mean(cval_auroc_list):.4f}"
+            results["crossval_loss"] = f"{np.mean(cval_losses):.4f}"
+            results["crossval_acc"]  = f"{np.mean(cval_accs):.4f}"
+            results["crossval_f1"]   = f"{np.mean(cval_f1s):.4f}"
+            results["crossval_auc"]  = f"{np.mean(cval_aurocs):.4f}"
 
         if not self.use_val_data:
             plotter.plot_test_results(results, self.dataset.name, 

@@ -5,9 +5,9 @@ KEEP_PNEUMONIA = True
 SUBDIR = "Remapped" if KEEP_PNEUMONIA else "Dropped"
 
 # 
-PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( ".", "output", SUBDIR, "mock" ),
-              # "outputs" : os.path.join( ".", "output", SUBDIR, "models" ) 
+PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
+              "outputs" : os.path.join( "..", "output", SUBDIR, "mock" ), 
+              # "outputs" : os.path.join( "..", "output", SUBDIR, "models" ) 
             }
 
 # List of hyperparameter values

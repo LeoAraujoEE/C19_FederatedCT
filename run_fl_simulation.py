@@ -43,9 +43,6 @@ federatedServer.prepare_model_dir()
 # Measures time at the start of the Federated Training process
 fl_init_time = time.time()
 
-# Creates and compiles the Model
-global_model_path = federatedServer.create_global_model()
-
 # Initializes clients
 print("\nInitializing clients:")
 for i, dataset in enumerate(DATASETS):
@@ -67,22 +64,26 @@ for i, dataset in enumerate(DATASETS):
     federatedServer.num_samples_dict[client_id] = client_train_sample_count
 
 # Number of steps in the Federated Learning process
-total_steps = federatedServer.get_num_aggregations()
+total_steps = federatedServer.get_num_steps()
 
 # Federated Learning loop
 for step in range(total_steps):
+    # If its the first step, creates and compiles the Model
+    if step == 0:
+        global_model_path = federatedServer.create_global_model()
+    
+    # Otherwise, trains local models to update the global model
+    else:
+        # 
+        client_weights, local_paths = federatedServer.train_local_models(step,
+                                                                  total_steps)
+        
+        # Updates global model
+        global_model_path = federatedServer.update_global_model(local_paths,
+                                                       client_weights, step)
+    
     # Passes the global model to all clients & gets their train/val metrics
     federatedServer.validate_global_model(global_model_path, step, total_steps)
-    
-    client_weights, local_paths = federatedServer.train_local_models(step, 
-                                                              total_steps)
-    
-    # Updates global model
-    global_model_path = federatedServer.update_global_model(local_paths,
-                                                    client_weights, step)
-    
-# Evaluates the last global model's performance on train/validation data
-federatedServer.validate_global_model(global_model_path, step+1, total_steps)
         
 # Measures total training time
 fl_ellapsed_time = (time.time() - fl_init_time)

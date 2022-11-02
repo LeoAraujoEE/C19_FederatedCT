@@ -77,7 +77,7 @@ class FederatedServer(ModelHandler):
     def create_global_model(self):
         
         # Gets the Filename/Folder for the current version of the global model
-        current_path, current_dst_dir = self.get_global_model_path()
+        current_path, current_dst_dir = self.get_global_model_path(step = 0)
         
         # Creates directory if needed
         if not os.path.exists(current_dst_dir):
@@ -167,6 +167,7 @@ class FederatedServer(ModelHandler):
                   f"{self.monitor_best:.4f} to {monitored_val:.4f}.",
                   f"Saving model to {self.model_path}...")
             self.monitor_best = monitored_val
+            self.monitor_best_step = step_idx
             self.copy_weights(model_path, self.model_path)
 
         # Adds a new column for the current Aggregation step
@@ -279,13 +280,14 @@ class FederatedServer(ModelHandler):
         return max_train_steps
     
     def get_epoch_info( self, step_idx ):
+        assert step_idx > 0, "\nVariable 'step_idx' must be > 0"
         
         # Retrieves total n° of epochs / n° of epochs between aggregations
         epochs_per_step = self.fl_params["epochs_per_step"]
         total_epoch_num = self.hyperparameters["num_epochs"]
         
         # Gets the number of epochs were executed so far
-        epoch_idx = step_idx * epochs_per_step
+        epoch_idx = (step_idx - 1) * epochs_per_step
         
         # Gets the number of epochs to perform in the current step
         step_epochs = epochs_per_step
@@ -320,8 +322,8 @@ class FederatedServer(ModelHandler):
             local_return_dict = client.run_train_process(step_idx, 
                                     epoch_idx = current_epoch,
                                     num_epochs = step_num_epochs, 
-                                    # max_train_steps = 10,
-                                    max_train_steps = max_train_steps,
+                                    max_train_steps = 10,
+                                    # max_train_steps = max_train_steps,
                                     )
             
             # Appends the path and results to corresponding the dicts
@@ -333,13 +335,13 @@ class FederatedServer(ModelHandler):
         cross_val_df = self.combine_local_results(local_model_results)
         
         # Formats average results as dict, and prints its values
-        print(f"\n{step_idx+1}/{num_steps} Average Local Model Results:")
+        print(f"\n{step_idx}/{num_steps} Average Local Model Results:")
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[-1][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)
 
         # Adds a new column for the current Aggregation step
-        step_ticks = [f"{step_idx+1}.{i+1}" for i in range(len(cross_val_df))]
+        step_ticks = [f"{step_idx}.{i+1}" for i in range(len(cross_val_df))]
         cross_val_df.insert(0, "Step.Epoch", step_ticks)
     
         # Updates the server's CSV file with all computed metrics
@@ -380,13 +382,10 @@ class FederatedServer(ModelHandler):
         
         return new_global_weights
     
-    def get_global_model_path(self, step = None):
+    def get_global_model_path(self, step):
         
         # Folder to contain current version of global model
-        if step is None:
-            fname = f"global_model_v0"
-        else:
-            fname = f"global_model_v{step+1}"
+        fname = f"global_model_v{step}"
         dst_dir = os.path.join(self.model_dir, "global", fname)
         
         # Path to the initial global model
@@ -397,7 +396,7 @@ class FederatedServer(ModelHandler):
         print("\nAggregating models:")
         
         # 
-        old_path, _ = self.get_global_model_path(step-1)
+        old_path, _ = self.get_global_model_path(step - 1)
         
         if self.fl_params['aggregation'].lower() == "fed_avg":
             global_model_weights = self.federated_average( local_model_paths,
@@ -424,13 +423,16 @@ class FederatedServer(ModelHandler):
         
         return new_model_path
     
-    def get_num_aggregations(self):
+    def get_num_steps(self):
         # Retrieves n° of epochs / n° of epochs per aggregation
         epochs_per_step = self.fl_params["epochs_per_step"]
         total_epoch_num = self.hyperparameters["num_epochs"]
         
-        # Returns the number of aggregations
-        return int(np.ceil( total_epoch_num / epochs_per_step ))
+        # Returns the number of training steps
+        # Step 0 for global model creation and 
+        # Steps 1:num_steps to global model update
+        num_steps = 1 + int(np.ceil(total_epoch_num / epochs_per_step))
+        return num_steps
     
     def get_client_path_dict(self):
         path_dict = { "datasets": self.data_path,
@@ -748,9 +750,9 @@ class FederatedClient(ModelManager):
         step_list = []
         if from_local:
             for i in range(len(model_history_df)):
-                step_list.append(f"{step_idx+1}.{i+1}")  
+                step_list.append(f"{step_idx}.{i+1}")  
         else:
-            step_list.append(f"{step_idx+1}.0")
+            step_list.append(f"{step_idx}.0")
         model_history_df.insert(0, "Step.Epoch", step_list)
         
         # Appends current local model's to df_list

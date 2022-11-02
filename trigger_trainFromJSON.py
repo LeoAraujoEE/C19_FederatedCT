@@ -5,9 +5,9 @@ KEEP_PNEUMONIA = True
 SUBDIR = "Remapped" if KEEP_PNEUMONIA else "Dropped"
 
 # 
-PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( ".", "output", SUBDIR, "mock" ),
-              # "outputs" : os.path.join( ".", "output", SUBDIR, "models" ) 
+PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
+              "outputs" : os.path.join( "..", "output", SUBDIR, "mock" ), 
+              # "outputs" : os.path.join( "..", "output", SUBDIR, "models" ) 
             }
 
 train_dataset = "COVID-CT-MD"
@@ -20,4 +20,5 @@ trainManager = ModelManager( path_dict = PATH_DICT,
                              dataset_name = train_dataset, 
                              keep_pneumonia = KEEP_PNEUMONIA )
 
-trainManager.doTrainFromJSON( json_path, copy_augmentation = True )
+for i in range(2):
+    trainManager.doTrainFromJSON( json_path, copy_augmentation = True )

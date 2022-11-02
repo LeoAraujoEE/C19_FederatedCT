@@ -2,20 +2,20 @@ import os
 from utils.custom_model_trainer import ModelManager
 
 # 
-PATH_DICT = { "datasets": os.path.join( "C:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( ".", "output", "mock_federated_models" ) 
+PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
+              "outputs" : os.path.join( "..", "output", "mock_federated_models" ) 
             }
 
 # List of parameters for Federated Learning simulation
-fedlearn_params = { "epochs_per_step":                [8],
+fedlearn_params = { "epochs_per_step":                [3],
                     "max_steps_frac" :             [0.00],
                     "client_frac"    :             [1.00],
                     "aggregation"    :            ["avg"],
                   }
 
 # List of hyperparameter values
-hyperparameters = { "num_epochs":                    [24],  # Total N° of training epochs
-                    "batchsize":                    [128],  # Minibatch size
+hyperparameters = { "num_epochs":                     [9],  # Total N° of training epochs
+                    "batchsize":                     [64],  # Minibatch size
                     "early_stop_patience":           [10],  # Early Stopping patience
                     "early_stop_delta":           [0.001],  # Minimum improvement for early stopping
                     "input_height":                 [224],  # Model's input size

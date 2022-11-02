@@ -106,7 +106,7 @@ class CustomPlots:
 
             # Steps.Epochs
             xticks_labels = [str(i) for i in history["Step.Epoch"]]
-            vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v]
+            vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v][1:]
             steps_epochs = range(len(xticks_labels))
 
             # Min/Max values to set plot's ylim
@@ -213,7 +213,7 @@ class CustomPlots:
 
                 # Steps.Epochs
                 xticks_labels = [str(i) for i in history["Step.Epoch"]]
-                vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v]
+                vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v][1:]
                 steps_epochs = range(len(xticks_labels))
 
                 # Min/Max values to set plot's ylim
