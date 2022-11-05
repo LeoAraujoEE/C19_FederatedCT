@@ -83,7 +83,17 @@ for step in range(total_steps):
                                                        client_weights, step)
     
     # Passes the global model to all clients & gets their train/val metrics
-    federatedServer.validate_global_model(global_model_path, step, total_steps)
+    monitored_val = federatedServer.validate_global_model(global_model_path, 
+                                                          step, total_steps)
+    
+    # Checks wether the new global model has the best results so far
+    # If so, updates the main weights file with the current weights
+    federatedServer.model_checkpoint.create_checkpoint(monitored_val, 
+                                                   global_model_path)
+    
+    # Stops the training if EarlyStopping conditions are met
+    if federatedServer.early_stopping.is_triggered(monitored_val, step):
+        break
         
 # Measures total training time
 fl_ellapsed_time = (time.time() - fl_init_time)

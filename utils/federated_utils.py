@@ -17,6 +17,8 @@ from utils.custom_plots import CustomPlots
 from utils.custom_models import ModelBuilder
 from utils.custom_model_trainer import ModelHandler
 from utils.custom_model_trainer import ModelManager
+from utils.federated_callbacks import FederatedEarlyStopping
+from utils.federated_callbacks import FederatedModelCheckpoint
 
 class FederatedServer(ModelHandler):
     def __init__(self, path_dict, model_fname, model_id, val_dataset, 
@@ -59,8 +61,15 @@ class FederatedServer(ModelHandler):
         
         # Defines the metric used to monitor model performance
         self.monitor_var = f"avg_{self.hyperparameters['monitor']}"
-        self.monitor_mode = "max" if not "loss" in self.monitor_var else "min"
-        self.monitor_best = -np.inf if self.monitor_mode == "max" else np.inf
+        
+        # Sets training callbacks for FL simulation
+        self.model_checkpoint = FederatedModelCheckpoint(self.model_path, 
+                                                         self.monitor_var)
+        
+        self.early_stopping = FederatedEarlyStopping(self.monitor_var,
+                         min_delta = self.hyperparameters["early_stop_delta"],
+                patience_epochs = self.hyperparameters["early_stop_patience"],
+                          epochs_per_step = self.fl_params["epochs_per_step"])
         
         # Dataset used to validate models
         self.dataset = Dataset( self.data_path, name = val_dataset, 
@@ -93,11 +102,6 @@ class FederatedServer(ModelHandler):
         self.save_model(model, current_path)
         
         return current_path
-    
-    def check_for_improvement(self, val):
-        if self.monitor_mode == "max":
-            return (val > self.monitor_best)
-        return (val < self.monitor_best)
     
     def combine_local_results( self, df_dict ):
         dfs = []
@@ -158,24 +162,16 @@ class FederatedServer(ModelHandler):
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[0][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)
-        
-        # Checks wether the new global model has the best results so far
-        # If so, updates the main weights file with the current weights
-        monitored_val = cross_val_df.iloc[0][self.monitor_var]
-        if self.check_for_improvement(monitored_val):
-            print(f"\nGlobal model's '{self.monitor_var}' improved from",
-                  f"{self.monitor_best:.4f} to {monitored_val:.4f}.",
-                  f"Saving model to {self.model_path}...")
-            self.monitor_best = monitored_val
-            self.monitor_best_step = step_idx
-            self.copy_weights(model_path, self.model_path)
 
         # Adds a new column for the current Aggregation step
         cross_val_df.insert(0, "Step.Epoch", [f"{step_idx+1}.0"])
     
         # Updates the server's CSV file with all computed metrics
         self.update_global_history(cross_val_df)
-        return
+        
+        # Returns the new global model's value for the monitored metric
+        monitored_val = cross_val_df.iloc[0][self.monitor_var]
+        return monitored_val
     
     def load_history(self, mode = "full"):
         if os.path.exists(self.history_path):
@@ -498,21 +494,6 @@ class FederatedServer(ModelHandler):
         return
     
     @staticmethod
-    def copy_weights(src_weights_path, dst_weights_path):
-        # Gets the path for the model's configs file
-        src_configs_path = src_weights_path.replace(".h5", ".json")
-        dst_configs_path = dst_weights_path.replace(".h5", ".json")
-        
-        # Copies the selected model's weights and configs
-        dst_path_list = [dst_weights_path, dst_configs_path]
-        src_path_list = [src_weights_path, src_configs_path]
-        for src_path, dst_path in zip(src_path_list, dst_path_list):
-            if os.path.exists(dst_path):
-                os.remove(dst_path)
-            shutil.copy2(src_path, dst_path)
-        return
-    
-    @staticmethod
     def save_model(model, model_path):
 
         # Saves model configs
@@ -667,6 +648,11 @@ class FederatedClient(ModelManager):
         model_id = f"{self.client_id}_v{step_idx}"
         model_fname = f"local_model_{model_id}"
         
+        # Disables EarlyStopping for local model training
+        # EarlyStopping is only triggered based on the global model's updates
+        hyperparameters = self.hyperparameters.copy()
+        hyperparameters["early_stop_patience"] = 0
+        
         # Base args dict
         args = { "output_dir"        :                 self.dst_dir, 
                  "data_path"         :               self.data_path,
@@ -679,12 +665,12 @@ class FederatedClient(ModelManager):
                  "max_train_steps"   :              max_train_steps,
                  "epochs_per_step"   :                   num_epochs,
                  "current_epoch_num" :                    epoch_idx,
-                 "hyperparameters"   :         self.hyperparameters,
+                 "hyperparameters"   :              hyperparameters,
                  "data_augmentation" :              self.aug_params,
                  "remove_unfinished" :                        False,
                  "save_final_weights":                         True,
                  "verbose"           :                            0,
-                 "seed"              : self.hyperparameters["seed"],
+                 "seed"              :      hyperparameters["seed"],
                }
         
         # Serializes args dict as JSON formatted string

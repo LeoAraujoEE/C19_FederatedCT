@@ -28,7 +28,6 @@ from utils.dataset import Dataset
 from utils.custom_plots import CustomPlots
 from utils.custom_models import ModelBuilder
 from utils.custom_generator import CustomDataGenerator
-
 class ModelEntity():
     def __init__(self):
         return
@@ -617,12 +616,13 @@ class ModelTrainer(ModelHandler):
             callback_list.append(model_checkpoint)
             
             # Early Stopping
-            early_stopping = tf.keras.callbacks.EarlyStopping(
+            if hyperparameters["early_stop_patience"] > 0:
+                early_stopping = tf.keras.callbacks.EarlyStopping(
                             monitor = hyperparameters["monitor"],
                             min_delta = hyperparameters["early_stop_delta"],
                             patience = hyperparameters["early_stop_patience"],
                             mode = callback_mode, verbose = 1 )
-            callback_list.append(early_stopping)
+                callback_list.append(early_stopping)
         
         # Learning Rate Scheduler
         def scheduler(epoch, lr):
