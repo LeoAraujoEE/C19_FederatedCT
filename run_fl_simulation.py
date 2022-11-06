@@ -1,8 +1,6 @@
-import os
 import sys
 import json
 import time
-from utils.custom_models import ModelBuilder
 from utils.federated_utils import FederatedServer
 from utils.federated_utils import FederatedClient
 
@@ -94,6 +92,9 @@ for step in range(total_steps):
     # Stops the training if EarlyStopping conditions are met
     if federatedServer.early_stopping.is_triggered(monitored_val, step):
         break
+
+# Deletes all temporary models to keep only the final checkpoint
+federatedServer.clear_tmp_models()
         
 # Measures total training time
 fl_ellapsed_time = (time.time() - fl_init_time)

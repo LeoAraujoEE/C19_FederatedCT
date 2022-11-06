@@ -1,29 +1,33 @@
 import os
 from utils.custom_model_trainer import ModelManager
 
+KEEP_PNEUMONIA = True
+SUBDIR = "remapped" if KEEP_PNEUMONIA else "dropped"
+
 # 
 PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
-              "outputs" : os.path.join( "..", "output", "mock_federated_models" ) 
+              # "outputs" : os.path.join( "..", "output", "mock_fl_models", SUBDIR ), 
+              "outputs" : os.path.join( "..", "output", "fl_models", SUBDIR ) 
             }
 
 # List of parameters for Federated Learning simulation
-fedlearn_params = { "epochs_per_step":                [3],
+fedlearn_params = { "epochs_per_step":                [4],
                     "max_steps_frac" :             [0.00],
                     "client_frac"    :             [1.00],
                     "aggregation"    :            ["avg"],
                   }
 
 # List of hyperparameter values
-hyperparameters = { "num_epochs":                     [9],  # Total N° of training epochs
-                    "batchsize":                     [64],  # Minibatch size
+hyperparameters = { "num_epochs":                    [15],  # Total N° of training epochs
+                    "batchsize":                    [128],  # Minibatch size
                     "early_stop_patience":            [1],  # Early Stopping patience
                     "early_stop_delta":           [0.001],  # Minimum improvement for early stopping
                     "input_height":                 [224],  # Model's input size
                     "input_width":                  [224],  # Model's input size
                     "input_channels":                 [1],  # Model's input size
-                    "start_lr":                    [1e-3],  # Starting learning rate
-                    "lr_adjust_frac":              [0.70],  # Fraction to adjust learning rate
-                    "lr_adjust_freq":                 [5],  # Frequency to adjust learning rate
+                    "start_lr":                    [1e-2],  # Starting learning rate
+                    "lr_adjust_frac":              [0.90],  # Fraction to adjust learning rate
+                    "lr_adjust_freq":                 [2],  # Frequency to adjust learning rate
                     "optimizer":                 ["adam"],  # Chosen optimizer
                     "monitor":                 ["val_f1"],  # Monitored variable for callbacks
                     "augmentation":                [True],  # If data augmentation should be used
@@ -31,7 +35,7 @@ hyperparameters = { "num_epochs":                     [9],  # Total N° of train
                     "sampling":          ["oversampling"],  # Chosen sampling method (None, over/under sampling)
                     "l1_reg":                      [1e-5],  # Amount of L1 regularization
                     "l2_reg":                      [1e-5],  # Amount of L2 regularization
-                    "base_dropout":                 [0.3],  # SpatialDropout2d between blocks in convolutional base
+                    "base_dropout":                 [0.2],  # SpatialDropout2d between blocks in convolutional base
                     "top_dropout":                  [0.3],  # Dropout between dense layers in model top
                     "architecture":          ["resnet18"],  # Chosen architecture
                     "seed":                          [69],  # Seed for pseudorandom generators
@@ -66,6 +70,6 @@ trainManager = ModelManager( path_dict = PATH_DICT,
                              fl_params = fedlearn_params,
                              hyperparam_values = hyperparameters, 
                              aug_params = data_aug_params, 
-                             keep_pneumonia = False )
+                             keep_pneumonia = KEEP_PNEUMONIA )
 
 trainManager.doGridSearch( shuffle = False )

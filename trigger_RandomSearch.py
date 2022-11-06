@@ -1,9 +1,13 @@
 import os
 from utils.custom_model_trainer import ModelManager
 
+KEEP_PNEUMONIA = True
+SUBDIR = "remapped" if KEEP_PNEUMONIA else "dropped"
+
 # 
-PATH_DICT = { "datasets": os.path.join( "D:\\", "Datasets", "COVID19", "CT", "classification" ),
-              "outputs" : os.path.join( ".", "output", "models" ) 
+PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
+              "outputs" : os.path.join( "..", "output", "mock_models", SUBDIR ), 
+              # "outputs" : os.path.join( "..", "output", "models", SUBDIR ) 
             }
 
 # List of hyperparameter values

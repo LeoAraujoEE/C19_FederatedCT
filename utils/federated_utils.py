@@ -1,15 +1,9 @@
 import os
-import glob
 import json
-import time
 import shutil
-import random
-import logging
-import warnings
 import subprocess
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 # 
 from utils.dataset import Dataset
@@ -28,6 +22,13 @@ class FederatedServer(ModelHandler):
         # Inherits ModelHandler's init method
         ModelHandler.__init__( self, path_dict["outputs"], model_fname, 
                                model_id )
+        
+        # Path to store latest version of global model
+        # self.model_path is reserved for the best set of weights
+        # or the final weights, if FederatedModelCheckpoint is disabled
+        self.latest_model_path = os.path.join(self.model_dir, 
+                                              "latest_global_model", 
+                                              f"{self.model_fname}.h5")
         
         # Path to CSV file w/ val metrics for all versions of the global model
         self.history_path = os.path.join(self.model_dir, "history_dict.csv")
@@ -86,22 +87,22 @@ class FederatedServer(ModelHandler):
     def create_global_model(self):
         
         # Gets the Filename/Folder for the current version of the global model
-        current_path, current_dst_dir = self.get_global_model_path(step = 0)
+        latest_model_dir = os.path.dirname(self.latest_model_path)
         
         # Creates directory if needed
-        if not os.path.exists(current_dst_dir):
-            os.makedirs(current_dst_dir)
+        if not os.path.exists(latest_model_dir):
+            os.makedirs(latest_model_dir)
             
         # Creates the model
-        model_builder = ModelBuilder( model_path = current_path )
+        model_builder = ModelBuilder( model_path = self.latest_model_path )
         model = model_builder( self.hyperparameters, 
                                seed = self.hyperparameters["seed"] )
         
         # Saves model config & model weights
-        print(f"\nSaving global model to '{current_path}'...")
-        self.save_model(model, current_path)
+        print(f"\nSaving global model to '{self.latest_model_path}'...")
+        self.save_model(model, self.latest_model_path)
         
-        return current_path
+        return self.latest_model_path
     
     def combine_local_results( self, df_dict ):
         dfs = []
@@ -378,21 +379,8 @@ class FederatedServer(ModelHandler):
         
         return new_global_weights
     
-    def get_global_model_path(self, step):
-        
-        # Folder to contain current version of global model
-        fname = f"global_model_v{step}"
-        dst_dir = os.path.join(self.model_dir, "global", fname)
-        
-        # Path to the initial global model
-        path = os.path.join(dst_dir, f"{fname}.h5")
-        return path, dst_dir
-    
     def update_global_model( self, local_model_paths, client_weights, step ):
         print("\nAggregating models:")
-        
-        # 
-        old_path, _ = self.get_global_model_path(step - 1)
         
         if self.fl_params['aggregation'].lower() == "fed_avg":
             global_model_weights = self.federated_average( local_model_paths,
@@ -404,20 +392,15 @@ class FederatedServer(ModelHandler):
                                                            client_weights )
         
         # Loads old model and replaces weights
-        model = self.load_model(old_path)
+        model = self.load_model(self.latest_model_path)
         model.set_weights(global_model_weights)
         print("\nAggregation completed!")
         
-        # Gets the Filename/Folder for the new version of the global model
-        new_model_path, new_dst_dir = self.get_global_model_path(step)
-        print(f"\nSaving global model to '{new_model_path}'...")
-        
         # Saves model config & model weights
-        if not os.path.exists(new_dst_dir):
-            os.makedirs(new_dst_dir)
-        self.save_model(model, new_model_path)
+        print(f"\nSaving global model to '{self.latest_model_path}'...")
+        self.save_model(model, self.latest_model_path)
         
-        return new_model_path
+        return self.latest_model_path
     
     def get_num_steps(self):
         # Retrieves n° of epochs / n° of epochs per aggregation
@@ -432,7 +415,7 @@ class FederatedServer(ModelHandler):
     
     def get_client_path_dict(self):
         path_dict = { "datasets": self.data_path,
-                      "outputs" : os.path.join(self.model_dir, "local"),
+                      "outputs" : os.path.join(self.model_dir, "clients"),
                     }
         return path_dict
     
@@ -493,22 +476,50 @@ class FederatedServer(ModelHandler):
         
         return
     
+    def clear_tmp_models(self):
+        """ Deletes all temporary models to keep only the final 
+        ModelCheckpoint in FederatedServer """
+        
+        # Deletes latest global model
+        latest_model_dir = os.path.dirname(self.latest_model_path)
+        if os.path.exists(latest_model_dir):
+            shutil.rmtree(latest_model_dir, ignore_errors = False)
+        
+        # Also deletes all client's global/local models
+        for client in self.client_dict.values():
+            client.rm_model(model_type = "all")
+            
+        return
+    
     @staticmethod
-    def save_model(model, model_path):
+    def save_model(model, weights_path):
+        
+        # Gets the Folder where the model will be saved
+        model_dir = os.path.dirname(weights_path)
+        
+        # Creates directory if needed
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
 
         # Saves model configs
         json_config = model.to_json()
-        config_path = model_path.replace(".h5", ".json")
+        config_path = weights_path.replace(".h5", ".json")
+        
+        # Deletes config/weight files if they already exist
+        for path in [config_path, weights_path]:
+            if os.path.exists(path):
+                os.remove(path)
 
+        # Saves model's config as .json file
         with open(config_path, "w") as json_file:
             json.dump( json_config, json_file, indent=4 )
         
-        # Saves model weights
-        model.save_weights( model_path )
+        # Saves model's weights as .h5 file
+        model.save_weights( weights_path )
         
         return
 
-class FederatedClient(ModelManager):
+class FederatedClient():
     def __init__(self, id, path_dict, dataset_name, hyperparameters, 
                  aug_params, keep_pneumonia, ignore_check):
         
@@ -522,8 +533,13 @@ class FederatedClient(ModelManager):
         # Directory for the output trained models
         self.dst_dir = os.path.join(path_dict["outputs"], self.client_name)
         
-        # Path to current global model version
-        self.global_path = None
+        # Path to store latest version of this client's global model
+        self.global_model_path = os.path.join(self.dst_dir, "global_model",
+                                              "global_model.h5")
+        
+        # Path to store latest version of this client's local model
+        self.local_model_path = os.path.join(self.dst_dir, "local_model",
+                                             "local_model.h5")
         
         # Hyperparameters used for training
         self.hyperparameters = hyperparameters
@@ -543,32 +559,44 @@ class FederatedClient(ModelManager):
             
         
         # Reports client's creation
-        print(f"\tCreated client #{self.client_id} w/ dataset '{self.dataset.name}'...")
+        print(f"\tCreated client #{self.client_id} w/ dataset", 
+              f"'{self.dataset.name}'...")
 
+        return
+    
+    def rm_model(self, model_type = "all"):
+        # Deletes local and/or global models based on model_type
+        # For model_type == "local",  local model will be deleted
+        # For model_type == "global", global model will be deleted
+        # For any other string, both models will be deleted
+        path_dict = {"global": self.local_model_path,
+                     "local" : self.global_model_path,}
+        
+        # Deletes global model 
+        for key, path in path_dict.items():
+            if model_type.lower() != key:
+                model_dir = os.path.dirname(path)
+                if os.path.exists(model_dir):
+                    shutil.rmtree(model_dir, ignore_errors = False)
         return
     
     def get_global_model(self, model_path):
         assert os.path.exists(model_path), f"Can't find '{model_path}'..."
         
-        # Source Dir/Filename for the current version of the global model
-        src_global_dir, global_fname = os.path.split(model_path)
-        global_fname = global_fname.split(".")[0]
+        # Empties global model dir before copying the model
+        global_model_dir = os.path.dirname(self.global_model_path)
+        self.rm_model(model_type = "global")
+        os.makedirs(global_model_dir)
         
-        # Client's Folder to contain files for this version of global model
-        dst_global_dir = os.path.join( self.dst_dir, global_fname )
+        # Gets the path for the model's configs file
+        src_configs_path = model_path.replace(".h5", ".json")
+        dst_configs_path = self.global_model_path.replace(".h5", ".json")
         
-        # Creates directory if needed
-        if not os.path.exists(dst_global_dir):
-            os.makedirs(dst_global_dir)
-        
-        # Copies model files from FederatedServer to FederatedClient
-        for e in ["h5", "json"]:
-            src_path = os.path.join(src_global_dir, f"{global_fname}.{e}")
-            dst_path = os.path.join(dst_global_dir, f"{global_fname}.{e}")
-            shutil.copy2( src_path, dst_path )
-        
-        # Sets current global_path as class variable
-        self.global_path = os.path.join(dst_global_dir, f"{global_fname}.h5")
+        # Copies the selected model's weights and configs
+        dst_path_list = [self.global_model_path, dst_configs_path]
+        src_path_list = [model_path, src_configs_path]
+        for src_path, dst_path in zip(src_path_list, dst_path_list):
+            shutil.copy2(src_path, dst_path)
         return
 
     def run_validation_process( self, step_idx ):
@@ -576,7 +604,7 @@ class FederatedClient(ModelManager):
         # Combines client_id and communication round to make local model_id
         # The model filename combines the architecture used and the model_id
         model_id = f"v{step_idx}"
-        model_fname = os.path.basename(self.global_path).split(".")[0]
+        model_fname = os.path.basename(self.global_model_path).split(".")[0]
         
         # Base args dict
         args = { "output_dir"         :                 self.dst_dir, 
@@ -600,10 +628,12 @@ class FederatedClient(ModelManager):
         command = ["python", "-m", "run_model_testing", serialized_args]
 
         # Validates the model
+        assert os.path.exists(self.global_model_path), " ".join(f"Can't find",
+                                             f"'{self.global_model_path}'...")
         subprocess.Popen.wait(subprocess.Popen( command ))
         
         # Updates the client's dict with training/validation metrics
-        global_history_df = self.load_global_history(model_fname)
+        global_history_df = self.load_global_history()
         
         # Updates the client's dict with training/validation metrics
         self.update_client_history_dict(global_history_df.copy(deep = True), 
@@ -612,15 +642,15 @@ class FederatedClient(ModelManager):
         # Returns the path to the trained model and n° of train samples
         return global_history_df
     
-    def load_global_history(self, model_fname):
+    def load_global_history(self):
         
         # Path to current global model's validation dict, 
         # which records model's metrics for this client's train/val data
-        validation_dict_path = os.path.join(self.dst_dir, model_fname,
-                                                "val_results.csv")
+        src_history_dir  = os.path.dirname(self.global_model_path)
+        val_dict_path = os.path.join(src_history_dir, "val_results.csv")
         
         # Loads local global model's validation dict as pd.DataFrame
-        validation_df = pd.read_csv( validation_dict_path, sep = ";" )
+        validation_df = pd.read_csv( val_dict_path, sep = ";" )
         
         # Copies validation_df to extract global history_dict
         history_df = validation_df.copy(deep = True)
@@ -643,15 +673,18 @@ class FederatedClient(ModelManager):
     def run_train_process( self, step_idx, num_epochs, epoch_idx, 
                            max_train_steps ):
         
+        # Empties local model dir before training a new model
+        self.rm_model(model_type = "local")
+        
         # Combines client_id and communication round to make local model_id
         # The model filename combines the architecture used and the model_id
         model_id = f"{self.client_id}_v{step_idx}"
-        model_fname = f"local_model_{model_id}"
+        model_fname = os.path.basename(self.local_model_path).split(".")[0]
         
         # Disables EarlyStopping for local model training
         # EarlyStopping is only triggered based on the global model's updates
         hyperparameters = self.hyperparameters.copy()
-        hyperparameters["early_stop_patience"] = 0
+        hyperparameters["monitor"] = None
         
         # Base args dict
         args = { "output_dir"        :                 self.dst_dir, 
@@ -661,14 +694,14 @@ class FederatedClient(ModelManager):
                  "ignore_check"      :            self.ignore_check,
                  "model_hash"        :                     model_id, 
                  "model_filename"    :                  model_fname,
-                 "initial_weights"   :             self.global_path,
+                 "initial_weights"   :       self.global_model_path,
                  "max_train_steps"   :              max_train_steps,
                  "epochs_per_step"   :                   num_epochs,
                  "current_epoch_num" :                    epoch_idx,
                  "hyperparameters"   :              hyperparameters,
                  "data_augmentation" :              self.aug_params,
                  "remove_unfinished" :                        False,
-                 "save_final_weights":                         True,
+                 "save_final_weights":                        False,
                  "verbose"           :                            0,
                  "seed"              :      hyperparameters["seed"],
                }
@@ -681,37 +714,27 @@ class FederatedClient(ModelManager):
 
         # Trains model
         subprocess.Popen.wait(subprocess.Popen( command ))
-        assert os.path.exists(self.global_path)
-
-        # Gets the path to the trained model
-        local_model_path = os.path.join( self.dst_dir, model_fname, 
-                                         f"{model_fname}.h5" )
-        assert os.path.exists(local_model_path), f"Can't find '{local_model_path}'..."
+        assert os.path.exists(self.local_model_path), f"Can't find '{self.local_model_path}'..."
         
         # Updates the client's dict with training/validation metrics
-        local_history_df = self.load_local_history(step_idx)
+        local_history_df = self.load_local_history()
         
         # Updates the client's dict with training/validation metrics
         self.update_client_history_dict(local_history_df.copy(deep = True), 
                                         step_idx, from_local = True)
         
-        return_dict = { "path":    local_model_path,
+        return_dict = { "path":    self.local_model_path,
                         "results": local_history_df,
                       }
         
         # Returns the path to the trained model and n° of train samples
         return return_dict
     
-    def load_local_history(self, step_idx):
-            
-        # Gets the filename for the current step's local model
-        model_id = f"{self.client_id}_v{step_idx}"
-        model_fname = f"local_model_{model_id}"
-        
+    def load_local_history(self):
         # Path to current local model's history dict, 
         # which only records this step's metrics
-        src_history_path = os.path.join(self.dst_dir, model_fname, 
-                                        "history_dict.csv")
+        src_history_dir  = os.path.dirname(self.local_model_path)
+        src_history_path = os.path.join(src_history_dir, "history_dict.csv")
         
         # Loads local model's history dict as pd.DataFrame
         history_df = pd.read_csv( src_history_path, sep = ";" )

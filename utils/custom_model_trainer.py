@@ -293,11 +293,9 @@ class ModelManager(ModelEntity):
         
         # Directory for the output trained models
         if self.federated:
-            dset_variant = "remapped" if self.keep_pneumonia else "dropped"
-            dst_dir = os.path.join( self.path_dict["outputs"], 
-                                    dset_variant )
+            dst_dir = self.path_dict["outputs"]
         # If FL training isn't being simulated, a new subdir is added to split
-        # the resulting models based on which dataset they're trained with
+        # the resulting models based on which dataset they're trained on
         else:
             dst_dir = os.path.join( self.path_dict["outputs"], 
                                     self.dataset.name )
@@ -426,7 +424,8 @@ class ModelHandler(ModelEntity):
         self.model_id = model_id
         self.model_fname = model_fname
         self.model_dir = os.path.join(self.dst_dir, self.model_fname)
-        self.model_path = os.path.join(self.model_dir, self.model_fname+".h5")
+        self.model_path = os.path.join(self.model_dir, 
+                                       f"{self.model_fname}.h5")
         
         params_json_name = f"params_{self.model_fname}.json"
         self.params_path = os.path.join( self.model_dir, params_json_name )
@@ -454,12 +453,14 @@ class ModelHandler(ModelEntity):
             # Which indicates that train/test process finished correctly
             for path2subdir in all_subdirs:
                 model_basename = os.path.split(path2subdir)[-1]
-                weights_path = os.path.join(path2subdir, f"{model_basename}.h5")
+                weights_path = os.path.join(path2subdir, 
+                                            f"{model_basename}.h5")
 
                 if (weights_path in finished_models):
                     continue
 
-                print(f"\tDeleting '{model_basename}' subdir as its training did not finish properly...")
+                print(f"\tDeleting '{model_basename}' subdir as its training", 
+                      f"did not finish properly...")
                 shutil.rmtree(path2subdir, ignore_errors=False)
         
         # Creates model_dir if needed
