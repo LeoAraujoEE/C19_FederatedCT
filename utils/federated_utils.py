@@ -701,7 +701,6 @@ class FederatedClient():
                  "hyperparameters"   :              hyperparameters,
                  "data_augmentation" :              self.aug_params,
                  "remove_unfinished" :                        False,
-                 "save_final_weights":                        False,
                  "verbose"           :                            0,
                  "seed"              :      hyperparameters["seed"],
                }

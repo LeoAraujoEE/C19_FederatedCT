@@ -234,7 +234,6 @@ class ModelManager(ModelEntity):
             script = "run_model_training"
             
             # Updates args dict w/ training arguments
-            args["save_final_weights"] = False
             args["remove_unfinished"]  =  True
             args["initial_weights"]    =  None
             args["max_train_steps"]    =  None
@@ -571,8 +570,7 @@ class ModelHandler(ModelEntity):
         return ", ".join(gpus_info)
 
 class ModelTrainer(ModelHandler):
-    def __init__(self, dst_dir, dataset, model_fname, model_id, 
-                 save_final_weights = False):
+    def __init__(self, dst_dir, dataset, model_fname, model_id):
         
         # Inherits ModelHandler's init method
         ModelHandler.__init__( self, dst_dir, model_fname, model_id )
@@ -580,9 +578,6 @@ class ModelTrainer(ModelHandler):
         # Sets the dataset used for training
         self.dataset = dataset
         self.dataset.load_dataframes()
-        
-        # Wether to save the weights on last epoch or only the best weights
-        self.save_final_weights = save_final_weights
 
         return
     
@@ -600,15 +595,9 @@ class ModelTrainer(ModelHandler):
             else: 
                 callback_mode = "max"
             
-            # Path to weights saved from model_checkpoint
-            ckpt_filepath = self.model_path
-            if self.save_final_weights:
-                mdl_dir, mdl_fname = os.path.split(self.model_path)
-                ckpt_filepath = os.path.join(mdl_dir, f"ckpt_{mdl_fname}")
-            
             # Model Checkpoint
             model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-                                      filepath = ckpt_filepath,
+                                      filepath = self.model_path,
                                       monitor = hyperparameters["monitor"],
                                       mode = callback_mode, 
                                       save_best_only = True,

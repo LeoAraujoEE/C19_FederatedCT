@@ -40,7 +40,6 @@ ignore_check       = arg_dict.pop("ignore_check")
 keep_pneumonia     = arg_dict.pop("keep_pneumonia")
 hyperparameters    = arg_dict.pop("hyperparameters")
 data_aug_params    = arg_dict.pop("data_augmentation")
-save_final_weights = arg_dict.pop("save_final_weights")
 remove_unfinished  = arg_dict.pop("remove_unfinished")
 current_epoch_num  = arg_dict.pop("current_epoch_num")
 epochs_per_step    = arg_dict.pop("epochs_per_step")
@@ -60,8 +59,7 @@ tf.random.set_global_generator(tf.random.Generator.from_seed(seed))
 dataTrain = Dataset( import_dir, train_dataset, keep_pneumonia )
 
 # Initializes trainer object
-trainer = ModelTrainer(dst_dir, dataTrain, model_fname, 
-                       model_id, save_final_weights)
+trainer = ModelTrainer(dst_dir, dataTrain, model_fname, model_id)
 
 if trainer.check_step( ignore_check ):
   
