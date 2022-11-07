@@ -19,6 +19,7 @@ class FederatedCallback():
         if isinstance(self.monitor_var, str):
             self.mode = "max" if not "loss" in self.monitor_var else "min"
             self.best_val = -np.inf if self.mode == "max" else np.inf
+            self.prev_best = -np.inf if self.mode == "max" else np.inf
             
         return
     
@@ -35,6 +36,7 @@ class FederatedCallback():
         improvement = 0
         if improved_bool:
             improvement = np.abs(val - self.best_val)
+            self.prev_best = self.best_val
             self.best_val = val
             
         # Only returns True if the improvement is larger than min_delta
@@ -52,8 +54,8 @@ class FederatedModelCheckpoint(FederatedCallback):
     def create_checkpoint(self, val, src_weights_path):
         if (self.monitor_var is None) or (self.has_improved(val)):
             print(f"\nGlobal model's '{self.monitor_var}' improved from",
-                  f"{self.best_val:.4f} to {val:.4f}. Saving model to",
-                  f"'{self.ckpt_weights_path}'...")
+                  f"{self.prev_best:.4f} to {self.best_val:.4f}. Saving",
+                  f"model to '{self.ckpt_weights_path}'...")
             self.copy_weights(src_weights_path, self.ckpt_weights_path)
         return
     
@@ -110,7 +112,7 @@ class FederatedEarlyStopping(FederatedCallback):
             return False
 
         if (step_idx - self.best_step) >= self.patience_steps:
-            print(f"\nGlobal model's '{self.monitor_var}' hasn't improved for",
-                  f"{self.patience_steps} steps. Forcing Early Stop...")
+            print(f"\nGlobal model's '{self.monitor_var}' hasn't improved",
+                  f"for {self.patience_steps} steps. Forcing Early Stop...")
             return True
         return False
