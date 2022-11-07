@@ -6,20 +6,20 @@ SUBDIR = "remapped" if KEEP_PNEUMONIA else "dropped"
 
 # 
 PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
-              # "outputs" : os.path.join( "..", "output", "mock_fl_models", SUBDIR ), 
-              "outputs" : os.path.join( "..", "output", "fl_models", SUBDIR ) 
+              "outputs" : os.path.join( "..", "output", "mock_fl_models", SUBDIR ), 
+              # "outputs" : os.path.join( "..", "output", "fl_models", SUBDIR ) 
             }
 
 # List of parameters for Federated Learning simulation
-fedlearn_params = { "epochs_per_step":                [4],
+fedlearn_params = { "epochs_per_step":                [2],
                     "max_steps_frac" :             [0.00],
                     "client_frac"    :             [1.00],
                     "aggregation"    :            ["avg"],
                   }
 
 # List of hyperparameter values
-hyperparameters = { "num_epochs":                    [15],  # Total N° of training epochs
-                    "batchsize":                    [128],  # Minibatch size
+hyperparameters = { "num_epochs":                     [5],  # Total N° of training epochs
+                    "batchsize":                     [32],  # Minibatch size
                     "early_stop_patience":            [1],  # Early Stopping patience
                     "early_stop_delta":           [0.001],  # Minimum improvement for early stopping
                     "input_height":                 [224],  # Model's input size

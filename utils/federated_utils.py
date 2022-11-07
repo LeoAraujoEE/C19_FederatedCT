@@ -159,7 +159,7 @@ class FederatedServer(ModelHandler):
         cross_val_df = self.combine_local_results(val_df_dict)
         
         # Formats average results as dict, and prints its values
-        print(f"\n{step_idx}/{num_steps} Average Global Model Results:")
+        print(f"\n{step_idx}.0/{num_steps-1} Average Global Model Results:")
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[0][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)
@@ -332,7 +332,7 @@ class FederatedServer(ModelHandler):
         cross_val_df = self.combine_local_results(local_model_results)
         
         # Formats average results as dict, and prints its values
-        print(f"\n{step_idx}/{num_steps} Average Local Model Results:")
+        print(f"\n{step_idx}.5/{num_steps-1} Average Local Model Results:")
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[-1][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)

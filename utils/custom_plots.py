@@ -8,6 +8,7 @@ sns.set()
 
 from sklearn.metrics import auc
 from sklearn.metrics import roc_curve
+from sklearn.metrics import confusion_matrix
 
 class CustomPlots:
     def __init__( self, model_path ):
@@ -378,17 +379,36 @@ class CustomPlots:
 
         return
     
-    def plot_confusion_matrix( self, conf_matrix, dataset_name, partition, labels ):
+    def plot_confusion_matrix( self, true_labels, pred_labels, dataset_name, partition, labels, orig_labels = None ):
+    
+        # Computes confusion matrix from true_labels, pred_labels
+        conf_matrix = confusion_matrix( true_labels, pred_labels )
+        
+        # If orig_labels is None, a 2x2 CM is plotted with the dropped or
+        # remapped labels (Normal x COVID or not_COVID x COVID, respectively)
+        if orig_labels is None:
+            sufix = "_2x2"
+            orig_labels = labels
+            
+        # Otherwise, a CM is plotted based on the original labels.
+        # If there're pneumonia samples, this will make a 3x2 CM where it's
+        # possible to see how the model performed on Pneumonia/Normal samples
+        # separately. However, if pneumonia samples were dropped, there'll be 
+        # no changes to the outputted CM
+        else:
+            sufix = ""
+            conf_matrix = conf_matrix[:, :-1]
+            
         # Defines the path to the plot file inside the model's directory
         dst_dir = os.path.join( self.plot_dir, "4.Confusion Matrix" )
-        cm_fname = "cm_{}_{}.png".format( dataset_name, partition )
+        cm_fname = f"cm_{dataset_name}_{partition}{sufix}.png"
         cm_fpath = os.path.join( dst_dir, cm_fname )
         
         # Creates the plot directory if needed
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
 
-        # Normalizes the confusion matriz by dividing each row for its sum, each 
+        # Normalizes the confusion matrix by dividing each row for its sum, each 
         # element is divided by the total amount of true samples for the true class
         n_rows, n_cols = conf_matrix.shape[:2]
         total_true_counts = np.sum( conf_matrix, axis = 1 ).reshape( n_rows, 1 )
@@ -406,7 +426,7 @@ class CustomPlots:
         fig = plt.figure( figsize = (plt_h, plt_w) )
         blues_cmap = sns.color_palette("Blues", as_cmap=True)
         ax  = sns.heatmap( normalized_cm, annot = cm_annots, fmt="", cmap = blues_cmap, cbar = True, 
-                           xticklabels = labels, yticklabels = labels, vmin = 0, vmax = 1)
+                           xticklabels = labels, yticklabels = orig_labels, vmin = 0, vmax = 1)
 
         # Adds extra information on each label and a title
         ax.set_ylabel("True Labels")

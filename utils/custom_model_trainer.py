@@ -689,7 +689,7 @@ class ModelTrainer(ModelHandler):
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
-            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            # val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
             train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
@@ -810,9 +810,10 @@ class ModelTester(ModelHandler):
 
         # Gets all labels in the dataframe as their corresponding class numbers to compute accuracy and f1-score
         y_true = datagen.get_labels()[:num_samples]
+        orig_y_true = datagen.get_labels(use_orig_labels = True)[:num_samples]
 
         # TODO: Remove mock_test -------------------------
-        mock_test = True
+        mock_test = False
         if mock_test:
             y_hat = np.random.random( (num_samples, 1) ).astype(np.float32)
             y_pred = (y_hat > 0.5).astype(np.float32)
@@ -834,6 +835,7 @@ class ModelTester(ModelHandler):
                          "acc"        : accuracy_score( y_true, y_pred ),
                          "f1"         : f1_score( y_true, y_pred ),
                          "auc"        : roc_auc_score( y_true, y_hat ),
+                         "orig_y_true": orig_y_true,
                          "y_true"     : y_true,
                          "y_hat"      : y_hat,
                          "y_pred"     : y_pred
@@ -863,10 +865,14 @@ class ModelTester(ModelHandler):
             metrics_dict = self.evaluate_model( self.dataset, hyperparameters,
                                                 partition )
             
-            # Extracts Class Activations, True Labels and Predicted Labels
+            # Extracts Class Activations, Predicted Labels and True Labels
             y_hat = metrics_dict.pop("y_hat")
-            y_true = metrics_dict.pop("y_true")
             y_pred = metrics_dict.pop("y_pred")
+            y_true = metrics_dict.pop("y_true")
+            
+            # Extracts original true labels (before class remapping)
+            # to plot a more complex Confusion Matrix
+            orig_y_true = metrics_dict.pop("orig_y_true")
 
             for metric, value in metrics_dict.items():
                 # Adds the results to the result dict
@@ -874,13 +880,20 @@ class ModelTester(ModelHandler):
                 results[key] = f"{value:.4f}"
 
             if not self.use_val_data:
-                # Computes confusion matrix using scikit-learn
-                conf_matrix  = confusion_matrix( y_true, y_pred )
             
-                # Plots confusion matrix
+                # Plots 2x2 confusion matrix
                 class_labels = self.dataset.classes
-                plotter.plot_confusion_matrix(conf_matrix, self.dataset.name, 
+                plotter.plot_confusion_matrix(y_true, y_pred, 
+                                              self.dataset.name, 
                                               partition, class_labels)
+            
+                # Plots 3x2 confusion matrix if the pneumonia 
+                # samples weren't dropped
+                if not self.dataset.label_remap is None:
+                    plotter.plot_confusion_matrix(orig_y_true, y_pred, 
+                                                  self.dataset.name, 
+                                                  partition, class_labels, 
+                                                  self.dataset.orig_classes)
 
                 # Plots ROC curves
                 plotter.plot_roc_curve(y_true, y_hat, self.dataset.name, 
@@ -901,10 +914,14 @@ class ModelTester(ModelHandler):
                 # Evaluates dataset
                 metrics_dict = self.evaluate_model( dset, hyperparameters, "test" )
             
-                # Extracts Class Activations, True Labels and Predicted Labels
+                # Extracts Class Activations, Predicted Labels and True Labels
                 y_hat = metrics_dict.pop("y_hat")
-                y_true = metrics_dict.pop("y_true")
                 y_pred = metrics_dict.pop("y_pred")
+                y_true = metrics_dict.pop("y_true")
+                
+                # Extracts original true labels (before class remapping)
+                # to plot a more complex Confusion Matrix
+                orig_y_true = metrics_dict.pop("orig_y_true")
 
                 # Adds to list
                 cval_losses.append(metrics_dict["loss"])
@@ -917,11 +934,18 @@ class ModelTester(ModelHandler):
                     dname = dset_name.lower().replace(" ", "")
                     key = f"{dname}_{metric}"
                     results[key] = f"{value:.4f}"
-                    
-                # Plots confusion matrix
-                class_labels = dset.classes
-                plotter.plot_confusion_matrix(conf_matrix, dset_name, 
-                                                "test", class_labels)
+            
+                # Plots 2x2 confusion matrix
+                class_labels = self.dataset.classes
+                plotter.plot_confusion_matrix(y_true, y_pred, 
+                                            dset_name, "test", class_labels)
+            
+                # Plots 3x2 confusion matrix if the pneumonia 
+                # samples weren't dropped
+                if not self.dataset.label_remap is None:
+                    plotter.plot_confusion_matrix(orig_y_true, y_pred, 
+                                            dset_name, "test", class_labels,
+                                                  self.dataset.orig_classes)
 
                 # Plots ROC curves
                 plotter.plot_roc_curve(y_true, y_hat, dset_name, 

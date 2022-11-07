@@ -35,20 +35,18 @@ class Dataset():
         self.input_col = self.metadata["input_col"]
         self.output_col = self.metadata["output_col"]
         
-        # Gets the original number of pneumonia samples
-        pneumonia_samples = self.metadata["num_samples"]["total"]["Pneumonia"]
-        
         # Wether the samples of pneumonia class should be kept or not
         # A different sufix is applied for each case
-        sufix = self.set_class_remap(keep_pneumonia)
+        self.set_class_remap(keep_pneumonia)
+        
+        # Column to preserve original labels after class remapping
+        self.orig_output_col = None
         
         # Registers the original dataset name
         self.orig_name = self.metadata["name"]
         
         # Only datasets with pneumonia samples have the sufix added
         self.name = self.metadata["name"]
-        if pneumonia_samples > 0:
-            self.name = self.name + sufix
         
         # Total number of classes
         self.n_classes = len(self.classes)
@@ -77,7 +75,11 @@ class Dataset():
                                  "COVID-19" : "pos_COVID-19", 
                                  "Pneumonia": "neg_COVID-19" }
 
+            # Dict to associate labels to class numbers
             self.classes = { "neg_COVID-19": 0, "pos_COVID-19": 1 }
+            
+            # Dict to associate original labels to class numbers
+            self.orig_classes = { "Normal": 0, "Pneumonia": 1, "COVID-19": 2}
             
             # Iterates through partitions in self.metadata["num_samples"]
             for part in self.metadata["num_samples"].keys():
@@ -91,15 +93,14 @@ class Dataset():
                 # Adds new entries to the metadata dict
                 self.metadata["num_samples"][part]["neg_COVID-19"] = neg_samples
                 self.metadata["num_samples"][part]["pos_COVID-19"] = pos_samples
-                
-            
-            # Different sufix to indicate that samples were remapped
-            sufix = "_remapped"
             
         else:
             # Else, Pneumonia samples are droped and the other labels are kept
             self.classes = { "Normal": 0, "COVID-19": 1 }
             self.label_remap = None
+            
+            # Dict to associate original labels to class numbers
+            self.orig_classes = self.classes
             
             # Iterates through partitions in self.metadata["num_samples"]
             for part in self.metadata["num_samples"].keys():
@@ -108,19 +109,22 @@ class Dataset():
                 
                 # Reduce the total number of samples by the ones dropped
                 self.metadata["num_samples"][part]["Total"] -= n_dropped
-            
-            # Different sufix to indicate that samples were discarted
-            sufix = "_dropped"
-        
-        return sufix
+                
+        return
     
     def multiclass2binary( self, df ):
+        # Adds new column to keep track of original labels
+        self.orig_output_col = f"original_{self.output_col}"
+        df[self.orig_output_col] = df[self.output_col].copy()
 
+        # If set to drop pneumonia samples, drops rows & returns resulting df
         if self.label_remap is None:
-            df = df[ df[self.output_col] != "Pneumonia"].reset_index(drop = True)
+            df = df[ df[self.output_col] != "Pneumonia" ]
+            df = df.reset_index(drop = True)
             return df
         
-        df[self.output_col] = df.apply( lambda row: self.label_remap[row[self.output_col]], axis = 1)
+        # Otherwise, remaps labels according to self.label_remap
+        df[self.output_col] = df.apply(lambda row: self.label_remap[row[self.output_col]], axis = 1)
         
         return df
     

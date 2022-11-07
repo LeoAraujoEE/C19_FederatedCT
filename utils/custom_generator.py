@@ -55,16 +55,23 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
         self.Y_col = dataset.output_col
 
         # Identifies each individual class from given labels
-        self.unq_labels = [ clss for clss in dataset.classes.keys() ]
-        self.label2class_dict = { label: clss for clss, label in enumerate(self.unq_labels) }
-        self.class2label_dict = { clss: label for clss, label in enumerate(self.unq_labels) }
+        # self.unq_labels = [ clss for clss in dataset.classes.keys() ]
+        # self.label2class_dict = { label: clss for clss, label in enumerate(self.unq_labels) }
+        # self.class2label_dict = { clss: label for clss, label in enumerate(self.unq_labels) }
+
+        # Identifies each individual class from given labels
+        # These are the labels used during training/testing
+        self.label2class_dict = dataset.classes.copy()
+
+        # Dict that associates original labels to class numbers
+        # These labels are used only to plot the confusion matrix
+        # Diferentiates Normal & Pneumonia samples if the latter are present
+        self.orig_Y_col = dataset.orig_output_col
+        self.orig_label2class_dict = dataset.orig_classes.copy()
 
         # Gets the number of samples and the number of classes in the dataset
         self.n = len(self.base_df)
-        self.n_classes = len(self.unq_labels)
-
-        if self.n_classes != len(self.unq_labels):
-            print( f"\nOnly {dataset.n_classes} of {self.n_classes} classes are represented in this dataset..." )
+        self.n_classes = len(self.label2class_dict)
             
         # Saves the augmentation dict whithin the generator class
         self.set_datagen_transformations( hyperparameters, aug_dict )
@@ -178,9 +185,21 @@ class CustomDataGenerator(tf.keras.utils.Sequence):
             self.set_generator()
         return 
 
-    def get_labels(self):
+    def get_labels(self, use_orig_labels = False):
+        # Selects which column to use as reference
+        if not use_orig_labels:
+            col = self.Y_col
+            map_dict = self.label2class_dict
+            
+        else:
+            col = self.orig_Y_col
+            map_dict = self.orig_label2class_dict
+        
         # Gets all labels in the dataframe as their corresponding class numbers
-        return [self.label2class_dict[l] for l in self.df[self.Y_col].to_list()]
+        y_true = []
+        for label in self.df[col].to_list():
+            y_true.append(map_dict[label])
+        return y_true
         
     def get_fnames(self):
         # Gets all labels in the dataframe as their corresponding class numbers
