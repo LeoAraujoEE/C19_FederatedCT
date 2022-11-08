@@ -319,8 +319,8 @@ class FederatedServer(ModelHandler):
             local_return_dict = client.run_train_process(step_idx, 
                                     epoch_idx = current_epoch,
                                     num_epochs = step_num_epochs, 
-                                    max_train_steps = 10,
-                                    # max_train_steps = max_train_steps,
+                                    # max_train_steps = 10,
+                                    max_train_steps = max_train_steps,
                                     )
             
             # Appends the path and results to corresponding the dicts

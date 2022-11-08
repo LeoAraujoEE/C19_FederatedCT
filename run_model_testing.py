@@ -21,7 +21,7 @@ arg_dict = json.loads(sys.argv[1])
 seed                = arg_dict.pop("seed")
 verbose             = arg_dict.pop("verbose")
 train_dataset       = arg_dict.pop("dataset")
-import_dir          = arg_dict.pop("data_path")
+dataset_dir         = arg_dict.pop("data_path")
 dst_dir             = arg_dict.pop("output_dir")
 model_id            = arg_dict.pop("model_hash")
 model_fname         = arg_dict.pop("model_filename")
@@ -35,7 +35,7 @@ use_validation_data = arg_dict.pop("use_validation_data")
 os.environ["PYTHONHASHSEED"] = str(seed)
 
 # Builds object to handle datasets for training and for external validation
-dataTrain, dataVal_list = load_datasets( import_dir, train_dataset, 
+dataTrain, dataVal_list = load_datasets( dataset_dir, train_dataset, 
                                          use_validation_data, keep_pneumonia )
 
 tester = ModelTester( dst_dir, model_fname, model_id, dataTrain, 

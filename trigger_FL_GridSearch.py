@@ -26,7 +26,7 @@ hyperparameters = { "num_epochs":                     [5],  # Total N° of train
                     "input_width":                  [224],  # Model's input size
                     "input_channels":                 [1],  # Model's input size
                     "start_lr":                    [1e-2],  # Starting learning rate
-                    "lr_adjust_frac":              [0.90],  # Fraction to adjust learning rate
+                    "lr_adjust_frac":              [0.95],  # Fraction to adjust learning rate
                     "lr_adjust_freq":                 [2],  # Frequency to adjust learning rate
                     "optimizer":                 ["adam"],  # Chosen optimizer
                     "monitor":                 ["val_f1"],  # Monitored variable for callbacks

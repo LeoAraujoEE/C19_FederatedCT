@@ -241,7 +241,7 @@ class Dataset():
         
         return int(np.ceil(ref_samples/float(batchsize/self.n_classes)))
         
-def load_datasets( import_dir, train_dataset_name, use_val_data, 
+def load_datasets( img_dir, train_dataset_name, use_val_data, 
                    keep_pneumonia ):
 
     # List of all available datasets
@@ -261,7 +261,7 @@ def load_datasets( import_dir, train_dataset_name, use_val_data,
     for dataset_name in dataset_list:
         
         # Builds object to handle the current dataset
-        dataset_obj = Dataset( import_dir, name = dataset_name, 
+        dataset_obj = Dataset( img_dir, name = dataset_name, 
                                keep_pneumonia = keep_pneumonia )
 
         # Check wether this dataset will be used for training or validation
