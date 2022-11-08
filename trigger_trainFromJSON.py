@@ -6,8 +6,8 @@ SUBDIR = "remapped" if KEEP_PNEUMONIA else "dropped"
 
 # 
 PATH_DICT = { "datasets": os.path.join( "..", "data", "Processed", "CT", "classification", "COVIDxCT-3A" ),
-              "outputs" : os.path.join( "..", "output", "mock_models", SUBDIR ), 
-              # "outputs" : os.path.join( "..", "output", "models", SUBDIR ) 
+              "outputs" : os.path.join( "..", "output", "CT", "mock_models", SUBDIR ), 
+              # "outputs" : os.path.join( "..", "output", "CT", "models", SUBDIR ) 
             }
 
 train_dataset = "COVID-CT-MD"
