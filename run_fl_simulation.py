@@ -17,7 +17,7 @@ DATASETS = [ "Comp_CNCB_iCTCF", # 88k / 69k - Combination of CNCB non COVID samp
                     "miniCNCB", # 74k / 55k - Rest of CNCB dataset
                  "COVID-CT-MD", # 23k / 20k - COVID-CT-MD dataset
                 "Comp_LIDC-SB", # 18k / 18k - Combination of LIDC + Stone Brook
-                 "COVID-CTSet", # 12k / 12k - COVID-CTSet dataset
+                 "COVID-CTset", # 12k / 12k - COVID-CTSet dataset
            ]
 
 # Extract info from from args_dict
