@@ -115,21 +115,19 @@ class ModelManager(ModelEntity):
             current_idx = str(idx_h+1).zfill(3)
             maximum_idx = str(n_permutations).zfill(3)
             print(f"\n\n{current_idx}/{maximum_idx} Iteration of GridSearch:")
-        
-            fl_params, hyperparameters = self.split_hyperparameters(hyperparameters)
             
             if self.federated:
                 # Trains model simulating Federated Learning
-                self.run_process( self.fl_code, fl_params, hyperparameters, 
+                self.run_process( self.fl_code, hyperparameters, 
                                   ignore_check = False )
             
             else:
                 # Trains model
-                self.run_process( self.train_code, fl_params, hyperparameters, 
+                self.run_process( self.train_code, hyperparameters, 
                                   ignore_check = False )
                 
                 # Tests model
-                self.run_process( self.test_code, fl_params, hyperparameters, 
+                self.run_process( self.test_code, hyperparameters, 
                                   ignore_check = False )
 
         return
@@ -145,21 +143,19 @@ class ModelManager(ModelEntity):
 
             # Announces the start of the training process
             print(f"\n\n#{str(idx_h+1).zfill(3)}/{str(n_models).zfill(3)} Iteration of RandomSearch:")
-        
-            fl_params, hyperparameters = self.split_hyperparameters(hyperparameters)
             
             if self.federated:
                 # Trains model simulating Federated Learning
-                self.run_process( self.fl_code, fl_params, hyperparameters, 
+                self.run_process( self.fl_code, hyperparameters, 
                                   ignore_check = False )
             
             else:
                 # Trains model
-                self.run_process( self.train_code, fl_params, hyperparameters, 
+                self.run_process( self.train_code, hyperparameters, 
                                   ignore_check = False )
                 
                 # Tests model
-                self.run_process( self.test_code, fl_params, hyperparameters, 
+                self.run_process( self.test_code, hyperparameters, 
                                   ignore_check = False )
 
             # Increases the number of trained models
@@ -173,6 +169,13 @@ class ModelManager(ModelEntity):
         
         if not fl_params is None:
             self.federated = True
+        
+            # Combines fl_params and hyperparameters
+            complete_hyperparam_dict = fl_params.copy()
+            complete_hyperparam_dict.update(hyperparameters)
+
+        else:
+            complete_hyperparam_dict = hyperparameters
 
         # Copies the augmentation dict used if specified
         if copy_augmentation:
@@ -184,35 +187,35 @@ class ModelManager(ModelEntity):
             
         if self.federated:
             # Trains model simulating Federated Learning
-            self.run_process( self.fl_code, fl_params, hyperparameters, 
+            self.run_process( self.fl_code, complete_hyperparam_dict, 
                               ignore_check = True )
         
         else:
             # Trains model
-            self.run_process( self.train_code, fl_params, hyperparameters, 
+            self.run_process( self.train_code, complete_hyperparam_dict, 
                               ignore_check = True )
             
             # Tests model
-            self.run_process( self.test_code, fl_params, hyperparameters, 
+            self.run_process( self.test_code, complete_hyperparam_dict, 
                               ignore_check = True )
 
         return
             
-    def run_process(self, script_code, fl_params, hyperparams, ignore_check):
+    def run_process(self, script_code, hyperparams, ignore_check):
         assert script_code in [0, 1, 2], f"Unknown script code {script_code}"
         
         # Creates test command
-        command = self.create_command(hyperparams, fl_params, ignore_check, 
-                                      script_code)
+        command = self.create_command(hyperparams, ignore_check, script_code)
 
         # Runs script as subprocess
         subprocess.Popen.wait(subprocess.Popen( command ))
         return
 
-    def create_command(self, hyperparams, fl_params, ignore_check, 
-                       script_code):
+    def create_command(self, hyperparams, ignore_check, script_code):
         
         dst_dir, model_fname, model_id = self.get_model_path(hyperparams)
+        
+        fl_params, hyperparams = self.split_hyperparameters(hyperparams)
         
         # Base args dict
         args = { "output_dir"       :                    dst_dir, 
