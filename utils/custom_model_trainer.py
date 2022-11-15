@@ -916,11 +916,13 @@ class ModelTester(ModelHandler):
                 # to plot a more complex Confusion Matrix
                 orig_y_true = metrics_dict.pop("orig_y_true")
 
-                # Adds to list
-                cval_losses.append(metrics_dict["loss"])
-                cval_accs.append(metrics_dict["acc"])
-                cval_f1s.append(metrics_dict["f1"])
-                cval_aurocs.append(metrics_dict["auc"])
+                # Adds to list if it's one of the subdatasets
+                # that build up COVIDxCT3A
+                if not "covidxct" in dset_name.lower():
+                    cval_losses.append(metrics_dict["loss"])
+                    cval_accs.append(metrics_dict["acc"])
+                    cval_f1s.append(metrics_dict["f1"])
+                    cval_aurocs.append(metrics_dict["auc"])
 
                 for metric, value in metrics_dict.items():
                     # Adds the results to the result dict
