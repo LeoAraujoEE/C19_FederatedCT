@@ -620,8 +620,8 @@ class ModelTrainer(ModelHandler):
         # Learning Rate Scheduler
         def scheduler(epoch, lr):
                 
-            # Number of completed steps
-            steps = (epoch + 1) // hyperparameters["lr_adjust_freq"]
+            # Number of completed adjustment steps
+            steps = epoch // hyperparameters["lr_adjust_freq"]
             
             # Coeficient to multiply initial lr and get the new lr
             new_coef = hyperparameters["lr_adjust_frac"] ** steps
@@ -634,7 +634,7 @@ class ModelTrainer(ModelHandler):
             old_lr = hyperparameters["start_lr"] * old_coef
             
             # Prints only in the epochs where the lr is changed
-            if (epoch + 1) % hyperparameters["lr_adjust_freq"] == 0:
+            if epoch > 0 and epoch % hyperparameters["lr_adjust_freq"] == 0:
                 print(f"Updating LR from '{old_lr:.3E}'to '{new_lr:.3E}'...")
                 
             return new_lr
@@ -681,7 +681,7 @@ class ModelTrainer(ModelHandler):
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
-            # val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
+            val_steps = np.min([val_steps, max_steps]) # TODO: Remove this
             train_steps = np.min([train_steps, max_steps])
 
         # Gets class_weights from training dataset
@@ -879,9 +879,10 @@ class ModelTester(ModelHandler):
                                               self.dataset.name, 
                                               partition, class_labels)
             
-                # Plots 3x2 confusion matrix if the pneumonia 
-                # samples weren't dropped
-                if not self.dataset.label_remap is None:
+                # Plots 3x2 confusion matrix if the dataset has pneumonia 
+                # samples and those samples weren't dropped
+                if ((self.dataset.has_pneumonia_samples) and 
+                    (not self.dataset.label_remap is None)):
                     plotter.plot_confusion_matrix(orig_y_true, y_pred, 
                                                   self.dataset.name, 
                                                   partition, class_labels, 
@@ -932,9 +933,11 @@ class ModelTester(ModelHandler):
                 plotter.plot_confusion_matrix(y_true, y_pred, 
                                             dset_name, "test", class_labels)
             
-                # Plots 3x2 confusion matrix if the pneumonia 
-                # samples weren't dropped
-                if not self.dataset.label_remap is None:
+                # Plots 3x2 confusion matrix if the dataset has pneumonia 
+                # samples and those samples weren't dropped
+                if ((dset.has_pneumonia_samples) and 
+                    (not dset.label_remap is None)):
+                    
                     plotter.plot_confusion_matrix(orig_y_true, y_pred, 
                                             dset_name, "test", class_labels,
                                                   self.dataset.orig_classes)

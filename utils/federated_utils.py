@@ -261,11 +261,13 @@ class FederatedServer(ModelHandler):
             num_step = client.dataset.get_num_steps( "train", batchsize, 
                                                      sampling )
             
+            # print(f"\tClient #{_id}: num_steps = {num_step}")
             num_step_list.append(num_step)
         
         # Extracts the minimum and the maximum values from that list
         min_steps = np.min(num_step_list)
         max_steps = np.max(num_step_list)
+        # print(f"\t(Min, Max): ({min_steps}, {max_steps})")
         
         # Computes the 'max_train_steps' as a value between min_steps and
         # max_steps that's closer to min_steps as 'max_steps_frac' is closer
@@ -273,6 +275,8 @@ class FederatedServer(ModelHandler):
         steps_frac = self.fl_params["max_steps_frac"]
         xtra_steps = (max_steps - min_steps) * steps_frac
         max_train_steps = int(min_steps + xtra_steps)
+        # print(f"\txtra_steps = ({max_steps} - {min_steps}) * {steps_frac} = {xtra_steps}")
+        # print(f"\tsteps_frac = {steps_frac}, max_train_steps = {max_train_steps}")
         
         return max_train_steps
     
@@ -319,8 +323,8 @@ class FederatedServer(ModelHandler):
             local_return_dict = client.run_train_process(step_idx, 
                                     epoch_idx = current_epoch,
                                     num_epochs = step_num_epochs, 
-                                    # max_train_steps = 10,
-                                    max_train_steps = max_train_steps,
+                                    max_train_steps = 10,
+                                    # max_train_steps = max_train_steps,
                                     )
             
             # Appends the path and results to corresponding the dicts
@@ -332,7 +336,7 @@ class FederatedServer(ModelHandler):
         cross_val_df = self.combine_local_results(local_model_results)
         
         # Formats average results as dict, and prints its values
-        print(f"\n{step_idx}.5/{num_steps-1} Average Local Model Results:")
+        print(f"\n{step_idx-1}.5/{num_steps-1} Average Local Model Results:")
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[-1][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)

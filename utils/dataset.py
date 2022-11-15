@@ -35,6 +35,11 @@ class Dataset():
         self.input_col = self.metadata["input_col"]
         self.output_col = self.metadata["output_col"]
         
+        # Boolean variable to store wether this dataset has Pneumonia samples
+        self.has_pneumonia_samples = False
+        if (self.metadata["num_samples"]["total"]["Pneumonia"] > 0):
+            self.has_pneumonia_samples = True
+        
         # Wether the samples of pneumonia class should be kept or not
         # A different sufix is applied for each case
         self.set_class_remap(keep_pneumonia)
