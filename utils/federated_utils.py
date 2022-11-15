@@ -258,16 +258,14 @@ class FederatedServer(ModelHandler):
         num_step_list = []
         for _id in selected_ids:
             client = self.client_dict[_id]
-            num_step = client.dataset.get_num_steps( "train", batchsize, 
-                                                     sampling )
+            num_step = client.dataset.get_num_steps( "train", batchsize,
+                                                     sampling = sampling )
             
-            # print(f"\tClient #{_id}: num_steps = {num_step}")
             num_step_list.append(num_step)
         
         # Extracts the minimum and the maximum values from that list
         min_steps = np.min(num_step_list)
         max_steps = np.max(num_step_list)
-        # print(f"\t(Min, Max): ({min_steps}, {max_steps})")
         
         # Computes the 'max_train_steps' as a value between min_steps and
         # max_steps that's closer to min_steps as 'max_steps_frac' is closer
@@ -275,8 +273,6 @@ class FederatedServer(ModelHandler):
         steps_frac = self.fl_params["max_steps_frac"]
         xtra_steps = (max_steps - min_steps) * steps_frac
         max_train_steps = int(min_steps + xtra_steps)
-        # print(f"\txtra_steps = ({max_steps} - {min_steps}) * {steps_frac} = {xtra_steps}")
-        # print(f"\tsteps_frac = {steps_frac}, max_train_steps = {max_train_steps}")
         
         return max_train_steps
     
@@ -323,8 +319,8 @@ class FederatedServer(ModelHandler):
             local_return_dict = client.run_train_process(step_idx, 
                                     epoch_idx = current_epoch,
                                     num_epochs = step_num_epochs, 
-                                    max_train_steps = 10,
-                                    # max_train_steps = max_train_steps,
+                                    # max_train_steps = 10,
+                                    max_train_steps = max_train_steps,
                                     )
             
             # Appends the path and results to corresponding the dicts

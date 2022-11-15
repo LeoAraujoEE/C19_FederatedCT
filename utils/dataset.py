@@ -240,8 +240,8 @@ class Dataset():
         # Otherwise, computes how many batches are possible 
         # for the chosen sampling method
         partition_info = self.metadata["num_samples"][partition]
-        max_samples = np.max(list( partition_info.values() ))
-        min_samples = np.min(list( partition_info.values() ))
+        val_list = [v for k, v in partition_info.items() if k != "Total"]
+        max_samples, min_samples = np.max(val_list), np.min(val_list)
         ref_samples = max_samples if sampling == "oversampling" else min_samples
         
         return int(np.ceil(ref_samples/float(batchsize/self.n_classes)))
