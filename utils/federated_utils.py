@@ -104,7 +104,7 @@ class FederatedServer(ModelHandler):
         
         return self.latest_model_path
     
-    def combine_local_results( self, df_dict ):
+    def combine_local_results( self, df_dict, is_train_history = True ):
         dfs = []
         for client_id, client_df in df_dict.items():
             # Copies the local client's results dataframe
@@ -121,13 +121,17 @@ class FederatedServer(ModelHandler):
         # Concatenates dataframes to make an updated client history_dict
         combined_df = pd.concat( dfs, axis = 1 )
         
+        metric_list = ["loss", "val_loss", "acc", "val_acc", "f1", "val_f1"]
+        if is_train_history:
+            metric_list = [m for m in metric_list if not "val" in m]
+        
         # Updates combined_df with min/avg/max values for each computed metric
         col_order = []
-        for metric in ["loss", "val_loss", "acc", "val_acc", "f1", "val_f1"]:
+        for metric in metric_list:
             sel_cols = [f"client_{c_id}_{metric}" for c_id in df_dict.keys()]
             
             # Computes min/avg/max values for each metric
-            sub_df = combined_df[sel_cols].copy(deep=True)
+            sub_df = combined_df[sel_cols].copy(deep = True)
             combined_df[f"min_{metric}"] = sub_df.min(axis = 1)
             combined_df[f"avg_{metric}"] = sub_df.mean(axis = 1)
             combined_df[f"max_{metric}"] = sub_df.max(axis = 1)
@@ -156,7 +160,8 @@ class FederatedServer(ModelHandler):
         
         # Combines all obtained metrics into a single DataFrame with each
         # individual value and their min/max/average values for each step
-        cross_val_df = self.combine_local_results(val_df_dict)
+        cross_val_df = self.combine_local_results(val_df_dict, 
+                                                  is_train_history = False)
         
         # Formats average results as dict, and prints its values
         print(f"\n{step_idx}.0/{num_steps-1} Average Global Model Results:")
@@ -211,10 +216,6 @@ class FederatedServer(ModelHandler):
         
         # Concatenates dataframes to make an updated client history_dict
         updated_df = pd.concat( df_list, ignore_index = True )
-        
-        # Fills empty values from unselected clients by repeating their latest
-        # recorded value. The local model doesn't change, nor do its metrics
-        updated_df = updated_df.ffill()
         
         # Saves the dataframe as CSV
         updated_df.to_csv( self.history_path, index = False, sep = ";" )
@@ -319,7 +320,6 @@ class FederatedServer(ModelHandler):
             local_return_dict = client.run_train_process(step_idx, 
                                     epoch_idx = current_epoch,
                                     num_epochs = step_num_epochs, 
-                                    # max_train_steps = 10,
                                     max_train_steps = max_train_steps,
                                     )
             
@@ -329,13 +329,8 @@ class FederatedServer(ModelHandler):
         
         # Combines all obtained metrics into a single DataFrame with each
         # individual value and their min/max/average values for each step
-        cross_val_df = self.combine_local_results(local_model_results)
-        
-        # Formats average results as dict, and prints its values
-        print(f"\n{step_idx-1}.5/{num_steps-1} Average Local Model Results:")
-        sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
-        cval_dict = {c: cross_val_df.iloc[-1][c] for c in sel_cols}
-        self.print_dict(cval_dict, round = True)
+        cross_val_df = self.combine_local_results(local_model_results, 
+                                                  is_train_history = True)
 
         # Adds a new column for the current Aggregation step
         step_ticks = [f"{step_idx}.{i+1}" for i in range(len(cross_val_df))]
@@ -453,26 +448,17 @@ class FederatedServer(ModelHandler):
   
         # Object responsible for plotting
         plotter = CustomPlots(self.model_path)
-        
-        # Plots complete training results
-        plotter.plot_fl_global_results( self.load_history(mode = "full"), 
-                                        prefix = "full" )
 
         # Plots only results realted to Global models
-        plotter.plot_fl_global_results( self.load_history(mode = "global"), 
-                                        prefix = "partial" )
+        plotter.plot_fl_global_results( self.load_history(mode = "global") )
         
         # Dict associating client_ids its client's dataset's name
         client_dset_dict = { _id: client.dataset.name for _id, client in\
                                                  self.client_dict.items() }
 
         # Plots results realted to each client's model
-        plotter.plot_fl_local_results( self.load_history(mode = "full"),
-                                       client_dset_dict, prefix = "full")
-
-        # Plots results realted to each client's model
         plotter.plot_fl_local_results( self.load_history(mode = "global"),
-                                       client_dset_dict, prefix = "partial")
+                                       client_dset_dict)
         
         return
     

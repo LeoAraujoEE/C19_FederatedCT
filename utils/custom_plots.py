@@ -78,7 +78,7 @@ class CustomPlots:
 
         return
     
-    def plot_fl_global_results( self, history_df, figsize = (16, 12), prefix = "full" ):
+    def plot_fl_global_results( self, history_df, figsize = (16, 12) ):
         # Converts dataframe to dict
         history = history_df.to_dict("list")
 
@@ -92,7 +92,7 @@ class CustomPlots:
         for metric in ["loss", "acc", "f1"]:
 
             # Defines the plot name
-            plot_name = f"{prefix}_global_{metric}.png"
+            plot_name = f"global_{metric}.png"
             plot_path = os.path.join( dst_dir, plot_name )
             
             # Extracts train values from history dict
@@ -106,8 +106,7 @@ class CustomPlots:
             max_val_values = history[f"max_val_{metric}"]
 
             # Steps.Epochs
-            xticks_labels = [str(i) for i in history["Step.Epoch"]]
-            vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v][1:]
+            xticks_labels = [int(i) for i in history["Step.Epoch"]]
             steps_epochs = range(len(xticks_labels))
 
             # Min/Max values to set plot's ylim
@@ -148,15 +147,12 @@ class CustomPlots:
                      linewidth = 1, linestyle = "--", label = max_label)
             plt.plot([steps_epochs[best_x]], [avg_train_values[best_x]], 
                       color = "blue", marker = "o")
-            plt.title(f"Training {metric.title()} x Step.Epoch", fontsize=24)
-            plt.xlabel("Steps.Epochs", fontsize=20 )
+            plt.title(f"Training {metric.title()} x Aggregation Step", 
+                      fontsize=24)
+            plt.xlabel("Aggregation Step", fontsize=20 )
             plt.xticks( steps_epochs, xticks_labels, fontsize=16 )
             plt.ylabel( metric.title(), fontsize=20 )
             plt.ylim(y_lims)
-            plt.vlines(x=vline_idxs, ymin = y_lims[0], ymax=y_lims[1],
-                       color = "k", linestyles="--", linewidth = 1, 
-                       label = "Aggregation")
-            # plt.legend(loc = leg_loc, fontsize=20)
             
             # Plots min/avg/max curves for training metrics
             plt.sca(axes.flat[1])
@@ -168,15 +164,12 @@ class CustomPlots:
                      linewidth = 1, linestyle = "--", label = max_label)
             plt.plot([steps_epochs[best_x]], [avg_val_values[best_x]], 
                      color = "blue", marker = "o")
-            plt.title(f"Validation {metric.title()} x Step.Epoch",fontsize=24)
-            plt.xlabel("Steps.Epochs", fontsize=20 )
+            plt.title(f"Validation {metric.title()} x Aggregation Step",
+                      fontsize=24)
+            plt.xlabel("Aggregation Step", fontsize=20 )
             plt.xticks(steps_epochs, xticks_labels, fontsize=16 )
             plt.ylabel(metric.title(), fontsize=20 )
             plt.ylim(y_lims)
-            plt.vlines(x = vline_idxs, ymin = y_lims[0], ymax=y_lims[1],
-                       color = "k", linestyles="--", linewidth = 1, 
-                       label = "Aggregation")
-            # plt.legend(loc = leg_loc, fontsize=20)
             
             handles, labels = axes.flat[1].get_legend_handles_labels()
             fig.legend( handles, labels, ncol = len(labels), 
@@ -188,7 +181,7 @@ class CustomPlots:
 
         return
     
-    def plot_fl_local_results( self, history_df, client_datasets, figsize = (16, 12), prefix = "full" ):
+    def plot_fl_local_results( self, history_df, client_datasets, figsize = (16, 12) ):
         # Converts dataframe to dict
         history = history_df.to_dict("list")
 
@@ -205,7 +198,7 @@ class CustomPlots:
             for metric in ["loss", "acc", "f1"]:
 
                 # Defines the plot name
-                plot_name = f"{prefix}_{client_name}_local_{metric}.png"
+                plot_name = f"{client_name}_local_{metric}.png"
                 plot_path = os.path.join( dst_dir, plot_name )
                 
                 # Extracts train and val values from history dict
@@ -213,8 +206,7 @@ class CustomPlots:
                 val_values = history[f"{client_name}_val_{metric}"]
 
                 # Steps.Epochs
-                xticks_labels = [str(i) for i in history["Step.Epoch"]]
-                vline_idxs = [i for i, v in enumerate(xticks_labels) if ".0" in v][1:]
+                xticks_labels = [int(i) for i in history["Step.Epoch"]]
                 steps_epochs = range(len(xticks_labels))
 
                 # Min/Max values to set plot's ylim
@@ -241,15 +233,12 @@ class CustomPlots:
                 plt.plot(steps_epochs, val_values, "b", label = "Validation")
                 plt.plot([steps_epochs[best_x]], [val_values[best_x]], 
                           color = "b", marker = "o")
-                plt.title(f"{metric.title()} x Step.Epoch - Client_" +
+                plt.title(f"{metric.title()} x Aggregation Step - Client_" +
                           f"{client_id} ({dset_name.title()})", fontsize=24)
                 plt.xlabel("Steps.Epochs", fontsize=20 )
                 plt.xticks( steps_epochs, xticks_labels, fontsize=16 )
                 plt.ylabel( metric.title(), fontsize=20 )
                 plt.ylim(y_lims)
-                plt.vlines(x=vline_idxs, ymin = y_lims[0], ymax=y_lims[1],
-                        color = "k", linestyles="--", linewidth = 1, 
-                        label = "Aggregation")
                 plt.legend(loc = leg_loc, fontsize=20)
 
                 # Saves & closes figure

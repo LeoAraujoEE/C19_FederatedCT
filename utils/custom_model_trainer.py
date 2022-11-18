@@ -649,18 +649,27 @@ class ModelTrainer(ModelHandler):
                      load_from = None ):
         
         # Announces the dataset used for training
-        print(f"\nTraining model '{self.model_fname}' on '{self.dataset.name}' dataset...")
+        print(f"\nTraining model '{self.model_fname}' on",
+              f" '{self.dataset.name}' dataset...")
 
+        # Boolean that specifies wether train results should be plotted or not
+        plot_bool = True
+        
         if load_from is None:
             # Creates the Model
             model_builder = ModelBuilder( self.model_path )
-            self.model = model_builder( hyperparameters, seed = hyperparameters["seed"] )
+            self.model = model_builder( hyperparameters, 
+                                       seed = hyperparameters["seed"] )
             
         else:
             # Loads weights from a specific path
             # Used when applying Federated learning
             print(f"\nLoading model from '{load_from}'...\n")
             self.model = self.load_model( load_from )
+            
+            # Doesn't plots results if a base model is being loaded
+            # as its implied these plots will be done somewherelse
+            plot_bool = False
         
         # Compiles the model
         self.prepare_model( hyperparameters )
@@ -669,15 +678,25 @@ class ModelTrainer(ModelHandler):
         callback_list = self.get_callback_list(hyperparameters)
 
         # Creates train data generator
-        train_datagen = CustomDataGenerator( self.dataset, "train", hyperparameters, aug_dict = aug_params, shuffle = True, 
-                                             sampling = hyperparameters["sampling"], seed = hyperparameters["seed"] )
-
-        # Creates validation data generator
-        val_datagen   = CustomDataGenerator( self.dataset, "val", hyperparameters, shuffle = False )
+        train_datagen = CustomDataGenerator( self.dataset, "train", 
+                              hyperparameters, aug_dict = aug_params, 
+                              shuffle = True, seed = hyperparameters["seed"], 
+                              sampling = hyperparameters["sampling"] )
 
         # Gets the number of samples and the number of batches using the current batchsize
-        val_steps   = len(val_datagen)
         train_steps = len(train_datagen)
+
+        # Only performs validation at the end of each step if 
+        # there's a variable to monitor
+        val_datagen, val_steps = None, None
+        if hyperparameters["monitor"] in ["val_loss", "val_acc", "val_f1"]:
+
+            # Creates validation data generator
+            val_datagen = CustomDataGenerator( self.dataset, "val", 
+                                               hyperparameters, 
+                                               shuffle = False )
+            val_steps   = len(val_datagen)
+            
         
         # Limits the maximum training steps if necessary
         if not max_steps is None:
@@ -724,11 +743,13 @@ class ModelTrainer(ModelHandler):
 
         # Extracts the dict with the training and validation values for loss and IoU during training
         history_dict = history.history
-  
-        # Object responsible for plotting
+        
         print(f"\nTrained model '{self.model_fname}'...")
-        plotter = CustomPlots(self.model_path)
-        plotter.plot_train_results( history_dict, self.dataset.name )
+  
+        # Plots training results
+        if plot_bool:
+            plotter = CustomPlots(self.model_path)
+            plotter.plot_train_results( history_dict, self.dataset.name )
 
         return history_dict, train_time
     
