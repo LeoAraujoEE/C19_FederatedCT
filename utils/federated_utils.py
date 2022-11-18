@@ -170,7 +170,7 @@ class FederatedServer(ModelHandler):
         self.print_dict(cval_dict, round = True)
 
         # Adds a new column for the current Aggregation step
-        cross_val_df.insert(0, "Step.Epoch", [f"{step_idx+1}.0"])
+        cross_val_df.insert(0, "Step.Epoch", [f"{step_idx}.0"])
     
         # Updates the server's CSV file with all computed metrics
         self.update_global_history(cross_val_df)

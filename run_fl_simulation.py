@@ -68,6 +68,9 @@ if federatedServer.check_step( ignore_check ):
 
     # Federated Learning loop
     for step in range(total_steps):
+        # Step starting time
+        step_t0 = time.time()
+        
         # If its the first step, creates and compiles the Model
         if step == 0:
             global_model_path = federatedServer.create_global_model()
@@ -90,6 +93,10 @@ if federatedServer.check_step( ignore_check ):
         # If so, updates the main weights file with the current weights
         federatedServer.model_checkpoint.create_checkpoint(monitored_val, 
                                                     global_model_path)
+        
+        # Prints the total time to complete the current step
+        print(f"\nCompleted Federated Learning Step #{step}/{total_steps} in",
+              f" {int(time.time()-step_t0)} seconds...")
         
         # Stops the training if EarlyStopping conditions are met
         if federatedServer.early_stopping.is_triggered(monitored_val, step):
