@@ -672,6 +672,11 @@ class FederatedClient():
         hyperparameters = self.hyperparameters.copy()
         hyperparameters["monitor"] = None
         
+        # Changes seed every step to reorder samples/change augmentation 
+        # during training. Otherwise each step would repeat samples every
+        # <steps_per_epoch> epochs
+        seed = hyperparameters["seed"] + step_idx
+        
         # Base args dict
         args = { "output_dir"        :                 self.dst_dir, 
                  "data_path"         :               self.data_path,
@@ -688,7 +693,7 @@ class FederatedClient():
                  "data_augmentation" :              self.aug_params,
                  "remove_unfinished" :                        False,
                  "verbose"           :                            0,
-                 "seed"              :      hyperparameters["seed"],
+                 "seed"              :                         seed,
                }
         
         # Serializes args dict as JSON formatted string

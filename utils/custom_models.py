@@ -168,9 +168,16 @@ class ModelBuilder:
         
         elif "mobilenet" in arch_name:
             builder = MobileNet()
-            alpha = float(hyperparameters["architecture"].split("_")[-1])
-            architecture_name = "_".join(hyperparameters["architecture"].split("_")[:-1])
-            print(f"Got Arq.: '{architecture_name}' with alpha: '{alpha}'")
+            # For the default names, alpha is considered to be 1.0
+            if (arch_name in ["mobilenetv2", "mobilenetv3_small", 
+                              "mobilenetv3_large"]):
+                alpha = 1.0
+                architecture_name = arch_name
+            
+            # Otherwise, extracts alpha from the architecture name
+            else:
+                alpha = float(hyperparameters["architecture"].split("_")[-1])
+                architecture_name = "_".join(hyperparameters["architecture"].split("_")[:-1])
             
             if architecture_name.lower() == "mobilenetv2":
                 model = builder.get_MobileNetV2( input_size, alpha, 6., 1, "sigmoid", "avg", 
