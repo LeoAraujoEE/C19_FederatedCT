@@ -164,7 +164,7 @@ class FederatedServer(ModelHandler):
                                                   is_train_history = False)
         
         # Formats average results as dict, and prints its values
-        print(f"\n{step_idx}.0/{num_steps-1} Average Global Model Results:")
+        print(f"\n{step_idx}/{num_steps-1} Average Global Model Results:")
         sel_cols  = [c for c in cross_val_df.columns if "avg_" in c]
         cval_dict = {c: cross_val_df.iloc[0][c] for c in sel_cols}
         self.print_dict(cval_dict, round = True)
@@ -240,12 +240,36 @@ class FederatedServer(ModelHandler):
                                         replace = False, shuffle = False )
         return selected_ids
     
-    def get_client_weights(self, selected_ids):
+    def get_client_weights(self, losses):
+        # Extracts selected ids from client_losses
+        selected_ids = list(losses.keys())
+        
+        # Smallest loss value recorded amongst clients in this step
+        min_loss = np.min(list(losses.values()))
     
+        # Number of samples for each available client
         samples = { _id: self.num_samples_dict[_id] for _id in selected_ids }
+        
+        # Total number of samples used in the current step
         total_samples = np.sum(list(samples.values()))
         
-        weights = { _id: s / total_samples  for _id, s in samples.items() }
+        weights = {}
+        for client_id in selected_ids:
+            # Extract the loss and the n° of samples for the current client
+            client_loss = losses[client_id]
+            client_samples = samples[client_id]
+            
+            # Computes the weight based on the current client's sample count
+            # Clients with higher sample count are prioritized
+            sample_w = (client_samples / total_samples)
+            
+            # Computes the weight based on the current client's loss
+            # To ensure fairness, clients with higher losses are prioritized
+            loss_w = (client_loss / min_loss) ** self.fl_params["fair_const"]
+            
+            # Gets the client's weight by multiplying the computed weights
+            weights[client_id] = loss_w * sample_w
+            
         
         return weights
     
@@ -301,9 +325,6 @@ class FederatedServer(ModelHandler):
         # Selects clients to the current round
         selected_ids = self.select_clients()
         
-        # Computes the weight of each client's gradients for the aggregation
-        client_weights = self.get_client_weights(selected_ids)
-        
         # Computes the maximum amount of training steps allowed
         max_train_steps = self.get_max_train_steps(selected_ids)
         
@@ -313,6 +334,7 @@ class FederatedServer(ModelHandler):
         
         # Dict to register model paths and number of samples
         local_model_paths = {}
+        local_model_losses = {}
         local_model_results = {}
         for client_id in selected_ids:
             # Trains a local model for the current selected client
@@ -326,6 +348,10 @@ class FederatedServer(ModelHandler):
             # Appends the path and results to corresponding the dicts
             local_model_paths[client_id] = local_return_dict["path"]
             local_model_results[client_id] = local_return_dict["results"]
+            
+            # Appends the final loss of each client to local_model_losses dict
+            local_model_loss = local_return_dict["results"]["loss"].to_list()
+            local_model_losses[client_id] = local_model_loss[-1]
         
         # Combines all obtained metrics into a single DataFrame with each
         # individual value and their min/max/average values for each step
@@ -339,7 +365,7 @@ class FederatedServer(ModelHandler):
         # Updates the server's CSV file with all computed metrics
         self.update_global_history(cross_val_df)
             
-        return client_weights, local_model_paths
+        return local_model_paths, local_model_losses
     
     def federated_average(self, local_model_paths, client_weights):
         
@@ -374,17 +400,20 @@ class FederatedServer(ModelHandler):
         
         return new_global_weights
     
-    def update_global_model( self, local_model_paths, client_weights, step ):
+    def update_global_model( self, local_model_paths, client_losses ):
         print("\nAggregating models:")
         
-        if self.fl_params['aggregation'].lower() == "fed_avg":
-            global_model_weights = self.federated_average( local_model_paths,
-                                                           client_weights )
+        # Computes the weight of each client's model for the aggregation
+        if self.fl_params["aggregation"].lower() in ["fed_avg", "fedavg"]:
+            client_weights = self.get_client_weights(client_losses)
         
+        # 
         else:
-            client_weights = { k: 1 for k in client_weights.keys() }
-            global_model_weights = self.federated_average( local_model_paths,
-                                                           client_weights )
+            client_weights = { k: 1 for k in client_losses.keys() }
+        
+        # Generates a new set of weights through federated_average
+        global_model_weights = self.federated_average( local_model_paths,
+                                                       client_weights )
         
         # Loads old model and replaces weights
         model = self.load_model(self.latest_model_path)

@@ -78,12 +78,12 @@ if federatedServer.check_step( ignore_check ):
         # Otherwise, trains local models to update the global model
         else:
             # 
-            client_weights, local_paths = federatedServer.train_local_models(step,
-                                                                    total_steps)
+            local_paths, local_losses = federatedServer.train_local_models(step, 
+                                                                           total_steps)
             
             # Updates global model
             global_model_path = federatedServer.update_global_model(local_paths,
-                                                        client_weights, step)
+                                                                    local_losses)
         
         # Passes the global model to all clients & gets their train/val metrics
         monitored_val = federatedServer.validate_global_model(global_model_path, 
