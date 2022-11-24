@@ -454,6 +454,11 @@ class FederatedServer(ModelHandler):
     
     def run_test_process( self ):
         
+        # Combines fl_params and hyperparameters so that 
+        # both are logged to the output CSV results file
+        test_hyperparams = self.fl_params.copy()
+        test_hyperparams.update(self.hyperparameters)
+        
         # Base args dict
         args = { "output_dir"         :                 self.dst_dir, 
                  "data_path"          :               self.data_path,
@@ -463,11 +468,11 @@ class FederatedServer(ModelHandler):
                  "model_hash"         :                self.model_id, 
                  "model_filename"     :             self.model_fname,
                  "eval_partition"     :                       "test",
-                 "hyperparameters"    :         self.hyperparameters,
+                 "hyperparameters"    :             test_hyperparams,
                  "data_augmentation"  :              self.aug_params,
                  "use_validation_data":                        False,
                  "verbose"            :                            0,
-                 "seed"               : self.hyperparameters["seed"],
+                 "seed"               :     test_hyperparams["seed"],
                }
         
         # Serializes args dict as JSON formatted string
