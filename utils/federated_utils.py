@@ -402,13 +402,22 @@ class FederatedServer(ModelHandler):
     
     def update_global_model( self, local_model_paths, client_losses ):
         print("\nAggregating models:")
+        allowed_aggregations = "fed_avg", "fedavg", "avg"
+        sel_aggregation = self.fl_params["aggregation"].lower()
+        assert sel_aggregation in ["fed_avg", "fedavg", "avg"],\
+            " ".join([f"Unknown aggregation '{sel_aggregation}',",
+                     f"use one of {allowed_aggregations}"])
         
         # Computes the weight of each client's model for the aggregation
-        if self.fl_params["aggregation"].lower() in ["fed_avg", "fedavg"]:
+        if sel_aggregation in ["fed_avg", "fedavg"]:
+            fair_const = self.fl_params["fair_const"]
+            print(f"\tUsing Federated Average with fainess constant",
+                  f"equal to {fair_const:.1f}...")
             client_weights = self.get_client_weights(client_losses)
         
         # 
         else:
+            print(f"\tUsing Simple Average...")
             client_weights = { k: 1 for k in client_losses.keys() }
         
         # Generates a new set of weights through federated_average
