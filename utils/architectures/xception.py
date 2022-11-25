@@ -24,7 +24,7 @@ class Xception:
         input_layer = tf.keras.layers.Input( shape = input_shape, name = "Input" )
         
         # Entry flow
-        x = Xception.entry_flow( x = input_layer, dropchance = 0, 
+        x = Xception.entry_flow( x = input_layer, dropchance = base_dropout,
                                 l1_val = l1_val, l2_val = l2_val )
         
         # Middle flow: Adds blocks according to 'num_middle_blocks'
@@ -148,7 +148,7 @@ class Xception:
         
         # Block 1
         x = Xception.conv_bn_relu( x, num_filters = 32, kernel_size = (3,3), strides = 2, padding = "valid", 
-                                   block = 1, num = 1, dropchance = dropchance, l1_val = l1_val, l2_val = l2_val)
+                                   block = 1, num = 1, dropchance = 0, l1_val = l1_val, l2_val = l2_val)
         
         x = Xception.conv_bn_relu( x, num_filters = 64, kernel_size = (3,3), strides = 1, padding = "valid", 
                                    block = 1, num = 2, dropchance = dropchance, l1_val = l1_val, l2_val = l2_val)
