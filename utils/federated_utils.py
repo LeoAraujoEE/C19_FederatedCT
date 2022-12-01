@@ -243,9 +243,6 @@ class FederatedServer(ModelHandler):
     def get_client_weights(self, losses):
         # Extracts selected ids from client_losses
         selected_ids = list(losses.keys())
-        
-        # Smallest loss value recorded amongst clients in this step
-        min_loss = np.min(list(losses.values()))
     
         # Number of samples for each available client
         samples = { _id: self.num_samples_dict[_id] for _id in selected_ids }
@@ -265,7 +262,8 @@ class FederatedServer(ModelHandler):
             
             # Computes the weight based on the current client's loss
             # To ensure fairness, clients with higher losses are prioritized
-            loss_w = (client_loss / min_loss) ** self.fl_params["fair_const"]
+            q = self.fl_params["fair_const"]
+            loss_w = (client_loss ** q) / (q + 1)
             
             # Gets the client's weight by multiplying the computed weights
             weights[client_id] = loss_w * sample_w
@@ -411,7 +409,7 @@ class FederatedServer(ModelHandler):
         # Computes the weight of each client's model for the aggregation
         if sel_aggregation in ["fed_avg", "fedavg"]:
             fair_const = self.fl_params["fair_const"]
-            print(f"\tUsing Federated Average with fainess constant",
+            print(f"\tUsing Federated Average with fairness constant",
                   f"equal to {fair_const:.1f}...")
             client_weights = self.get_client_weights(client_losses)
         

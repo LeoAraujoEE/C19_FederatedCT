@@ -57,6 +57,10 @@ class FederatedModelCheckpoint(FederatedCallback):
                   f"{self.prev_best:.4f} to {self.best_val:.4f}. Saving",
                   f"model to '{self.ckpt_weights_path}'...")
             self.copy_weights(src_weights_path, self.ckpt_weights_path)
+            return
+        
+        print(f"\nGlobal model's '{self.monitor_var}' did not improve from",
+                f"{self.prev_best:.4f}...")
         return
     
     @staticmethod

@@ -95,8 +95,8 @@ if federatedServer.check_step( ignore_check ):
                                                     global_model_path)
         
         # Prints the total time to complete the current step
-        print(f"\nCompleted Federated Learning Step #{step}/{total_steps} in",
-              f"{int(time.time()-step_t0)} seconds...")
+        print(f"\nCompleted Federated Learning Step #{step}/{total_steps-1}",
+              f"in {int(time.time()-step_t0)} seconds...")
         
         # Stops the training if EarlyStopping conditions are met
         if federatedServer.early_stopping.is_triggered(monitored_val, step):
